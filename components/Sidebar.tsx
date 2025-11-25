@@ -1,0 +1,78 @@
+import React from 'react';
+import { NavLink } from 'react-router-dom';
+import { 
+  LayoutDashboard, 
+  Package, 
+  ShoppingCart, 
+  Wallet, 
+  Users, 
+  Settings, 
+  LogOut 
+} from 'lucide-react';
+
+interface SidebarProps {
+  onLogout: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
+  const navItems = [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
+    { to: '/dashboard/inventory', icon: Package, label: 'Inventory' },
+    { to: '/dashboard/sales', icon: ShoppingCart, label: 'Sales & Invoices' },
+    { to: '/dashboard/finance', icon: Wallet, label: 'Finance' },
+    { to: '/dashboard/partners', icon: Users, label: 'Customers & Vendors' },
+  ];
+
+  return (
+    <aside className="w-64 bg-slate-900 text-white flex flex-col h-screen fixed left-0 top-0 overflow-y-auto z-50">
+      <div className="p-6 border-b border-slate-800">
+        <div className="flex items-center gap-3">
+           <div className="relative w-10 h-10 flex items-center justify-center bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl shadow-lg shadow-brand-900/40">
+              <div className="absolute inset-0 rounded-xl border border-white/10"></div>
+              <span className="font-display font-bold text-white text-lg tracking-tight">LT</span>
+           </div>
+           <div>
+             <h2 className="text-xl font-display font-bold text-white tracking-wide leading-none">LALANI</h2>
+             <p className="text-[10px] text-brand-500 font-bold tracking-[0.2em] uppercase mt-0.5">Traders</p>
+           </div>
+        </div>
+      </div>
+
+      <nav className="flex-1 py-6 px-3 space-y-1">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.exact}
+            className={({ isActive }) =>
+              `flex items-center px-4 py-3 rounded-lg transition-all duration-200 group ${
+                isActive 
+                  ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/50' 
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+              }`
+            }
+          >
+            <item.icon className="w-5 h-5 mr-3" />
+            <span className="font-medium">{item.label}</span>
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className="p-4 border-t border-slate-800">
+        <button className="flex items-center text-slate-400 hover:text-white transition-colors px-4 py-2 w-full text-left rounded-lg hover:bg-slate-800 mb-2">
+          <Settings className="w-5 h-5 mr-3" />
+          Settings
+        </button>
+        <button 
+          onClick={onLogout}
+          className="flex items-center text-red-400 hover:text-red-300 transition-colors px-4 py-2 w-full text-left rounded-lg hover:bg-red-900/20"
+        >
+          <LogOut className="w-5 h-5 mr-3" />
+          Sign Out
+        </button>
+      </div>
+    </aside>
+  );
+};
+
+export default Sidebar;
