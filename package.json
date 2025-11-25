@@ -1,3 +1,4 @@
+
 {
   "name": "lalani-traders-system",
   "version": "1.0.0",
@@ -7,8 +8,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "start": "node server/index.js",
-    "server": "node server/index.js"
+    "start": "node server.js",
+    "server": "node server.js"
   },
   "dependencies": {
     "react": "^18.3.1",
