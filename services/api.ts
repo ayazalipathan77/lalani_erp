@@ -22,7 +22,7 @@ import {
   mockUsers
 } from './mockData';
 
-const USE_MOCK = true; // Toggle this to false when connecting to real backend
+const USE_MOCK = false; // Set to false to connect to Render Backend
 
 // --- MOCK STATE MANAGEMENT ---
 // We initialize local state from mockData to allow mutations during the session
@@ -44,23 +44,19 @@ export const api = {
     login: async (username: string, password: string): Promise<User> => {
       if (USE_MOCK) {
         await delay(500);
-        // Normalize username (trim and lower case) for better UX
         const cleanUsername = username.trim().toLowerCase();
-        
         const user = _users.find(u => 
           u.username.toLowerCase() === cleanUsername && 
           u.password === password && 
           u.is_active === 'Y'
         );
-
         if (user) {
-          // Return user without password
           const { password, ...userWithoutPass } = user;
           return userWithoutPass as User;
         }
         throw new Error('Invalid credentials');
       }
-      const res = await fetch('http://localhost:5000/api/auth/login', {
+      const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
@@ -75,15 +71,14 @@ export const api = {
       getAll: async (): Promise<User[]> => {
           if (USE_MOCK) {
               await delay(300);
-              return _users.map(({password, ...u}) => u as User); // Hide passwords
+              return _users.map(({password, ...u}) => u as User);
           }
-          const res = await fetch('http://localhost:5000/api/users');
+          const res = await fetch('/api/users');
           return res.json();
       },
       create: async (user: Omit<User, 'user_id'>): Promise<User> => {
           if (USE_MOCK) {
               await delay(300);
-              // Check if username exists
               if (_users.some(u => u.username.toLowerCase() === user.username.toLowerCase())) {
                   throw new Error("Username already exists");
               }
@@ -92,7 +87,13 @@ export const api = {
               const { password, ...safeUser } = newUser;
               return safeUser as User;
           }
-          return {} as User;
+          const res = await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(user)
+          });
+          if(!res.ok) throw new Error('Failed to create user');
+          return res.json();
       },
       update: async (id: number, data: Partial<User>): Promise<User> => {
           if (USE_MOCK) {
@@ -105,7 +106,12 @@ export const api = {
               }
               throw new Error("User not found");
           }
-          return {} as User;
+          const res = await fetch(`/api/users/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          return res.json();
       },
       delete: async (id: number): Promise<void> => {
           if (USE_MOCK) {
@@ -113,6 +119,7 @@ export const api = {
               _users = _users.filter(u => u.user_id !== id);
               return;
           }
+          await fetch(`/api/users/${id}`, { method: 'DELETE' });
       }
   },
 
@@ -123,7 +130,7 @@ export const api = {
         await delay(300);
         return [..._products];
       }
-      const res = await fetch('http://localhost:5000/api/products');
+      const res = await fetch('/api/products');
       return res.json();
     },
     create: async (product: Omit<Product, 'prod_id'>): Promise<Product> => {
@@ -133,7 +140,7 @@ export const api = {
         _products.push(newProduct);
         return newProduct;
       }
-      const res = await fetch('http://localhost:5000/api/products', {
+      const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(product),
@@ -150,7 +157,7 @@ export const api = {
         }
         throw new Error('Product not found');
       }
-      const res = await fetch(`http://localhost:5000/api/products/${id}`, {
+      const res = await fetch(`/api/products/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(product),
@@ -163,7 +170,7 @@ export const api = {
         _products = _products.filter(p => p.prod_id !== id);
         return;
       }
-      await fetch(`http://localhost:5000/api/products/${id}`, { method: 'DELETE' });
+      await fetch(`/api/products/${id}`, { method: 'DELETE' });
     }
   },
 
@@ -174,7 +181,7 @@ export const api = {
         await delay(300);
         return [..._customers];
       }
-      const res = await fetch('http://localhost:5000/api/customers');
+      const res = await fetch('/api/customers');
       return res.json();
     },
     create: async (customer: Omit<Customer, 'cust_id'>): Promise<Customer> => {
@@ -184,8 +191,12 @@ export const api = {
             _customers.push(newCustomer);
             return newCustomer;
         }
-        // Real API call would go here
-        return {} as Customer;
+        const res = await fetch('/api/customers', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(customer)
+        });
+        return res.json();
     },
     update: async (id: number, data: Partial<Customer>): Promise<Customer> => {
         if (USE_MOCK) {
@@ -197,7 +208,12 @@ export const api = {
             }
             throw new Error("Customer not found");
         }
-        return {} as Customer;
+        const res = await fetch(`/api/customers/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        return res.json();
     },
     delete: async (id: number): Promise<void> => {
         if (USE_MOCK) {
@@ -205,6 +221,7 @@ export const api = {
             _customers = _customers.filter(c => c.cust_id !== id);
             return;
         }
+        await fetch(`/api/customers/${id}`, { method: 'DELETE' });
     }
   },
   suppliers: {
@@ -213,7 +230,7 @@ export const api = {
         await delay(300);
         return [..._suppliers];
       }
-      const res = await fetch('http://localhost:5000/api/suppliers');
+      const res = await fetch('/api/suppliers');
       return res.json();
     },
     create: async (supplier: Omit<Supplier, 'supplier_id'>): Promise<Supplier> => {
@@ -223,7 +240,12 @@ export const api = {
             _suppliers.push(newSupplier);
             return newSupplier;
         }
-        return {} as Supplier;
+        const res = await fetch('/api/suppliers', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(supplier)
+        });
+        return res.json();
     },
     update: async (id: number, data: Partial<Supplier>): Promise<Supplier> => {
         if (USE_MOCK) {
@@ -235,7 +257,12 @@ export const api = {
             }
             throw new Error("Supplier not found");
         }
-        return {} as Supplier;
+        const res = await fetch(`/api/suppliers/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        return res.json();
     },
     delete: async (id: number): Promise<void> => {
         if (USE_MOCK) {
@@ -243,6 +270,7 @@ export const api = {
             _suppliers = _suppliers.filter(s => s.supplier_id !== id);
             return;
         }
+        await fetch(`/api/suppliers/${id}`, { method: 'DELETE' });
     }
   },
 
@@ -253,7 +281,7 @@ export const api = {
         await delay(300);
         return [..._invoices];
       }
-      const res = await fetch('http://localhost:5000/api/invoices');
+      const res = await fetch('/api/invoices');
       return res.json();
     },
     create: async (invoiceData: { 
@@ -263,15 +291,13 @@ export const api = {
       status: 'PAID' | 'PENDING' 
     }): Promise<SalesInvoice> => {
       if (USE_MOCK) {
-        await delay(500); // Simulate processing
+        await delay(500);
         
-        // 1. Calculate Totals
         const subtotal = invoiceData.items.reduce((acc, item) => acc + item.line_total, 0);
-        const tax = subtotal * 0.05; // 5% tax
+        const tax = subtotal * 0.05;
         const total = subtotal + tax;
         const balance = invoiceData.status === 'PAID' ? 0 : total;
 
-        // 2. Create Invoice
         const newInvoice: SalesInvoice = {
             inv_id: Math.max(0, ..._invoices.map(i => i.inv_id)) + 1,
             inv_number: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -284,7 +310,6 @@ export const api = {
         };
         _invoices.unshift(newInvoice);
 
-        // 3. Update Inventory (Reduce Stock)
         invoiceData.items.forEach(item => {
             const prodIdx = _products.findIndex(p => p.prod_code === item.prod_code);
             if (prodIdx !== -1) {
@@ -292,7 +317,6 @@ export const api = {
             }
         });
 
-        // 4. Update Customer Balance (if Pending)
         if (invoiceData.status === 'PENDING') {
             const custIdx = _customers.findIndex(c => c.cust_code === invoiceData.cust_code);
             if (custIdx !== -1) {
@@ -300,14 +324,13 @@ export const api = {
             }
         }
 
-        // 5. Update Ledger (if Paid)
         if (invoiceData.status === 'PAID') {
             const trans: CashTransaction = {
                 trans_id: Math.max(0, ..._transactions.map(t => t.trans_id)) + 1,
                 trans_date: invoiceData.date,
                 trans_type: 'SALES',
                 description: `Cash Sale - ${newInvoice.inv_number} - ${invoiceData.cust_code}`,
-                debit_amount: total, // Money In
+                debit_amount: total, 
                 credit_amount: 0
             };
             _transactions.unshift(trans);
@@ -315,8 +338,14 @@ export const api = {
 
         return newInvoice;
       }
-      // Real API implementation omitted
-      return {} as SalesInvoice;
+      
+      const res = await fetch('/api/invoices', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(invoiceData)
+      });
+      if (!res.ok) throw new Error("Failed to create invoice");
+      return res.json();
     }
   },
 
@@ -327,14 +356,16 @@ export const api = {
         await delay(300);
         return [..._transactions];
       }
-      return [];
+      const res = await fetch('/api/finance/transactions');
+      return res.json();
     },
     getExpenses: async (): Promise<Expense[]> => {
       if (USE_MOCK) {
         await delay(300);
         return [..._expenses];
       }
-      return [];
+      const res = await fetch('/api/finance/expenses');
+      return res.json();
     },
     addExpense: async (expense: Omit<Expense, 'expense_id'>): Promise<Expense> => {
         if (USE_MOCK) {
@@ -345,7 +376,6 @@ export const api = {
             };
             _expenses.unshift(newExpense);
 
-            // Add to Ledger
             const trans: CashTransaction = {
                 trans_id: Math.max(0, ..._transactions.map(t => t.trans_id)) + 1,
                 trans_date: expense.expense_date,
@@ -357,9 +387,13 @@ export const api = {
             _transactions.unshift(trans);
             return newExpense;
         }
-        return {} as Expense;
+        const res = await fetch('/api/finance/expenses', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(expense)
+        });
+        return res.json();
     },
-    // Handles Money In (Receipts) and Money Out (Supplier Payments)
     addPayment: async (data: { 
         type: 'RECEIPT' | 'PAYMENT', 
         party_code: string, 
@@ -370,7 +404,6 @@ export const api = {
         if (USE_MOCK) {
             await delay(300);
             
-            // 1. Create Ledger Entry
             const trans: CashTransaction = {
                 trans_id: Math.max(0, ..._transactions.map(t => t.trans_id)) + 1,
                 trans_date: data.date,
@@ -381,15 +414,12 @@ export const api = {
             };
             _transactions.unshift(trans);
 
-            // 2. Update Party Balance
             if (data.type === 'RECEIPT') {
-                // Customer paying us, balance decreases
                 const custIdx = _customers.findIndex(c => c.cust_code === data.party_code);
                 if (custIdx !== -1) {
                     _customers[custIdx].outstanding_balance -= data.amount;
                 }
             } else {
-                // We paying Supplier, balance decreases
                 const supIdx = _suppliers.findIndex(s => s.supplier_code === data.party_code);
                 if (supIdx !== -1) {
                     _suppliers[supIdx].outstanding_balance -= data.amount;
@@ -397,7 +427,12 @@ export const api = {
             }
             return trans;
         }
-        return {} as CashTransaction;
+        const res = await fetch('/api/finance/payment', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        return res.json();
     }
   },
 
@@ -405,7 +440,8 @@ export const api = {
   categories: {
       getAll: async (): Promise<Category[]> => {
           if(USE_MOCK) return [..._categories];
-          return [];
+          const res = await fetch('/api/categories');
+          return res.json();
       }
   }
 };
