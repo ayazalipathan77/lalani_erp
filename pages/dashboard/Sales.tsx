@@ -1,18 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft } from 'lucide-react';
-import { mockInvoices, mockCustomers, mockProducts } from '../../services/mockData';
-import { SalesInvoiceItem, SalesInvoice } from '../../types';
+import { api } from '../../services/api';
+import { SalesInvoiceItem, SalesInvoice, Product, Customer } from '../../types';
 
 const Sales: React.FC = () => {
   const [view, setView] = useState<'list' | 'create'>('list');
+  const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Create Invoice State
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentStatus, setPaymentStatus] = useState<'PENDING' | 'PAID'>('PENDING');
   const [cartItems, setCartItems] = useState<SalesInvoiceItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [qty, setQty] = useState(1);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+        const [invs, prods, custs] = await Promise.all([
+            api.invoices.getAll(),
+            api.products.getAll(),
+            api.customers.getAll()
+        ]);
+        setInvoices(invs);
+        setProducts(prods);
+        setCustomers(custs);
+    } catch (e) {
+        console.error(e);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   // Calculations
   const subtotal = cartItems.reduce((acc, item) => acc + item.line_total, 0);
@@ -21,8 +48,14 @@ const Sales: React.FC = () => {
 
   const handleAddItem = () => {
     if (!selectedProduct || qty <= 0) return;
-    const product = mockProducts.find(p => p.prod_code === selectedProduct);
+    const product = products.find(p => p.prod_code === selectedProduct);
     if (!product) return;
+
+    // Check Stock
+    if (product.current_stock < qty) {
+        alert(`Insufficient stock! Available: ${product.current_stock}`);
+        return;
+    }
 
     const newItem: SalesInvoiceItem = {
       prod_code: product.prod_code,
@@ -43,7 +76,30 @@ const Sales: React.FC = () => {
     setCartItems(newItems);
   };
 
-  const filteredInvoices = mockInvoices.filter(inv => 
+  const handleFinalizeInvoice = async () => {
+      if(!selectedCustomer || cartItems.length === 0) return;
+      
+      try {
+          await api.invoices.create({
+              cust_code: selectedCustomer,
+              items: cartItems,
+              date: invoiceDate,
+              status: paymentStatus
+          });
+          
+          alert("Invoice Created Successfully!");
+          
+          // Reset
+          setCartItems([]);
+          setSelectedCustomer('');
+          setView('list');
+          fetchData(); // Refresh list
+      } catch (error) {
+          console.error("Failed to create invoice", error);
+      }
+  };
+
+  const filteredInvoices = invoices.filter(inv => 
     inv.inv_number.toLowerCase().includes(searchTerm.toLowerCase()) || 
     inv.cust_code.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -94,11 +150,14 @@ const Sales: React.FC = () => {
                   <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Amount</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Balance</th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
-                {filteredInvoices.map((inv) => (
+                {isLoading ? (
+                    <tr><td colSpan={7} className="text-center py-8 text-slate-500">Loading invoices...</td></tr>
+                ) : filteredInvoices.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-8 text-slate-500">No invoices found.</td></tr>
+                ) : filteredInvoices.map((inv) => (
                   <tr key={inv.inv_id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-600">{inv.inv_number}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{inv.inv_date}</td>
@@ -112,9 +171,6 @@ const Sales: React.FC = () => {
                           'bg-red-100 text-red-800'}`}>
                         {inv.status}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-slate-400 hover:text-brand-600">View</button>
                     </td>
                   </tr>
                 ))}
@@ -144,8 +200,8 @@ const Sales: React.FC = () => {
                                 onChange={(e) => setSelectedProduct(e.target.value)}
                             >
                                 <option value="">-- Choose Product --</option>
-                                {mockProducts.map(p => (
-                                    <option key={p.prod_code} value={p.prod_code}>
+                                {products.map(p => (
+                                    <option key={p.prod_code} value={p.prod_code} disabled={p.current_stock <= 0}>
                                         {p.prod_name} - (Stk: {p.current_stock})
                                     </option>
                                 ))}
@@ -164,7 +220,8 @@ const Sales: React.FC = () => {
                         <div className="md:col-span-2 flex items-end">
                             <button 
                                 onClick={handleAddItem}
-                                className="w-full bg-slate-900 text-white px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors flex items-center justify-center"
+                                disabled={!selectedProduct}
+                                className="w-full bg-slate-900 text-white px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors flex items-center justify-center disabled:opacity-50"
                             >
                                 <Plus className="w-4 h-4" />
                             </button>
@@ -227,7 +284,7 @@ const Sales: React.FC = () => {
                                 onChange={(e) => setSelectedCustomer(e.target.value)}
                             >
                                 <option value="">Select Customer</option>
-                                {mockCustomers.map(c => (
+                                {customers.map(c => (
                                     <option key={c.cust_code} value={c.cust_code}>{c.cust_name}</option>
                                 ))}
                             </select>
@@ -243,6 +300,18 @@ const Sales: React.FC = () => {
                                 value={invoiceDate}
                                 onChange={(e) => setInvoiceDate(e.target.value)}
                             />
+                        </div>
+
+                         <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                            <select 
+                                className="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-brand-500 focus:border-brand-500 sm:text-sm p-2.5 border"
+                                value={paymentStatus}
+                                onChange={(e) => setPaymentStatus(e.target.value as any)}
+                            >
+                                <option value="PENDING">Credit (Pending)</option>
+                                <option value="PAID">Cash (Paid)</option>
+                            </select>
                         </div>
                     </div>
 
@@ -262,6 +331,7 @@ const Sales: React.FC = () => {
                     </div>
 
                     <button 
+                        onClick={handleFinalizeInvoice}
                         className={`w-full mt-6 py-3 px-4 rounded-lg font-medium shadow-lg transition-all flex items-center justify-center
                         ${cartItems.length > 0 && selectedCustomer ? 'bg-brand-600 text-white hover:bg-brand-700 shadow-brand-500/30' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
                         disabled={cartItems.length === 0 || !selectedCustomer}
