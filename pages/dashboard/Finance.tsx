@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Wallet, TrendingUp, TrendingDown, Plus, FileText, X, CheckCircle } from 'lucide-react';
 import { api } from '../../services/api';
@@ -301,7 +302,11 @@ const Finance: React.FC = () => {
                      </div>
                      <form onSubmit={handleProcessPayment} className="p-6 space-y-4">
                         <div className="flex space-x-4 mb-4">
-                            <label className={`flex-1 border rounded-lg p-3 text-center cursor-pointer ${paymentForm.type === 'RECEIPT' ? 'bg-green-50 border-green-500 text-green-700' : 'border-slate-200'}`}>
+                            <label className={`flex-1 border rounded-lg p-3 text-center cursor-pointer transition-colors ${
+                                paymentForm.type === 'RECEIPT' 
+                                    ? 'bg-green-50 border-green-500 text-green-700' 
+                                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}>
                                 <input type="radio" name="ptype" className="hidden" 
                                     checked={paymentForm.type === 'RECEIPT'} 
                                     onChange={() => setPaymentForm({...paymentForm, type: 'RECEIPT', party_code: ''})} 
@@ -309,7 +314,11 @@ const Finance: React.FC = () => {
                                 <div className="font-bold">Receipt</div>
                                 <div className="text-xs">Money In (From Customer)</div>
                             </label>
-                            <label className={`flex-1 border rounded-lg p-3 text-center cursor-pointer ${paymentForm.type === 'PAYMENT' ? 'bg-red-50 border-red-500 text-red-700' : 'border-slate-200'}`}>
+                            <label className={`flex-1 border rounded-lg p-3 text-center cursor-pointer transition-colors ${
+                                paymentForm.type === 'PAYMENT' 
+                                    ? 'bg-red-50 border-red-500 text-red-700' 
+                                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}>
                                 <input type="radio" name="ptype" className="hidden" 
                                     checked={paymentForm.type === 'PAYMENT'} 
                                     onChange={() => setPaymentForm({...paymentForm, type: 'PAYMENT', party_code: ''})} 
