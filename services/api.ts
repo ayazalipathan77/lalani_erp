@@ -1,3 +1,5 @@
+
+
 import { 
   Product, 
   Customer, 
@@ -42,7 +44,15 @@ export const api = {
     login: async (username: string, password: string): Promise<User> => {
       if (USE_MOCK) {
         await delay(500);
-        const user = _users.find(u => u.username === username && u.password === password && u.is_active === 'Y');
+        // Normalize username (trim and lower case) for better UX
+        const cleanUsername = username.trim().toLowerCase();
+        
+        const user = _users.find(u => 
+          u.username.toLowerCase() === cleanUsername && 
+          u.password === password && 
+          u.is_active === 'Y'
+        );
+
         if (user) {
           // Return user without password
           const { password, ...userWithoutPass } = user;
@@ -74,7 +84,7 @@ export const api = {
           if (USE_MOCK) {
               await delay(300);
               // Check if username exists
-              if (_users.some(u => u.username === user.username)) {
+              if (_users.some(u => u.username.toLowerCase() === user.username.toLowerCase())) {
                   throw new Error("Username already exists");
               }
               const newUser = { ...user, user_id: Math.max(0, ..._users.map(u => u.user_id)) + 1 };

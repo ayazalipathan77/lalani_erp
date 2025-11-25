@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Truck, ShieldCheck, BarChart3, MapPin, ArrowRight, ChevronRight, X, AlertCircle } from 'lucide-react';
 import { api } from '../services/api';
@@ -28,6 +29,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
     }
   };
 
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
       {/* Navigation */}
@@ -47,9 +55,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                </div>
             </div>
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#about" className="text-slate-600 hover:text-brand-600 font-medium transition-colors">About Us</a>
-              <a href="#services" className="text-slate-600 hover:text-brand-600 font-medium transition-colors">Services</a>
-              <a href="#coverage" className="text-slate-600 hover:text-brand-600 font-medium transition-colors">Coverage</a>
+              <button onClick={() => scrollToSection('about')} className="text-slate-600 hover:text-brand-600 font-medium transition-colors">About Us</button>
+              <button onClick={() => scrollToSection('services')} className="text-slate-600 hover:text-brand-600 font-medium transition-colors">Services</button>
+              <button onClick={() => scrollToSection('coverage')} className="text-slate-600 hover:text-brand-600 font-medium transition-colors">Coverage</button>
               <button 
                 onClick={() => setIsLoginOpen(true)}
                 className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2 rounded-full font-medium transition-all shadow-lg shadow-brand-500/30 flex items-center"
@@ -63,24 +71,28 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       </nav>
 
       {/* Hero Section */}
-      <header className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden bg-slate-900">
-        <div className="absolute inset-0 z-0 opacity-40">
-           {/* Placeholder for background video/image */}
+      <header id="about" className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden bg-slate-900">
+        <div className="absolute inset-0 z-0">
+           {/* High quality commercial style image with NO opacity class to ensure it's visible */}
            <img 
             src="https://images.unsplash.com/photo-1578844251758-2f71da645217?q=80&w=2070&auto=format&fit=crop" 
-            alt="Tire Warehouse" 
+            alt="Premium Tire Commercial Background" 
             className="w-full h-full object-cover"
            />
+           {/* Subtle darkening overlay for contrast without hiding the image */}
+           <div className="absolute inset-0 bg-slate-900/40"></div>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900/90 to-transparent z-10"></div>
+        
+        {/* Gradient Overlay for Text Readability - Fades to transparent to show image on right */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent z-10"></div>
         
         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="lg:w-2/3">
-            <h1 className="text-5xl lg:text-7xl font-display font-bold text-white mb-6 leading-tight">
+            <h1 className="text-5xl lg:text-7xl font-display font-bold text-white mb-6 leading-tight drop-shadow-lg">
               Moving Sindh Forward <br/>
               <span className="text-brand-500">One Wheel at a Time</span>
             </h1>
-            <p className="text-xl text-slate-300 mb-8 max-w-2xl leading-relaxed">
+            <p className="text-xl text-slate-200 mb-8 max-w-2xl leading-relaxed drop-shadow-md">
               Lalani Traders is the premier tire and tube distribution network serving vendors across Karachi, Hyderabad, Sukkur, and beyond. We connect global brands with local mobility.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -91,12 +103,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                 Access Dealer Portal
                 <ChevronRight className="w-5 h-5 ml-2" />
               </button>
-              <a 
-                href="#contact"
-                className="bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-4 rounded-lg font-bold text-lg transition-all flex items-center justify-center"
+              <button 
+                onClick={() => scrollToSection('contact')}
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/30 backdrop-blur-sm px-8 py-4 rounded-lg font-bold text-lg transition-all flex items-center justify-center"
               >
                 Become a Partner
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -144,8 +156,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-20 bg-slate-900 text-white">
+      {/* Stats Section / Coverage */}
+      <section id="coverage" className="py-20 bg-slate-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
@@ -169,7 +181,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-950 text-slate-400 py-12 border-t border-slate-800">
+      <footer id="contact" className="bg-slate-950 text-slate-400 py-12 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
           <div className="mb-6 md:mb-0">
              <div className="flex items-center gap-3 mb-4">
@@ -188,9 +200,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             </p>
           </div>
           <div className="flex space-x-6 text-sm">
-            <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-white transition-colors">Contact Support</a>
+            <button className="hover:text-white transition-colors">Privacy Policy</button>
+            <button className="hover:text-white transition-colors">Terms of Service</button>
+            <button className="hover:text-white transition-colors">Contact Support</button>
           </div>
           <div className="mt-6 md:mt-0 flex items-center">
             <MapPin className="w-5 h-5 mr-2 text-brand-500" />
@@ -269,7 +281,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
              </div>
              <div className="bg-slate-50 px-8 py-4 border-t border-slate-100 text-center">
                 <span className="text-sm text-slate-600">Don't have an account? </span>
-                <a href="#contact" onClick={() => setIsLoginOpen(false)} className="text-sm font-bold text-brand-600 hover:text-brand-700">Contact Admin</a>
+                <button onClick={() => { setIsLoginOpen(false); scrollToSection('contact'); }} className="text-sm font-bold text-brand-600 hover:text-brand-700">Contact Admin</button>
              </div>
           </div>
         </div>

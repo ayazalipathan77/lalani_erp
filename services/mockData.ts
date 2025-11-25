@@ -1,8 +1,32 @@
+
 import { Product, Customer, Supplier, SalesInvoice, Expense, CashTransaction, Category, User } from '../types';
 
 export const mockUsers: User[] = [
-  { user_id: 1, username: 'admin', password: '123', full_name: 'System Administrator', role: 'ADMIN', is_active: 'Y' },
-  { user_id: 2, username: 'user', password: '123', full_name: 'Sales Agent', role: 'USER', is_active: 'Y' }
+  { 
+    user_id: 1, 
+    username: 'admin', 
+    password: '123', 
+    full_name: 'System Administrator', 
+    role: 'ADMIN', 
+    is_active: 'Y',
+    permissions: [
+        'INVENTORY_VIEW', 'INVENTORY_MANAGE', 
+        'SALES_VIEW', 'SALES_MANAGE', 
+        'FINANCE_VIEW', 'FINANCE_MANAGE', 
+        'PARTNERS_VIEW', 'PARTNERS_MANAGE', 
+        'USERS_VIEW', 'USERS_MANAGE',
+        'REPORTS_VIEW'
+    ]
+  },
+  { 
+    user_id: 2, 
+    username: 'user', 
+    password: '123', 
+    full_name: 'Sales Agent', 
+    role: 'USER', 
+    is_active: 'Y',
+    permissions: ['INVENTORY_VIEW', 'SALES_VIEW', 'SALES_MANAGE', 'PARTNERS_VIEW']
+  }
 ];
 
 export const mockCategories: Category[] = [

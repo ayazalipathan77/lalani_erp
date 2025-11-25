@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { 
   BarChart, 
   Bar, 
@@ -10,10 +11,11 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import { DollarSign, ShoppingBag, Users, TrendingUp, AlertCircle } from 'lucide-react';
+import { DollarSign, ShoppingBag, Users, TrendingUp, AlertCircle, ArrowRight } from 'lucide-react';
 import { salesData, mockInvoices, mockCustomers, mockProducts } from '../../services/mockData';
 
 const DashboardHome: React.FC = () => {
+  const navigate = useNavigate();
   const totalRevenue = mockInvoices.reduce((acc, curr) => acc + curr.total_amount, 0);
   const pendingAmount = mockInvoices.filter(i => i.status !== 'PAID').reduce((acc, curr) => acc + curr.balance_due, 0);
   const lowStockCount = mockProducts.filter(p => p.current_stock <= p.min_stock_level).length;
@@ -130,7 +132,12 @@ const DashboardHome: React.FC = () => {
             </table>
           </div>
           <div className="mt-4 text-center">
-            <button className="text-brand-600 hover:text-brand-700 text-sm font-medium">View All Invoices</button>
+            <Link 
+              to="/dashboard/sales"
+              className="text-brand-600 hover:text-brand-700 text-sm font-medium hover:underline inline-flex items-center"
+            >
+              View All Invoices <ArrowRight className="w-4 h-4 ml-1" />
+            </Link>
           </div>
         </div>
       </div>

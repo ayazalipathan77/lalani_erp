@@ -1,3 +1,5 @@
+
+
 export interface Company {
   comp_code: string;
   comp_name: string;
@@ -13,6 +15,7 @@ export interface User {
   full_name: string;
   role: 'ADMIN' | 'USER';
   is_active: 'Y' | 'N';
+  permissions: string[]; // List of granular permissions (e.g., 'INVENTORY_VIEW', 'SALES_MANAGE')
 }
 
 export interface Customer {
