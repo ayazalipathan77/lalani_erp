@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { Sparkles, Image as ImageIcon, Download, AlertCircle, Key, Loader2 } from 'lucide-react';
@@ -14,8 +13,9 @@ const Marketing: React.FC = () => {
   // Check if API key is selected on mount
   useEffect(() => {
     const checkKey = async () => {
-      if (window.aistudio && window.aistudio.hasSelectedApiKey) {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
+      const aistudio = (window as any).aistudio;
+      if (aistudio && aistudio.hasSelectedApiKey) {
+        const hasKey = await aistudio.hasSelectedApiKey();
         setApiKeySet(hasKey);
       }
     };
@@ -23,10 +23,10 @@ const Marketing: React.FC = () => {
   }, []);
 
   const handleConnectKey = async () => {
-    if (window.aistudio && window.aistudio.openSelectKey) {
-      const selected = await window.aistudio.openSelectKey();
-      // Assume success if dialog closes, verify with hasSelectedApiKey in a real scenario
-      // or rely on state update. Race condition mitigation:
+    const aistudio = (window as any).aistudio;
+    if (aistudio && aistudio.openSelectKey) {
+      await aistudio.openSelectKey();
+      // Assume success if dialog closes
       setApiKeySet(true);
     }
   };

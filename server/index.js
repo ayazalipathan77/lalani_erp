@@ -1,3 +1,4 @@
+
 import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
@@ -100,8 +101,8 @@ app.post('/api/products', async (req, res) => {
   const { prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level } = req.body;
   try {
     const result = await pool.query(
-      'INSERT INTO products (prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level]
+      'INSERT INTO products (prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, comp_code) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, 'CMP01']
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -223,14 +224,10 @@ app.get('/api/invoices', async (req, res) => {
             FROM sales_invoices i 
             ORDER BY i.inv_date DESC, i.inv_id DESC
         `);
-        // Map status for frontend compatibility if DB uses different logic, but schema matches types for now.
-        // We might need to add a 'status' column to sales_invoices table in schema or derive it.
-        // For now, let's assume the schema has 'balance_due' and we derive status or the table was updated.
-        // The provided XML schema didn't have 'status' column in 'sales_invoices', only 'balance_due'.
-        // We will derive status on the fly.
+        // Map status for frontend compatibility
         const invoices = result.rows.map(inv => ({
             ...inv,
-            status: inv.balance_due <= 0 ? 'PAID' : (inv.balance_due < inv.total_amount ? 'PARTIAL' : 'PENDING') // Simple logic
+            status: Number(inv.balance_due) <= 0 ? 'PAID' : (Number(inv.balance_due) < Number(inv.total_amount) ? 'PARTIAL' : 'PENDING') 
         }));
         res.json(invoices);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -388,11 +385,8 @@ app.post('/api/finance/payment', async (req, res) => {
 });
 
 // --- SERVE FRONTEND (PRODUCTION) ---
-// Serve static files from the React app build directory
 app.use(express.static(path.join(__dirname, '../dist')));
 
-// The "catchall" handler: for any request that doesn't
-// match one above, send back React's index.html file.
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
