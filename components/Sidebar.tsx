@@ -7,14 +7,17 @@ import {
   Wallet, 
   Users, 
   Settings, 
-  LogOut 
+  LogOut,
+  UserCog
 } from 'lucide-react';
+import { User } from '../types';
 
 interface SidebarProps {
+  user: User;
   onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { to: '/dashboard/inventory', icon: Package, label: 'Inventory' },
@@ -22,6 +25,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
     { to: '/dashboard/finance', icon: Wallet, label: 'Finance' },
     { to: '/dashboard/partners', icon: Users, label: 'Customers & Vendors' },
   ];
+
+  // Add User Management for Admins
+  if (user.role === 'ADMIN') {
+    navItems.push({ to: '/dashboard/users', icon: UserCog, label: 'User Management', exact: false });
+  }
 
   return (
     <aside className="w-64 bg-slate-900 text-white flex flex-col h-screen fixed left-0 top-0 overflow-y-auto z-50">
@@ -59,10 +67,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       </nav>
 
       <div className="p-4 border-t border-slate-800">
-        <button className="flex items-center text-slate-400 hover:text-white transition-colors px-4 py-2 w-full text-left rounded-lg hover:bg-slate-800 mb-2">
-          <Settings className="w-5 h-5 mr-3" />
-          Settings
-        </button>
+        <div className="px-4 py-3 mb-2 rounded-lg bg-slate-800/50">
+           <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Logged in as</p>
+           <p className="text-sm font-medium text-white truncate">{user.full_name}</p>
+           <p className="text-xs text-brand-400 font-mono">{user.role}</p>
+        </div>
         <button 
           onClick={onLogout}
           className="flex items-center text-red-400 hover:text-red-300 transition-colors px-4 py-2 w-full text-left rounded-lg hover:bg-red-900/20"

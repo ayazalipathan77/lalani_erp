@@ -1,15 +1,37 @@
-import React from 'react';
-import { Truck, ShieldCheck, BarChart3, MapPin, ArrowRight, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Truck, ShieldCheck, BarChart3, MapPin, ArrowRight, ChevronRight, X, AlertCircle } from 'lucide-react';
+import { api } from '../services/api';
+import { User } from '../types';
 
 interface LandingPageProps {
-  onLogin: () => void;
+  onLogin: (user: User) => void;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('123');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const user = await api.auth.login(username, password);
+      onLogin(user);
+    } catch (err) {
+      setError('Invalid username or password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
       {/* Navigation */}
-      <nav className="fixed w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-200">
+      <nav className="fixed w-full z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center gap-3">
@@ -29,7 +51,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
               <a href="#services" className="text-slate-600 hover:text-brand-600 font-medium transition-colors">Services</a>
               <a href="#coverage" className="text-slate-600 hover:text-brand-600 font-medium transition-colors">Coverage</a>
               <button 
-                onClick={onLogin}
+                onClick={() => setIsLoginOpen(true)}
                 className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2 rounded-full font-medium transition-all shadow-lg shadow-brand-500/30 flex items-center"
               >
                 Portal Login
@@ -63,7 +85,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <button 
-                onClick={onLogin}
+                onClick={() => setIsLoginOpen(true)}
                 className="bg-brand-600 hover:bg-brand-700 text-white px-8 py-4 rounded-lg font-bold text-lg transition-all shadow-lg shadow-brand-600/40 flex items-center justify-center"
               >
                 Access Dealer Portal
@@ -179,6 +201,79 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           &copy; 2023 Lalani Traders. All rights reserved.
         </div>
       </footer>
+
+      {/* Login Modal */}
+      {isLoginOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform transition-all scale-100">
+             <div className="p-8">
+               <div className="flex justify-between items-start mb-6">
+                 <div>
+                   <h2 className="text-2xl font-display font-bold text-slate-900">Welcome Back</h2>
+                   <p className="text-slate-500 text-sm mt-1">Sign in to access your distribution dashboard.</p>
+                 </div>
+                 <button onClick={() => setIsLoginOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                   <X className="w-6 h-6" />
+                 </button>
+               </div>
+
+               {error && (
+                 <div className="mb-4 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-lg text-sm flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    {error}
+                 </div>
+               )}
+
+               <form onSubmit={handleLoginSubmit} className="space-y-4">
+                 <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
+                   <input 
+                     type="text" 
+                     className="w-full border-slate-300 rounded-lg shadow-sm focus:ring-brand-500 focus:border-brand-500 py-2.5 px-3 border"
+                     placeholder="Enter your username"
+                     value={username}
+                     onChange={(e) => setUsername(e.target.value)}
+                     required
+                   />
+                 </div>
+                 <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                   <input 
+                     type="password" 
+                     className="w-full border-slate-300 rounded-lg shadow-sm focus:ring-brand-500 focus:border-brand-500 py-2.5 px-3 border"
+                     placeholder="••••••••"
+                     value={password}
+                     onChange={(e) => setPassword(e.target.value)}
+                     required
+                   />
+                 </div>
+                 
+                 <div className="pt-2">
+                   <button 
+                    type="submit" 
+                    disabled={loading}
+                    className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg shadow-brand-500/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center"
+                   >
+                     {loading ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                     ) : (
+                        <>Sign In <ArrowRight className="w-4 h-4 ml-2" /></>
+                     )}
+                   </button>
+                 </div>
+               </form>
+
+               <div className="mt-6 text-center text-xs text-slate-400">
+                 <p>Protected by secure encryption. <br/> Access restricted to authorized personnel only.</p>
+               </div>
+             </div>
+             <div className="bg-slate-50 px-8 py-4 border-t border-slate-100 text-center">
+                <span className="text-sm text-slate-600">Don't have an account? </span>
+                <a href="#contact" onClick={() => setIsLoginOpen(false)} className="text-sm font-bold text-brand-600 hover:text-brand-700">Contact Admin</a>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

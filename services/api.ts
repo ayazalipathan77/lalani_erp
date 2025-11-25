@@ -6,7 +6,8 @@ import {
   Expense, 
   CashTransaction, 
   Category,
-  SalesInvoiceItem
+  SalesInvoiceItem,
+  User
 } from '../types';
 import { 
   mockProducts, 
@@ -15,7 +16,8 @@ import {
   mockInvoices, 
   mockExpenses, 
   mockCashTransactions,
-  mockCategories 
+  mockCategories,
+  mockUsers
 } from './mockData';
 
 const USE_MOCK = true; // Toggle this to false when connecting to real backend
@@ -29,11 +31,81 @@ let _invoices = [...mockInvoices];
 let _expenses = [...mockExpenses];
 let _transactions = [...mockCashTransactions];
 let _categories = [...mockCategories];
+let _users = [...mockUsers];
 
 // Helper to simulate network delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const api = {
+  // --- AUTHENTICATION ---
+  auth: {
+    login: async (username: string, password: string): Promise<User> => {
+      if (USE_MOCK) {
+        await delay(500);
+        const user = _users.find(u => u.username === username && u.password === password && u.is_active === 'Y');
+        if (user) {
+          // Return user without password
+          const { password, ...userWithoutPass } = user;
+          return userWithoutPass as User;
+        }
+        throw new Error('Invalid credentials');
+      }
+      const res = await fetch('http://localhost:5000/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+      });
+      if (!res.ok) throw new Error('Login failed');
+      return res.json();
+    }
+  },
+
+  // --- USERS MANAGEMENT ---
+  users: {
+      getAll: async (): Promise<User[]> => {
+          if (USE_MOCK) {
+              await delay(300);
+              return _users.map(({password, ...u}) => u as User); // Hide passwords
+          }
+          const res = await fetch('http://localhost:5000/api/users');
+          return res.json();
+      },
+      create: async (user: Omit<User, 'user_id'>): Promise<User> => {
+          if (USE_MOCK) {
+              await delay(300);
+              // Check if username exists
+              if (_users.some(u => u.username === user.username)) {
+                  throw new Error("Username already exists");
+              }
+              const newUser = { ...user, user_id: Math.max(0, ..._users.map(u => u.user_id)) + 1 };
+              _users.push(newUser);
+              const { password, ...safeUser } = newUser;
+              return safeUser as User;
+          }
+          return {} as User;
+      },
+      update: async (id: number, data: Partial<User>): Promise<User> => {
+          if (USE_MOCK) {
+              await delay(300);
+              const idx = _users.findIndex(u => u.user_id === id);
+              if (idx !== -1) {
+                  _users[idx] = { ..._users[idx], ...data };
+                   const { password, ...safeUser } = _users[idx];
+                  return safeUser as User;
+              }
+              throw new Error("User not found");
+          }
+          return {} as User;
+      },
+      delete: async (id: number): Promise<void> => {
+          if (USE_MOCK) {
+              await delay(300);
+              _users = _users.filter(u => u.user_id !== id);
+              return;
+          }
+      }
+  },
+
   // --- INVENTORY ---
   products: {
     getAll: async (): Promise<Product[]> => {

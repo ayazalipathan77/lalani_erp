@@ -2,17 +2,18 @@ import React, { useState } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
+import { User } from './types';
 
 const App: React.FC = () => {
-  // Simple auth state simulation
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  // Auth state now holds the User object or null
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
   };
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
+    setCurrentUser(null);
   };
 
   return (
@@ -21,7 +22,7 @@ const App: React.FC = () => {
         <Route 
           path="/" 
           element={
-            isAuthenticated ? (
+            currentUser ? (
               <Navigate to="/dashboard" replace />
             ) : (
               <LandingPage onLogin={handleLogin} />
@@ -31,8 +32,8 @@ const App: React.FC = () => {
         <Route 
           path="/dashboard/*" 
           element={
-            isAuthenticated ? (
-              <Dashboard onLogout={handleLogout} />
+            currentUser ? (
+              <Dashboard user={currentUser} onLogout={handleLogout} />
             ) : (
               <Navigate to="/" replace />
             )

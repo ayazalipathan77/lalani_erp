@@ -6,16 +6,19 @@ import Inventory from './dashboard/Inventory';
 import Sales from './dashboard/Sales';
 import Finance from './dashboard/Finance';
 import Partners from './dashboard/Partners';
+import Users from './dashboard/Users';
 import { Bell, Search, UserCircle } from 'lucide-react';
+import { User } from '../types';
 
 interface DashboardProps {
+  user: User;
   onLogout: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans">
-      <Sidebar onLogout={onLogout} />
+      <Sidebar user={user} onLogout={onLogout} />
       
       <main className="flex-1 ml-64">
         {/* Top Header */}
@@ -40,10 +43,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             </button>
             <div className="flex items-center space-x-3 pl-6 border-l border-slate-200">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-slate-900">Admin User</p>
-                <p className="text-xs text-slate-500">Head Office</p>
+                <p className="text-sm font-medium text-slate-900">{user.full_name}</p>
+                <p className="text-xs text-slate-500">{user.role}</p>
               </div>
-              <UserCircle className="w-8 h-8 text-slate-300" />
+              <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 font-bold border border-brand-200">
+                {user.full_name.charAt(0)}
+              </div>
             </div>
           </div>
         </header>
@@ -56,6 +61,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             <Route path="/sales" element={<Sales />} />
             <Route path="/finance" element={<Finance />} />
             <Route path="/partners" element={<Partners />} />
+            {/* Protect Users Route */}
+            {user.role === 'ADMIN' && (
+               <Route path="/users" element={<Users />} />
+            )}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>

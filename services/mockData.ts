@@ -1,4 +1,9 @@
-import { Product, Customer, Supplier, SalesInvoice, Expense, CashTransaction, Category } from '../types';
+import { Product, Customer, Supplier, SalesInvoice, Expense, CashTransaction, Category, User } from '../types';
+
+export const mockUsers: User[] = [
+  { user_id: 1, username: 'admin', password: '123', full_name: 'System Administrator', role: 'ADMIN', is_active: 'Y' },
+  { user_id: 2, username: 'user', password: '123', full_name: 'Sales Agent', role: 'USER', is_active: 'Y' }
+];
 
 export const mockCategories: Category[] = [
   { category_id: 1, category_code: 'TRUCK', category_name: 'Truck Tires', description: 'Heavy duty truck tires' },

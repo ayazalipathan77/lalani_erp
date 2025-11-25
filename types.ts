@@ -9,6 +9,7 @@ export interface Company {
 export interface User {
   user_id: number;
   username: string;
+  password?: string; // For mock/creation purposes
   full_name: string;
   role: 'ADMIN' | 'USER';
   is_active: 'Y' | 'N';
