@@ -16,6 +16,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Database Configuration
+// Use Internal URL for Render if available, otherwise External/Local
 const connectionString = process.env.DATABASE_URL || 'postgresql://admin:fckyc6G0Ka5d2nYQlpAp4b9P8yjgcauW@dpg-d4j9ns15pdvs7399psrg-a.oregon-postgres.render.com/lalani?ssl=true';
 
 const pool = new pg.Pool({
@@ -31,24 +32,37 @@ app.use(express.json());
 // --- DATABASE INITIALIZATION ---
 const initDB = async () => {
     try {
-        console.log('Attempting to connect to database...');
-        // Locate schema.sql in database/schema.sql relative to root
+        console.log('--- Starting Database Initialization ---');
+        console.log(`Connecting to: ${connectionString.split('@')[1]}`); 
+
+        // Correct path resolution for database/schema.sql
         const schemaPath = path.join(__dirname, 'database', 'schema.sql');
         
+        console.log(`Looking for schema at: ${schemaPath}`);
+
         if (!fs.existsSync(schemaPath)) {
-            console.error(`Schema file not found at: ${schemaPath}`);
+            console.error(`[FATAL] Schema file NOT FOUND at: ${schemaPath}`);
+            // List files in current dir to help debug
+            console.log('Current directory contents:', fs.readdirSync(__dirname));
+            if (fs.existsSync(path.join(__dirname, 'database'))) {
+                 console.log('Database dir contents:', fs.readdirSync(path.join(__dirname, 'database')));
+            }
             return;
         }
 
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+        console.log(`Read schema file. Size: ${schemaSql.length} bytes`);
         
-        console.log(`Read schema file (${schemaSql.length} bytes).`);
+        if (schemaSql.length < 50) {
+             console.error("[FATAL] Schema file appears empty or corrupted.");
+             return;
+        }
 
         const client = await pool.connect();
         try {
-            console.log('Connected! Running schema initialization...');
+            console.log('Database connected. Executing schema...');
             await client.query(schemaSql);
-            console.log('Database initialized and seeded successfully.');
+            console.log('--- Database Initialized & Seeded Successfully ---');
         } catch (queryErr) {
             console.error('SQL Execution Error:', queryErr.message);
         } finally {
@@ -402,7 +416,7 @@ app.post('/api/finance/payment', async (req, res) => {
     }
 });
 
-// --- SERVE FRONTEND ---
+// --- SERVE FRONTEND (PRODUCTION) ---
 app.use(express.static(path.join(__dirname, 'dist')));
 
 app.get('*', (req, res) => {
