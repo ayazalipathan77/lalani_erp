@@ -1,24 +1,100 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   AreaChart,
   Area
 } from 'recharts';
 import { DollarSign, ShoppingBag, Users, TrendingUp, AlertCircle, ArrowRight } from 'lucide-react';
-import { salesData, mockInvoices, mockCustomers, mockProducts } from '../../services/mockData';
+import { api } from '../../services/api';
+import { SalesInvoice, Customer, Product } from '../../types';
+import { formatTableDate } from '../../src/utils/dateUtils';
 
 const DashboardHome: React.FC = () => {
   const navigate = useNavigate();
-  const totalRevenue = mockInvoices.reduce((acc, curr) => acc + curr.total_amount, 0);
-  const pendingAmount = mockInvoices.filter(i => i.status !== 'PAID').reduce((acc, curr) => acc + curr.balance_due, 0);
-  const lowStockCount = mockProducts.filter(p => p.current_stock <= p.min_stock_level).length;
+
+  // State for real data
+  const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch real data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [invData, custData, prodData] = await Promise.all([
+          api.invoices.getAll(),
+          api.customers.getAll(),
+          api.products.getAll()
+        ]);
+        setInvoices(invData);
+        setCustomers(custData);
+        setProducts(prodData);
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Calculate metrics from real data
+  const totalRevenue = invoices.reduce((acc, curr) => {
+    const amount = typeof curr.total_amount === 'string' ? parseFloat(curr.total_amount) : Number(curr.total_amount);
+    return acc + (isNaN(amount) ? 0 : amount);
+  }, 0);
+
+  const pendingAmount = invoices.filter(i => i.status !== 'PAID').reduce((acc, curr) => {
+    const balance = typeof curr.balance_due === 'string' ? parseFloat(curr.balance_due) : Number(curr.balance_due);
+    return acc + (isNaN(balance) ? 0 : balance);
+  }, 0);
+
+  const lowStockCount = products.filter(p => {
+    const currentStock = typeof p.current_stock === 'string' ? parseFloat(p.current_stock) : Number(p.current_stock);
+    const minStock = typeof p.min_stock_level === 'string' ? parseFloat(p.min_stock_level) : Number(p.min_stock_level);
+    return currentStock <= minStock;
+  }).length;
+
+  // Create sales chart data from real invoices (last 6 months)
+  const salesData = (() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentDate = new Date();
+    const chartData = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthName = months[date.getMonth()];
+      const year = date.getFullYear();
+
+      // Filter invoices for this month
+      const monthInvoices = invoices.filter(inv => {
+        const invDate = new Date(inv.inv_date);
+        return invDate.getMonth() === date.getMonth() && invDate.getFullYear() === year;
+      });
+
+      // Calculate total sales for this month
+      const monthSales = monthInvoices.reduce((sum, inv) => {
+        const amount = typeof inv.total_amount === 'string' ? parseFloat(inv.total_amount) : Number(inv.total_amount);
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
+
+      chartData.push({
+        name: monthName,
+        sales: Math.round(monthSales)
+      });
+    }
+
+    return chartData;
+  })();
 
   return (
     <div className="space-y-6">
@@ -39,7 +115,9 @@ const DashboardHome: React.FC = () => {
             </span>
           </div>
           <h3 className="text-slate-500 text-sm font-medium">Total Revenue</h3>
-          <p className="text-2xl font-bold text-slate-900 mt-1">PKR {totalRevenue.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">
+            {isLoading ? '...' : `PKR ${totalRevenue.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          </p>
         </div>
 
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -49,7 +127,7 @@ const DashboardHome: React.FC = () => {
             </div>
           </div>
           <h3 className="text-slate-500 text-sm font-medium">Active Vendors</h3>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{mockCustomers.length}</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{customers.length}</p>
         </div>
 
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -70,7 +148,9 @@ const DashboardHome: React.FC = () => {
             </div>
           </div>
           <h3 className="text-slate-500 text-sm font-medium">Pending Receivables</h3>
-          <p className="text-2xl font-bold text-slate-900 mt-1">PKR {pendingAmount.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">
+            {isLoading ? '...' : `PKR ${pendingAmount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          </p>
         </div>
       </div>
 
@@ -83,14 +163,14 @@ const DashboardHome: React.FC = () => {
               <AreaChart data={salesData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
-                <Tooltip 
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                <Tooltip
                   contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   itemStyle={{ color: '#0f172a' }}
                 />
@@ -113,16 +193,28 @@ const DashboardHome: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {mockInvoices.slice(0, 5).map((invoice) => (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-slate-500">
+                      Loading recent invoices...
+                    </td>
+                  </tr>
+                ) : invoices.slice(0, 5).map((invoice) => (
                   <tr key={invoice.inv_id} className="hover:bg-slate-50">
                     <td className="py-3 text-sm font-medium text-slate-900">{invoice.inv_number}</td>
+                    <td className="py-3 text-sm text-slate-500">{formatTableDate(invoice.inv_date)}</td>
                     <td className="py-3 text-sm text-slate-500">{invoice.cust_code}</td>
-                    <td className="py-3 text-sm text-right font-mono text-slate-900">{invoice.total_amount.toLocaleString()}</td>
+                    <td className="py-3 text-sm text-right font-mono text-slate-900">
+                      {(() => {
+                        const amount = typeof invoice.total_amount === 'string' ? parseFloat(invoice.total_amount) : Number(invoice.total_amount);
+                        return amount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                      })()}
+                    </td>
                     <td className="py-3 text-center">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full 
-                        ${invoice.status === 'PAID' ? 'bg-green-100 text-green-800' : 
-                          invoice.status === 'PENDING' ? 'bg-blue-100 text-blue-800' : 
-                          'bg-red-100 text-red-800'}`}>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                        ${invoice.status === 'PAID' ? 'bg-green-100 text-green-800' :
+                          invoice.status === 'PENDING' ? 'bg-blue-100 text-blue-800' :
+                            'bg-red-100 text-red-800'}`}>
                         {invoice.status}
                       </span>
                     </td>
@@ -132,7 +224,7 @@ const DashboardHome: React.FC = () => {
             </table>
           </div>
           <div className="mt-4 text-center">
-            <Link 
+            <Link
               to="/dashboard/sales"
               className="text-brand-600 hover:text-brand-700 text-sm font-medium hover:underline inline-flex items-center"
             >
