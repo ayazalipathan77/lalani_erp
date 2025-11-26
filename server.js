@@ -16,15 +16,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Database Configuration
-// Priority: 
-// 1. process.env.DATABASE_URL (Provided by Render environment)
-// 2. Hardcoded External URL (For local development fallback)
 const connectionString = process.env.DATABASE_URL || 'postgresql://admin:fckyc6G0Ka5d2nYQlpAp4b9P8yjgcauW@dpg-d4j9ns15pdvs7399psrg-a.oregon-postgres.render.com/lalani?ssl=true';
 
 const pool = new pg.Pool({
   connectionString,
   ssl: {
-    rejectUnauthorized: false // Required for Render Postgres
+    rejectUnauthorized: false 
   }
 });
 
@@ -35,14 +32,25 @@ app.use(express.json());
 const initDB = async () => {
     try {
         console.log('Attempting to connect to database...');
+        // Locate schema.sql in database/schema.sql relative to root
         const schemaPath = path.join(__dirname, 'database', 'schema.sql');
+        
+        if (!fs.existsSync(schemaPath)) {
+            console.error(`Schema file not found at: ${schemaPath}`);
+            return;
+        }
+
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
         
+        console.log(`Read schema file (${schemaSql.length} bytes).`);
+
         const client = await pool.connect();
         try {
             console.log('Connected! Running schema initialization...');
             await client.query(schemaSql);
             console.log('Database initialized and seeded successfully.');
+        } catch (queryErr) {
+            console.error('SQL Execution Error:', queryErr.message);
         } finally {
             client.release();
         }
@@ -242,7 +250,7 @@ app.delete('/api/suppliers/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- INVOICES (COMPLEX TRANSACTION) ---
+// --- INVOICES ---
 app.get('/api/invoices', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -254,7 +262,6 @@ app.get('/api/invoices', async (req, res) => {
             FROM sales_invoices i 
             ORDER BY i.inv_date DESC, i.inv_id DESC
         `);
-        // Map status for frontend compatibility
         const invoices = result.rows.map(inv => ({
             ...inv,
             status: Number(inv.balance_due) <= 0 ? 'PAID' : (Number(inv.balance_due) < Number(inv.total_amount) ? 'PARTIAL' : 'PENDING') 
