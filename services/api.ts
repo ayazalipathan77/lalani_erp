@@ -36,6 +36,12 @@ let _users = [...mockUsers];
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Helper function to get auth headers
+const getAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('authToken');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
+
 export const api = {
   // --- AUTHENTICATION ---
   auth: {
@@ -140,7 +146,9 @@ export const api = {
         await delay(300);
         return [..._products];
       }
-      const res = await fetch('/api/products');
+      const res = await fetch('/api/products', {
+        headers: getAuthHeaders()
+      });
       return res.json();
     },
     create: async (product: Omit<Product, 'prod_id'>): Promise<Product> => {
@@ -152,7 +160,7 @@ export const api = {
       }
       const res = await fetch('/api/products', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(product),
       });
       return res.json();
@@ -169,7 +177,7 @@ export const api = {
       }
       const res = await fetch(`/api/products/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(product),
       });
       return res.json();
@@ -180,7 +188,10 @@ export const api = {
         _products = _products.filter(p => p.prod_id !== id);
         return;
       }
-      await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      await fetch(`/api/products/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
     }
   },
 
@@ -191,7 +202,9 @@ export const api = {
         await delay(300);
         return [..._customers];
       }
-      const res = await fetch('/api/customers');
+      const res = await fetch('/api/customers', {
+        headers: getAuthHeaders()
+      });
       return res.json();
     },
     create: async (customer: Omit<Customer, 'cust_id'>): Promise<Customer> => {
@@ -203,7 +216,7 @@ export const api = {
       }
       const res = await fetch('/api/customers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(customer)
       });
       return res.json();

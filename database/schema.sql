@@ -26,7 +26,9 @@ CREATE TABLE IF NOT EXISTS users (
     is_active CHAR(1) DEFAULT 'Y' CHECK (is_active IN ('Y', 'N')),
     permissions TEXT[], -- Array of permission strings
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id),
+    updated_by INTEGER REFERENCES users(user_id)
 );
 
 -- Categories for product classification
@@ -49,7 +51,9 @@ CREATE TABLE IF NOT EXISTS products (
     min_stock_level INTEGER NOT NULL DEFAULT 0,
     comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id),
+    updated_by INTEGER REFERENCES users(user_id)
 );
 
 -- Customers table
@@ -63,7 +67,9 @@ CREATE TABLE IF NOT EXISTS customers (
     outstanding_balance DECIMAL(12,2) DEFAULT 0,
     comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id),
+    updated_by INTEGER REFERENCES users(user_id)
 );
 
 -- Suppliers table
@@ -77,7 +83,9 @@ CREATE TABLE IF NOT EXISTS suppliers (
     outstanding_balance DECIMAL(12,2) DEFAULT 0,
     comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id),
+    updated_by INTEGER REFERENCES users(user_id)
 );
 
 -- Sales Invoices header table
@@ -91,8 +99,9 @@ CREATE TABLE IF NOT EXISTS sales_invoices (
     tax_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
     total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
     balance_due DECIMAL(12,2) NOT NULL DEFAULT 0,
-    created_by VARCHAR(100) DEFAULT 'SYSTEM',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_by INTEGER REFERENCES users(user_id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by INTEGER REFERENCES users(user_id)
 );
 
 -- Sales Invoice Items (line items)
@@ -115,7 +124,8 @@ CREATE TABLE IF NOT EXISTS cash_balance (
     debit_amount DECIMAL(12,2) DEFAULT 0,  -- Money In
     credit_amount DECIMAL(12,2) DEFAULT 0, -- Money Out
     comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id)
 );
 
 -- Expenses table
@@ -126,7 +136,9 @@ CREATE TABLE IF NOT EXISTS expenses (
     remarks TEXT,
     expense_date DATE NOT NULL,
     comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id),
+    updated_by INTEGER REFERENCES users(user_id)
 );
 
 -- Create indexes for better performance

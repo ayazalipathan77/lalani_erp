@@ -32,6 +32,34 @@ const pool = new pg.Pool({
 app.use(cors());
 app.use(express.json());
 
+// Middleware to extract user from JWT token
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    if (!token) {
+        req.user = null;
+        return next();
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) {
+            req.user = null;
+        } else {
+            req.user = { id: decoded.userId, username: decoded.username };
+        }
+        next();
+    });
+};
+
+// Apply authentication middleware to all routes except auth
+app.use('/api', (req, res, next) => {
+    if (req.path.startsWith('/auth/')) {
+        return next(); // Skip auth for login/verify
+    }
+    authenticateToken(req, res, next);
+});
+
 // Test database connection on startup
 pool.on('connect', () => {
     console.log('✅ Connected to PostgreSQL database');
@@ -90,8 +118,8 @@ app.post('/api/users', async (req, res) => {
     const { username, password, full_name, role, is_active, permissions } = req.body;
     try {
         const result = await pool.query(
-            'INSERT INTO users (username, password, full_name, role, is_active, permissions) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [username, password, full_name, role, is_active, permissions]
+            'INSERT INTO users (username, password, full_name, role, is_active, permissions, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [username, password, full_name, role, is_active, permissions, req.user?.id]
         );
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -103,11 +131,11 @@ app.put('/api/users/:id', async (req, res) => {
     try {
         let query, params;
         if (password) {
-            query = 'UPDATE users SET full_name=$1, role=$2, is_active=$3, permissions=$4, password=$5 WHERE user_id=$6 RETURNING *';
-            params = [full_name, role, is_active, permissions, password, id];
+            query = 'UPDATE users SET full_name=$1, role=$2, is_active=$3, permissions=$4, password=$5, updated_by=$6 WHERE user_id=$7 RETURNING *';
+            params = [full_name, role, is_active, permissions, password, req.user?.id, id];
         } else {
-            query = 'UPDATE users SET full_name=$1, role=$2, is_active=$3, permissions=$4 WHERE user_id=$5 RETURNING *';
-            params = [full_name, role, is_active, permissions, id];
+            query = 'UPDATE users SET full_name=$1, role=$2, is_active=$3, permissions=$4, updated_by=$5 WHERE user_id=$6 RETURNING *';
+            params = [full_name, role, is_active, permissions, req.user?.id, id];
         }
         const result = await pool.query(query, params);
         res.json(result.rows[0]);
@@ -133,8 +161,8 @@ app.post('/api/products', async (req, res) => {
     const { prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level } = req.body;
     try {
         const result = await pool.query(
-            'INSERT INTO products (prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, comp_code) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-            [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, 'CMP01']
+            'INSERT INTO products (prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, comp_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, 'CMP01', req.user?.id]
         );
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -145,8 +173,8 @@ app.put('/api/products/:id', async (req, res) => {
     const { prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level } = req.body;
     try {
         const result = await pool.query(
-            'UPDATE products SET prod_code=$1, prod_name=$2, category_code=$3, unit_price=$4, current_stock=$5, min_stock_level=$6 WHERE prod_id=$7 RETURNING *',
-            [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, id]
+            'UPDATE products SET prod_code=$1, prod_name=$2, category_code=$3, unit_price=$4, current_stock=$5, min_stock_level=$6, updated_by=$7 WHERE prod_id=$8 RETURNING *',
+            [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, req.user?.id, id]
         );
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -179,8 +207,8 @@ app.post('/api/customers', async (req, res) => {
     const { cust_code, cust_name, city, phone, credit_limit, outstanding_balance } = req.body;
     try {
         const result = await pool.query(
-            'INSERT INTO customers (cust_code, cust_name, city, phone, credit_limit, outstanding_balance, comp_code) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-            [cust_code, cust_name, city, phone, credit_limit, outstanding_balance, 'CMP01']
+            'INSERT INTO customers (cust_code, cust_name, city, phone, credit_limit, outstanding_balance, comp_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            [cust_code, cust_name, city, phone, credit_limit, outstanding_balance, 'CMP01', req.user?.id]
         );
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -191,8 +219,8 @@ app.put('/api/customers/:id', async (req, res) => {
     const { cust_code, cust_name, city, phone, credit_limit } = req.body;
     try {
         const result = await pool.query(
-            'UPDATE customers SET cust_code=$1, cust_name=$2, city=$3, phone=$4, credit_limit=$5 WHERE cust_id=$6 RETURNING *',
-            [cust_code, cust_name, city, phone, credit_limit, id]
+            'UPDATE customers SET cust_code=$1, cust_name=$2, city=$3, phone=$4, credit_limit=$5, updated_by=$6 WHERE cust_id=$7 RETURNING *',
+            [cust_code, cust_name, city, phone, credit_limit, req.user?.id, id]
         );
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -217,8 +245,8 @@ app.post('/api/suppliers', async (req, res) => {
     const { supplier_code, supplier_name, city, phone, contact_person, outstanding_balance } = req.body;
     try {
         const result = await pool.query(
-            'INSERT INTO suppliers (supplier_code, supplier_name, city, phone, contact_person, outstanding_balance, comp_code) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-            [supplier_code, supplier_name, city, phone, contact_person, outstanding_balance, 'CMP01']
+            'INSERT INTO suppliers (supplier_code, supplier_name, city, phone, contact_person, outstanding_balance, comp_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            [supplier_code, supplier_name, city, phone, contact_person, outstanding_balance, 'CMP01', req.user?.id]
         );
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -229,8 +257,8 @@ app.put('/api/suppliers/:id', async (req, res) => {
     const { supplier_code, supplier_name, city, phone, contact_person } = req.body;
     try {
         const result = await pool.query(
-            'UPDATE suppliers SET supplier_code=$1, supplier_name=$2, city=$3, phone=$4, contact_person=$5 WHERE supplier_id=$6 RETURNING *',
-            [supplier_code, supplier_name, city, phone, contact_person, id]
+            'UPDATE suppliers SET supplier_code=$1, supplier_name=$2, city=$3, phone=$4, contact_person=$5, updated_by=$6 WHERE supplier_id=$7 RETURNING *',
+            [supplier_code, supplier_name, city, phone, contact_person, req.user?.id, id]
         );
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -278,7 +306,7 @@ app.post('/api/invoices', async (req, res) => {
         const invRes = await client.query(
             `INSERT INTO sales_invoices (inv_number, inv_date, cust_code, comp_code, sub_total, tax_amount, total_amount, balance_due, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING inv_id`,
-            [inv_number, date, cust_code, 'CMP01', sub_total, tax_amount, total_amount, balance_due, 'SYSTEM']
+            [inv_number, date, cust_code, 'CMP01', sub_total, tax_amount, total_amount, balance_due, req.user?.id]
         );
         const inv_id = invRes.rows[0].inv_id;
 
@@ -303,9 +331,9 @@ app.post('/api/invoices', async (req, res) => {
 
         if (status === 'PAID') {
             await client.query(
-                `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code)
-                 VALUES ($1, $2, $3, $4, $5, $6)`,
-                [date, 'SALES', `Cash Sale ${inv_number}`, total_amount, 0, 'CMP01']
+                `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                [date, 'SALES', `Cash Sale ${inv_number}`, total_amount, 0, 'CMP01', req.user?.id]
             );
         }
 
@@ -341,14 +369,14 @@ app.post('/api/finance/expenses', async (req, res) => {
     try {
         await client.query('BEGIN');
         const expRes = await client.query(
-            `INSERT INTO expenses (head_code, amount, remarks, expense_date, comp_code)
-             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [head_code, amount, remarks, expense_date, 'CMP01']
+            `INSERT INTO expenses (head_code, amount, remarks, expense_date, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [head_code, amount, remarks, expense_date, 'CMP01', req.user?.id]
         );
         await client.query(
-            `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [expense_date, 'EXPENSE', `EXP: ${head_code} - ${remarks}`, 0, amount, 'CMP01']
+            `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [expense_date, 'EXPENSE', `EXP: ${head_code} - ${remarks}`, 0, amount, 'CMP01', req.user?.id]
         );
         await client.query('COMMIT');
         res.json(expRes.rows[0]);
@@ -369,9 +397,9 @@ app.post('/api/finance/payment', async (req, res) => {
         const credit = type === 'PAYMENT' ? amount : 0;
 
         const transRes = await client.query(
-            `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code)
-             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [date, type, `${type}: ${party_code} - ${remarks}`, debit, credit, 'CMP01']
+            `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [date, type, `${type}: ${party_code} - ${remarks}`, debit, credit, 'CMP01', req.user?.id]
         );
 
         if (type === 'RECEIPT') {
