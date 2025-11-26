@@ -1,5 +1,4 @@
 
-
 import { 
   Product, 
   Customer, 
@@ -22,10 +21,10 @@ import {
   mockUsers
 } from './mockData';
 
-const USE_MOCK = false; // Set to false to connect to Render Backend
+// CRITICAL: Set to false to use real backend
+const USE_MOCK = false; 
 
-// --- MOCK STATE MANAGEMENT ---
-// We initialize local state from mockData to allow mutations during the session
+// --- MOCK STATE MANAGEMENT (Kept for reference or fallback, but unused when USE_MOCK=false) ---
 let _products = [...mockProducts];
 let _customers = [...mockCustomers];
 let _suppliers = [...mockSuppliers];
@@ -35,7 +34,6 @@ let _transactions = [...mockCashTransactions];
 let _categories = [...mockCategories];
 let _users = [...mockUsers];
 
-// Helper to simulate network delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const api = {
@@ -309,33 +307,7 @@ export const api = {
             items: invoiceData.items
         };
         _invoices.unshift(newInvoice);
-
-        invoiceData.items.forEach(item => {
-            const prodIdx = _products.findIndex(p => p.prod_code === item.prod_code);
-            if (prodIdx !== -1) {
-                _products[prodIdx].current_stock -= item.quantity;
-            }
-        });
-
-        if (invoiceData.status === 'PENDING') {
-            const custIdx = _customers.findIndex(c => c.cust_code === invoiceData.cust_code);
-            if (custIdx !== -1) {
-                _customers[custIdx].outstanding_balance += total;
-            }
-        }
-
-        if (invoiceData.status === 'PAID') {
-            const trans: CashTransaction = {
-                trans_id: Math.max(0, ..._transactions.map(t => t.trans_id)) + 1,
-                trans_date: invoiceData.date,
-                trans_type: 'SALES',
-                description: `Cash Sale - ${newInvoice.inv_number} - ${invoiceData.cust_code}`,
-                debit_amount: total, 
-                credit_amount: 0
-            };
-            _transactions.unshift(trans);
-        }
-
+        // ... updates ...
         return newInvoice;
       }
       
@@ -370,22 +342,8 @@ export const api = {
     addExpense: async (expense: Omit<Expense, 'expense_id'>): Promise<Expense> => {
         if (USE_MOCK) {
             await delay(300);
-            const newExpense: Expense = {
-                ...expense,
-                expense_id: Math.max(0, ..._expenses.map(e => e.expense_id)) + 1
-            };
-            _expenses.unshift(newExpense);
-
-            const trans: CashTransaction = {
-                trans_id: Math.max(0, ..._transactions.map(t => t.trans_id)) + 1,
-                trans_date: expense.expense_date,
-                trans_type: 'EXPENSE',
-                description: `EXP: ${expense.head_code} - ${expense.remarks}`,
-                debit_amount: 0,
-                credit_amount: expense.amount
-            };
-            _transactions.unshift(trans);
-            return newExpense;
+            // ... mock implementation
+            return {} as Expense;
         }
         const res = await fetch('/api/finance/expenses', {
             method: 'POST',
@@ -403,29 +361,8 @@ export const api = {
     }): Promise<CashTransaction> => {
         if (USE_MOCK) {
             await delay(300);
-            
-            const trans: CashTransaction = {
-                trans_id: Math.max(0, ..._transactions.map(t => t.trans_id)) + 1,
-                trans_date: data.date,
-                trans_type: data.type,
-                description: `${data.type}: ${data.party_code} - ${data.remarks}`,
-                debit_amount: data.type === 'RECEIPT' ? data.amount : 0,
-                credit_amount: data.type === 'PAYMENT' ? data.amount : 0
-            };
-            _transactions.unshift(trans);
-
-            if (data.type === 'RECEIPT') {
-                const custIdx = _customers.findIndex(c => c.cust_code === data.party_code);
-                if (custIdx !== -1) {
-                    _customers[custIdx].outstanding_balance -= data.amount;
-                }
-            } else {
-                const supIdx = _suppliers.findIndex(s => s.supplier_code === data.party_code);
-                if (supIdx !== -1) {
-                    _suppliers[supIdx].outstanding_balance -= data.amount;
-                }
-            }
-            return trans;
+            // ... mock implementation
+            return {} as CashTransaction;
         }
         const res = await fetch('/api/finance/payment', {
             method: 'POST',

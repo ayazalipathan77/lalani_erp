@@ -3,6 +3,7 @@ import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
@@ -14,14 +15,44 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Database Connection
+// Database Configuration
+// Priority: 
+// 1. process.env.DATABASE_URL (Provided by Render environment)
+// 2. Hardcoded External URL (For local development fallback)
+const connectionString = process.env.DATABASE_URL || 'postgresql://admin:fckyc6G0Ka5d2nYQlpAp4b9P8yjgcauW@dpg-d4j9ns15pdvs7399psrg-a.oregon-postgres.render.com/lalani?ssl=true';
+
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  connectionString,
+  ssl: {
+    rejectUnauthorized: false // Required for Render Postgres
+  }
 });
 
 app.use(cors());
 app.use(express.json());
+
+// --- DATABASE INITIALIZATION ---
+const initDB = async () => {
+    try {
+        console.log('Attempting to connect to database...');
+        const schemaPath = path.join(__dirname, 'database', 'schema.sql');
+        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+        
+        const client = await pool.connect();
+        try {
+            console.log('Connected! Running schema initialization...');
+            await client.query(schemaSql);
+            console.log('Database initialized and seeded successfully.');
+        } finally {
+            client.release();
+        }
+    } catch (err) {
+        console.error('Database initialization failed:', err);
+    }
+};
+
+// Run DB Init on Startup
+initDB();
 
 // --- API ROUTES ---
 
@@ -31,7 +62,7 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT * FROM users WHERE lower(username) = lower($1) AND password = $2 AND is_active = $3',
-      [username, password, 'Y']
+      [username.trim(), password, 'Y']
     );
     if (result.rows.length > 0) {
       const user = result.rows[0];
@@ -144,7 +175,6 @@ app.get('/api/customers', async (req, res) => {
 });
 
 app.post('/api/customers', async (req, res) => {
-    // Basic implementation
     const { cust_code, cust_name, city, phone, credit_limit, outstanding_balance } = req.body;
     try {
         const result = await pool.query(
@@ -235,21 +265,16 @@ app.get('/api/invoices', async (req, res) => {
 
 app.post('/api/invoices', async (req, res) => {
     const { cust_code, items, date, status } = req.body;
-    // items: { prod_code, quantity, unit_price, line_total }[]
-    
     const client = await pool.connect();
-    
     try {
         await client.query('BEGIN');
 
-        // 1. Calculate Totals
         const sub_total = items.reduce((acc, item) => acc + Number(item.line_total), 0);
         const tax_amount = sub_total * 0.05;
         const total_amount = sub_total + tax_amount;
         const balance_due = status === 'PAID' ? 0 : total_amount;
         const inv_number = `INV-${Date.now()}`;
 
-        // 2. Insert Invoice Header
         const invRes = await client.query(
             `INSERT INTO sales_invoices (inv_number, inv_date, cust_code, comp_code, sub_total, tax_amount, total_amount, balance_due, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING inv_id`,
@@ -257,22 +282,18 @@ app.post('/api/invoices', async (req, res) => {
         );
         const inv_id = invRes.rows[0].inv_id;
 
-        // 3. Insert Items and Update Stock
         for (const item of items) {
             await client.query(
                 `INSERT INTO sales_invoice_items (inv_id, prod_code, quantity, unit_price, line_total)
                  VALUES ($1, $2, $3, $4, $5)`,
                 [inv_id, item.prod_code, item.quantity, item.unit_price, item.line_total]
             );
-
-            // Decrease Stock
             await client.query(
                 `UPDATE products SET current_stock = current_stock - $1 WHERE prod_code = $2`,
                 [item.quantity, item.prod_code]
             );
         }
 
-        // 4. Update Customer Balance (if Pending)
         if (status === 'PENDING') {
             await client.query(
                 `UPDATE customers SET outstanding_balance = outstanding_balance + $1 WHERE cust_code = $2`,
@@ -280,7 +301,6 @@ app.post('/api/invoices', async (req, res) => {
             );
         }
 
-        // 5. Update Ledger (if Paid)
         if (status === 'PAID') {
             await client.query(
                 `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code)
@@ -320,21 +340,16 @@ app.post('/api/finance/expenses', async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        
-        // 1. Insert Expense
         const expRes = await client.query(
             `INSERT INTO expenses (head_code, amount, remarks, expense_date, comp_code)
              VALUES ($1, $2, $3, $4, $5) RETURNING *`,
             [head_code, amount, remarks, expense_date, 'CMP01']
         );
-
-        // 2. Ledger Entry (Credit/Money Out)
         await client.query(
             `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code)
              VALUES ($1, $2, $3, $4, $5, $6)`,
             [expense_date, 'EXPENSE', `EXP: ${head_code} - ${remarks}`, 0, amount, 'CMP01']
         );
-
         await client.query('COMMIT');
         res.json(expRes.rows[0]);
     } catch (e) {
@@ -346,12 +361,10 @@ app.post('/api/finance/expenses', async (req, res) => {
 });
 
 app.post('/api/finance/payment', async (req, res) => {
-    const { type, party_code, amount, date, remarks } = req.body; // type: 'RECEIPT' or 'PAYMENT'
+    const { type, party_code, amount, date, remarks } = req.body;
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-
-        // 1. Ledger Entry
         const debit = type === 'RECEIPT' ? amount : 0;
         const credit = type === 'PAYMENT' ? amount : 0;
         
@@ -361,7 +374,6 @@ app.post('/api/finance/payment', async (req, res) => {
             [date, type, `${type}: ${party_code} - ${remarks}`, debit, credit, 'CMP01']
         );
 
-        // 2. Update Party Balance
         if (type === 'RECEIPT') {
             await client.query(
                 `UPDATE customers SET outstanding_balance = outstanding_balance - $1 WHERE cust_code = $2`,
@@ -373,7 +385,6 @@ app.post('/api/finance/payment', async (req, res) => {
                 [amount, party_code]
             );
         }
-
         await client.query('COMMIT');
         res.json(transRes.rows[0]);
     } catch (e) {
@@ -384,7 +395,7 @@ app.post('/api/finance/payment', async (req, res) => {
     }
 });
 
-// --- SERVE FRONTEND (PRODUCTION) ---
+// --- SERVE FRONTEND ---
 app.use(express.static(path.join(__dirname, 'dist')));
 
 app.get('*', (req, res) => {
