@@ -15,127 +15,89 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Database Configuration
-const connectionString = process.env.DATABASE_URL || 'postgresql://admin:fckyc6G0Ka5d2nYQlpAp4b9P8yjgcauW@dpg-d4j9ns15pdvs7399psrg-a.oregon-postgres.render.com/lalani?ssl=true';
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+    console.error('❌ DATABASE_URL environment variable is not set!');
+    console.error('Please check your .env file and ensure DATABASE_URL is configured.');
+    process.exit(1);
+}
 
 const pool = new pg.Pool({
-  connectionString,
-  ssl: {
-    rejectUnauthorized: false 
-  }
+    connectionString,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 app.use(cors());
 app.use(express.json());
 
-// --- DATABASE INITIALIZATION ---
-const initDB = async () => {
-    try {
-        console.log('--- Starting Database Initialization ---');
-        console.log(`Connecting to: ${connectionString.split('@')[1]}`); 
+// Test database connection on startup
+pool.on('connect', () => {
+    console.log('✅ Connected to PostgreSQL database');
+});
 
-        // Correct path resolution for database/schema.sql
-        // Since server.js is in root, and database folder is in root:
-        const schemaPath = path.join(__dirname, 'database', 'schema.sql');
-        
-        console.log(`Looking for schema at: ${schemaPath}`);
-
-        if (!fs.existsSync(schemaPath)) {
-            console.error(`[FATAL] Schema file NOT FOUND at: ${schemaPath}`);
-            // List files in current dir to help debug
-            console.log('Root directory contents:', fs.readdirSync(__dirname));
-            const dbDir = path.join(__dirname, 'database');
-            if (fs.existsSync(dbDir)) {
-                 console.log('Database dir contents:', fs.readdirSync(dbDir));
-            } else {
-                 console.log('Database directory missing!');
-            }
-            return;
-        }
-
-        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-        console.log(`Read schema file. Size: ${schemaSql.length} bytes`);
-        console.log(`Schema Snippet (First 100 chars): ${schemaSql.substring(0, 100)}...`);
-        
-        if (schemaSql.length < 50) {
-             console.error("[FATAL] Schema file appears empty or corrupted.");
-             return;
-        }
-
-        const client = await pool.connect();
-        try {
-            console.log('Database connected. Executing schema...');
-            await client.query(schemaSql);
-            console.log('--- Database Initialized & Seeded Successfully ---');
-        } catch (queryErr) {
-            console.error('SQL Execution Error:', queryErr.message);
-        } finally {
-            client.release();
-        }
-    } catch (err) {
-        console.error('Database initialization failed:', err);
-    }
-};
-
-// Run DB Init on Startup
-initDB();
+pool.on('error', (err) => {
+    console.error('❌ Unexpected error on idle client', err);
+    process.exit(-1);
+});
 
 // --- API ROUTES ---
 
 // Auth
 app.post('/api/auth/login', async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const result = await pool.query(
-      'SELECT * FROM users WHERE lower(username) = lower($1) AND password = $2 AND is_active = $3',
-      [username.trim(), password, 'Y']
-    );
-    if (result.rows.length > 0) {
-      const user = result.rows[0];
-      delete user.password;
-      res.json(user);
-    } else {
-      res.status(401).json({ message: 'Invalid credentials' });
+    const { username, password } = req.body;
+    try {
+        const result = await pool.query(
+            'SELECT * FROM users WHERE lower(username) = lower($1) AND password = $2 AND is_active = $3',
+            [username.trim(), password, 'Y']
+        );
+        if (result.rows.length > 0) {
+            const user = result.rows[0];
+            delete user.password;
+            res.json(user);
+        } else {
+            res.status(401).json({ message: 'Invalid credentials' });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
     }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
 });
 
 // Users
 app.get('/api/users', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT user_id, username, full_name, role, is_active, permissions FROM users ORDER BY user_id');
-    res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    try {
+        const result = await pool.query('SELECT user_id, username, full_name, role, is_active, permissions FROM users ORDER BY user_id');
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/users', async (req, res) => {
-  const { username, password, full_name, role, is_active, permissions } = req.body;
-  try {
-    const result = await pool.query(
-      'INSERT INTO users (username, password, full_name, role, is_active, permissions) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [username, password, full_name, role, is_active, permissions]
-    );
-    res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const { username, password, full_name, role, is_active, permissions } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO users (username, password, full_name, role, is_active, permissions) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [username, password, full_name, role, is_active, permissions]
+        );
+        res.json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.put('/api/users/:id', async (req, res) => {
-  const { id } = req.params;
-  const { full_name, role, is_active, permissions, password } = req.body;
-  try {
-    let query, params;
-    if (password) {
-        query = 'UPDATE users SET full_name=$1, role=$2, is_active=$3, permissions=$4, password=$5 WHERE user_id=$6 RETURNING *';
-        params = [full_name, role, is_active, permissions, password, id];
-    } else {
-        query = 'UPDATE users SET full_name=$1, role=$2, is_active=$3, permissions=$4 WHERE user_id=$5 RETURNING *';
-        params = [full_name, role, is_active, permissions, id];
-    }
-    const result = await pool.query(query, params);
-    res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const { id } = req.params;
+    const { full_name, role, is_active, permissions, password } = req.body;
+    try {
+        let query, params;
+        if (password) {
+            query = 'UPDATE users SET full_name=$1, role=$2, is_active=$3, permissions=$4, password=$5 WHERE user_id=$6 RETURNING *';
+            params = [full_name, role, is_active, permissions, password, id];
+        } else {
+            query = 'UPDATE users SET full_name=$1, role=$2, is_active=$3, permissions=$4 WHERE user_id=$5 RETURNING *';
+            params = [full_name, role, is_active, permissions, id];
+        }
+        const result = await pool.query(query, params);
+        res.json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete('/api/users/:id', async (req, res) => {
@@ -147,40 +109,40 @@ app.delete('/api/users/:id', async (req, res) => {
 
 // Inventory (Products)
 app.get('/api/products', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM products ORDER BY prod_name');
-    res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    try {
+        const result = await pool.query('SELECT * FROM products ORDER BY prod_name');
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/products', async (req, res) => {
-  const { prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level } = req.body;
-  try {
-    const result = await pool.query(
-      'INSERT INTO products (prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, comp_code) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, 'CMP01']
-    );
-    res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const { prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO products (prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, comp_code) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, 'CMP01']
+        );
+        res.json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.put('/api/products/:id', async (req, res) => {
-  const { id } = req.params;
-  const { prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level } = req.body;
-  try {
-    const result = await pool.query(
-      'UPDATE products SET prod_code=$1, prod_name=$2, category_code=$3, unit_price=$4, current_stock=$5, min_stock_level=$6 WHERE prod_id=$7 RETURNING *',
-      [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, id]
-    );
-    res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const { id } = req.params;
+    const { prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level } = req.body;
+    try {
+        const result = await pool.query(
+            'UPDATE products SET prod_code=$1, prod_name=$2, category_code=$3, unit_price=$4, current_stock=$5, min_stock_level=$6 WHERE prod_id=$7 RETURNING *',
+            [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, id]
+        );
+        res.json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete('/api/products/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM products WHERE prod_id = $1', [req.params.id]);
-    res.json({ message: 'Product deleted' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    try {
+        await pool.query('DELETE FROM products WHERE prod_id = $1', [req.params.id]);
+        res.json({ message: 'Product deleted' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Categories
@@ -281,7 +243,7 @@ app.get('/api/invoices', async (req, res) => {
         `);
         const invoices = result.rows.map(inv => ({
             ...inv,
-            status: Number(inv.balance_due) <= 0 ? 'PAID' : (Number(inv.balance_due) < Number(inv.total_amount) ? 'PARTIAL' : 'PENDING') 
+            status: Number(inv.balance_due) <= 0 ? 'PAID' : (Number(inv.balance_due) < Number(inv.total_amount) ? 'PARTIAL' : 'PENDING')
         }));
         res.json(invoices);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -391,7 +353,7 @@ app.post('/api/finance/payment', async (req, res) => {
         await client.query('BEGIN');
         const debit = type === 'RECEIPT' ? amount : 0;
         const credit = type === 'PAYMENT' ? amount : 0;
-        
+
         const transRes = await client.query(
             `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code)
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
@@ -404,7 +366,7 @@ app.post('/api/finance/payment', async (req, res) => {
                 [amount, party_code]
             );
         } else {
-             await client.query(
+            await client.query(
                 `UPDATE suppliers SET outstanding_balance = outstanding_balance - $1 WHERE supplier_code = $2`,
                 [amount, party_code]
             );
@@ -423,9 +385,9 @@ app.post('/api/finance/payment', async (req, res) => {
 app.use(express.static(path.join(__dirname, 'dist')));
 
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist/index.html'));
+    res.sendFile(path.join(__dirname, 'dist/index.html'));
 });
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
