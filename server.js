@@ -5,6 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
 
 dotenv.config();
 
@@ -54,13 +55,26 @@ app.post('/api/auth/login', async (req, res) => {
         if (result.rows.length > 0) {
             const user = result.rows[0];
             delete user.password;
-            res.json(user);
+            const token = jwt.sign({ userId: user.user_id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '24h' });
+            res.json({ user, token });
         } else {
             res.status(401).json({ message: 'Invalid credentials' });
         }
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Verify token
+app.post('/api/auth/verify', (req, res) => {
+    const { token } = req.body;
+    if (!token) return res.status(401).json({ message: 'No token provided' });
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        res.json({ valid: true, userId: decoded.userId, username: decoded.username });
+    } catch (err) {
+        res.status(401).json({ message: 'Invalid token' });
     }
 });
 
