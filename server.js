@@ -1,4 +1,3 @@
-
 import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
@@ -16,7 +15,6 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Database Configuration
-// Use Internal URL for Render if available, otherwise External/Local
 const connectionString = process.env.DATABASE_URL || 'postgresql://admin:fckyc6G0Ka5d2nYQlpAp4b9P8yjgcauW@dpg-d4j9ns15pdvs7399psrg-a.oregon-postgres.render.com/lalani?ssl=true';
 
 const pool = new pg.Pool({
@@ -36,6 +34,7 @@ const initDB = async () => {
         console.log(`Connecting to: ${connectionString.split('@')[1]}`); 
 
         // Correct path resolution for database/schema.sql
+        // Since server.js is in root, and database folder is in root:
         const schemaPath = path.join(__dirname, 'database', 'schema.sql');
         
         console.log(`Looking for schema at: ${schemaPath}`);
@@ -43,15 +42,19 @@ const initDB = async () => {
         if (!fs.existsSync(schemaPath)) {
             console.error(`[FATAL] Schema file NOT FOUND at: ${schemaPath}`);
             // List files in current dir to help debug
-            console.log('Current directory contents:', fs.readdirSync(__dirname));
-            if (fs.existsSync(path.join(__dirname, 'database'))) {
-                 console.log('Database dir contents:', fs.readdirSync(path.join(__dirname, 'database')));
+            console.log('Root directory contents:', fs.readdirSync(__dirname));
+            const dbDir = path.join(__dirname, 'database');
+            if (fs.existsSync(dbDir)) {
+                 console.log('Database dir contents:', fs.readdirSync(dbDir));
+            } else {
+                 console.log('Database directory missing!');
             }
             return;
         }
 
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
         console.log(`Read schema file. Size: ${schemaSql.length} bytes`);
+        console.log(`Schema Snippet (First 100 chars): ${schemaSql.substring(0, 100)}...`);
         
         if (schemaSql.length < 50) {
              console.error("[FATAL] Schema file appears empty or corrupted.");
