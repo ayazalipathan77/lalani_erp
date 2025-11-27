@@ -6,6 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import logger from './logger.js';
 import {
     generateRegistrationOptions,
     verifyRegistrationResponse,
@@ -25,6 +26,7 @@ const PORT = process.env.PORT || 5000;
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
+    logger.error('DATABASE_URL environment variable is not set', null, { environment: 'startup' });
     console.error('❌ DATABASE_URL environment variable is not set!');
     console.error('Please check your .env file and ensure DATABASE_URL is configured.');
     process.exit(1);
@@ -56,8 +58,10 @@ const authenticateToken = (req, res, next) => {
     jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
         if (err) {
             req.user = null;
+            logger.auth('TOKEN_VERIFICATION_FAILED', null, null, req.ip);
         } else {
             req.user = { id: decoded.userId, username: decoded.username };
+            logger.auth('TOKEN_VERIFIED', decoded.username, decoded.userId, req.ip);
         }
         next();
     });
@@ -77,6 +81,7 @@ pool.on('connect', () => {
 });
 
 pool.on('error', (err) => {
+    logger.error('Unexpected error on idle client', err, { type: 'database' });
     console.error('❌ Unexpected error on idle client', err);
     process.exit(-1);
 });
@@ -86,6 +91,9 @@ pool.on('error', (err) => {
 // Auth
 app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
+    const clientIP = req.ip;
+    const userAgent = req.get('User-Agent');
+
     try {
         const result = await pool.query(
             'SELECT * FROM users WHERE lower(username) = lower($1) AND password = $2 AND is_active = $3',
@@ -95,12 +103,21 @@ app.post('/api/auth/login', async (req, res) => {
             const user = result.rows[0];
             delete user.password;
             const token = jwt.sign({ userId: user.user_id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '24h' });
+
+            // Log successful login
+            logger.login(username, true, clientIP, userAgent);
+            logger.auth('LOGIN_SUCCESS', user.username, user.user_id, clientIP);
+
             res.json({ user, token });
         } else {
+            // Log failed login
+            logger.login(username, false, clientIP, userAgent);
+            logger.auth('LOGIN_FAILED', username, null, clientIP);
+
             res.status(401).json({ message: 'Invalid credentials' });
         }
     } catch (err) {
-        console.error(err);
+        logger.error('Login error', err, { username, ip: clientIP });
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -108,11 +125,20 @@ app.post('/api/auth/login', async (req, res) => {
 // Verify token
 app.post('/api/auth/verify', (req, res) => {
     const { token } = req.body;
-    if (!token) return res.status(401).json({ message: 'No token provided' });
+    const clientIP = req.ip;
+
+    if (!token) {
+        logger.auth('TOKEN_VERIFY_NO_TOKEN', null, null, clientIP);
+        return res.status(401).json({ message: 'No token provided' });
+    }
+
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        logger.auth('TOKEN_VERIFY_SUCCESS', decoded.username, decoded.userId, clientIP);
         res.json({ valid: true, userId: decoded.userId, username: decoded.username });
     } catch (err) {
+        logger.auth('TOKEN_VERIFY_FAILED', null, null, clientIP);
+        logger.error('Token verification error', err, { ip: clientIP });
         res.status(401).json({ message: 'Invalid token' });
     }
 });
@@ -120,9 +146,12 @@ app.post('/api/auth/verify', (req, res) => {
 // WebAuthn Registration Start
 app.post('/api/auth/webauthn/register-start', async (req, res) => {
     const { username } = req.body;
+    const clientIP = req.ip;
+
     console.log('WebAuthn registration start for user:', username);
     console.log('WEBAUTHN_RP_ID:', WEBAUTHN_RP_ID);
     console.log('WEBAUTHN_ORIGIN:', WEBAUTHN_ORIGIN);
+
     try {
         // Get user
         const userResult = await pool.query(
@@ -130,6 +159,7 @@ app.post('/api/auth/webauthn/register-start', async (req, res) => {
             [username, 'Y']
         );
         if (userResult.rows.length === 0) {
+            logger.security('WEBAUTHN_REGISTRATION_USER_NOT_FOUND', { username }, clientIP);
             console.log('User not found:', username);
             return res.status(404).json({ message: 'User not found' });
         }
@@ -168,10 +198,11 @@ app.post('/api/auth/webauthn/register-start', async (req, res) => {
         global.webauthnChallenges[user.user_id] = options.challenge;
         console.log('Stored challenge for user:', user.user_id);
 
+        logger.auth('WEBAUTHN_REGISTRATION_START', user.username, user.user_id, clientIP);
         console.log('Registration options generated successfully');
         res.json(options);
     } catch (error) {
-        console.error('WebAuthn registration start error:', error);
+        logger.error('WebAuthn registration start error', error, { username, ip: clientIP });
         res.status(500).json({ message: 'Failed to start registration', error: error.message });
     }
 });
@@ -179,8 +210,11 @@ app.post('/api/auth/webauthn/register-start', async (req, res) => {
 // WebAuthn Registration Finish
 app.post('/api/auth/webauthn/register-finish', async (req, res) => {
     const { username, credential } = req.body;
+    const clientIP = req.ip;
+
     console.log('WebAuthn registration finish for user:', username);
     console.log('Credential received:', !!credential);
+
     try {
         // Get user
         const userResult = await pool.query(
@@ -188,6 +222,7 @@ app.post('/api/auth/webauthn/register-finish', async (req, res) => {
             [username, 'Y']
         );
         if (userResult.rows.length === 0) {
+            logger.security('WEBAUTHN_REGISTRATION_FINISH_USER_NOT_FOUND', { username }, clientIP);
             console.log('User not found during finish:', username);
             return res.status(404).json({ message: 'User not found' });
         }
@@ -197,6 +232,7 @@ app.post('/api/auth/webauthn/register-finish', async (req, res) => {
         const expectedChallenge = global.webauthnChallenges?.[user.user_id];
         console.log('Expected challenge:', !!expectedChallenge);
         if (!expectedChallenge) {
+            logger.security('WEBAUTHN_REGISTRATION_NO_CHALLENGE', { userId: user.user_id }, clientIP);
             console.log('No registration in progress for user:', user.user_id);
             return res.status(400).json({ message: 'No registration in progress' });
         }
@@ -214,6 +250,7 @@ app.post('/api/auth/webauthn/register-finish', async (req, res) => {
 
         console.log('Verification result:', verification.verified);
         if (!verification.verified) {
+            logger.security('WEBAUTHN_REGISTRATION_VERIFICATION_FAILED', { username }, clientIP);
             console.log('Registration verification failed');
             return res.status(400).json({ message: 'Registration verification failed' });
         }
@@ -233,11 +270,10 @@ app.post('/api/auth/webauthn/register-finish', async (req, res) => {
         delete global.webauthnChallenges[user.user_id];
         console.log('Challenge cleaned up');
 
+        logger.auth('WEBAUTHN_REGISTRATION_SUCCESS', user.username, user.user_id, clientIP);
         res.json({ success: true, message: 'Biometric registration successful' });
     } catch (error) {
-        console.error('WebAuthn registration finish error:', error);
-        console.error('Error details:', error.message);
-        console.error('Stack:', error.stack);
+        logger.error('WebAuthn registration finish error', error, { username, ip: clientIP });
         res.status(500).json({ message: 'Failed to complete registration', error: error.message });
     }
 });
@@ -245,6 +281,8 @@ app.post('/api/auth/webauthn/register-finish', async (req, res) => {
 // WebAuthn Authentication Start
 app.post('/api/auth/webauthn/login-start', async (req, res) => {
     const { username } = req.body;
+    const clientIP = req.ip;
+
     try {
         // Get user
         const userResult = await pool.query(
@@ -252,6 +290,7 @@ app.post('/api/auth/webauthn/login-start', async (req, res) => {
             [username, 'Y']
         );
         if (userResult.rows.length === 0) {
+            logger.security('WEBAUTHN_LOGIN_USER_NOT_FOUND', { username }, clientIP);
             return res.status(404).json({ message: 'User not found' });
         }
         const user = userResult.rows[0];
@@ -263,6 +302,7 @@ app.post('/api/auth/webauthn/login-start', async (req, res) => {
         );
 
         if (credentialsResult.rows.length === 0) {
+            logger.security('WEBAUTHN_LOGIN_NO_CREDENTIALS', { username }, clientIP);
             return res.status(400).json({ message: 'No biometric credentials registered' });
         }
 
@@ -280,9 +320,10 @@ app.post('/api/auth/webauthn/login-start', async (req, res) => {
         global.webauthnChallenges = global.webauthnChallenges || {};
         global.webauthnChallenges[user.user_id] = options.challenge;
 
+        logger.auth('WEBAUTHN_LOGIN_START', username, user.user_id, clientIP);
         res.json(options);
     } catch (error) {
-        console.error('WebAuthn login start error:', error);
+        logger.error('WebAuthn login start error', error, { username, ip: clientIP });
         res.status(500).json({ message: 'Failed to start authentication' });
     }
 });
@@ -290,6 +331,8 @@ app.post('/api/auth/webauthn/login-start', async (req, res) => {
 // WebAuthn Authentication Finish
 app.post('/api/auth/webauthn/login-finish', async (req, res) => {
     const { username, credential } = req.body;
+    const clientIP = req.ip;
+
     try {
         // Get user
         const userResult = await pool.query(
@@ -297,12 +340,14 @@ app.post('/api/auth/webauthn/login-finish', async (req, res) => {
             [username, 'Y']
         );
         if (userResult.rows.length === 0) {
+            logger.security('WEBAUTHN_LOGIN_FINISH_USER_NOT_FOUND', { username }, clientIP);
             return res.status(404).json({ message: 'User not found' });
         }
         const user = userResult.rows[0];
 
         const expectedChallenge = global.webauthnChallenges?.[user.user_id];
         if (!expectedChallenge) {
+            logger.security('WEBAUTHN_LOGIN_NO_CHALLENGE', { username, userId: user.user_id }, clientIP);
             return res.status(400).json({ message: 'No authentication in progress' });
         }
 
@@ -313,6 +358,7 @@ app.post('/api/auth/webauthn/login-finish', async (req, res) => {
         );
 
         if (credentialResult.rows.length === 0) {
+            logger.security('WEBAUTHN_LOGIN_CREDENTIAL_NOT_FOUND', { username, credentialId: credential.id }, clientIP);
             return res.status(400).json({ message: 'Credential not found' });
         }
 
@@ -332,6 +378,7 @@ app.post('/api/auth/webauthn/login-finish', async (req, res) => {
         });
 
         if (!verification.verified) {
+            logger.security('WEBAUTHN_LOGIN_VERIFICATION_FAILED', { username }, clientIP);
             return res.status(400).json({ message: 'Authentication verification failed' });
         }
 
@@ -347,9 +394,10 @@ app.post('/api/auth/webauthn/login-finish', async (req, res) => {
         // Generate JWT token
         const token = jwt.sign({ userId: user.user_id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
+        logger.auth('WEBAUTHN_LOGIN_SUCCESS', user.username, user.user_id, clientIP);
         res.json({ user, token, message: 'Biometric authentication successful' });
     } catch (error) {
-        console.error('WebAuthn login finish error:', error);
+        logger.error('WebAuthn login finish error', error, { username, ip: clientIP });
         res.status(500).json({ message: 'Failed to complete authentication' });
     }
 });
@@ -368,7 +416,7 @@ app.get('/api/auth/webauthn/credentials', async (req, res) => {
 
         res.json(result.rows);
     } catch (error) {
-        console.error('Get credentials error:', error);
+        logger.error('Get credentials error', error, { userId: req.user?.id });
         res.status(500).json({ message: 'Failed to fetch credentials' });
     }
 });
@@ -391,7 +439,7 @@ app.delete('/api/auth/webauthn/credentials/:id', async (req, res) => {
 
         res.json({ message: 'Credential deleted successfully' });
     } catch (error) {
-        console.error('Delete credential error:', error);
+        logger.error('Delete credential error', error, { userId: req.user?.id, credentialId: req.params.id });
         res.status(500).json({ message: 'Failed to delete credential' });
     }
 });
@@ -735,7 +783,11 @@ app.post('/api/invoices', async (req, res) => {
         res.json({ message: 'Invoice created successfully', inv_id });
     } catch (e) {
         await client.query('ROLLBACK');
-        console.error(e);
+        logger.error('Invoice creation error', e, {
+            customerCode: cust_code,
+            userId: req.user?.id,
+            items: items?.length || 0
+        });
         res.status(500).json({ error: e.message });
     } finally {
         client.release();
@@ -936,6 +988,7 @@ app.get('/api/analytics/dashboard-metrics', async (req, res) => {
 
         res.json(metrics);
     } catch (error) {
+        logger.error('Dashboard metrics error', error, { userId: req.user?.id });
         console.error('Dashboard metrics error:', error);
         res.status(500).json({ error: 'Failed to fetch dashboard metrics' });
     }
@@ -969,6 +1022,7 @@ app.get('/api/analytics/sales-trends', async (req, res) => {
 
         res.json(chartData);
     } catch (error) {
+        logger.error('Sales trends error', error, { userId: req.user?.id });
         console.error('Sales trends error:', error);
         res.status(500).json({ error: 'Failed to fetch sales trends' });
     }

@@ -281,31 +281,68 @@ const Finance: React.FC = () => {
                     <div className="p-6 border-b border-slate-200 flex justify-between items-center">
                         <h3 className="text-lg font-bold text-slate-900">Expense History</h3>
                     </div>
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Head</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Remarks</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
-                            {expenses.map((exp) => (
-                                <tr key={exp.expense_id} className="hover:bg-slate-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatTableDate(exp.expense_date, false)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{exp.head_code}</td>
-                                    <td className="px-6 py-4 text-sm text-slate-500">{exp.remarks}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-slate-900">
-                                        {(() => {
-                                            const amount = typeof exp.amount === 'string' ? parseFloat(exp.amount) : Number(exp.amount);
-                                            return amount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                                        })()}
-                                    </td>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden lg:block">
+                        <table className="min-w-full divide-y divide-slate-200">
+                            <thead className="bg-slate-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Head</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Remarks</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Amount</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-slate-200">
+                                {expenses.map((exp) => (
+                                    <tr key={exp.expense_id} className="hover:bg-slate-50">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatTableDate(exp.expense_date, false)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{exp.head_code}</td>
+                                        <td className="px-6 py-4 text-sm text-slate-500">{exp.remarks}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-slate-900">
+                                            {(() => {
+                                                const amount = typeof exp.amount === 'string' ? parseFloat(exp.amount) : Number(exp.amount);
+                                                return amount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                            })()}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Mobile Table View */}
+                    <MobileTable
+                        data={expenses}
+                        columns={[
+                            {
+                                key: 'expense_date',
+                                label: 'Date',
+                                render: (value) => formatTableDate(value, false)
+                            },
+                            {
+                                key: 'head_code',
+                                label: 'Head',
+                                render: (value) => (
+                                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                        {value}
+                                    </span>
+                                )
+                            },
+                            {
+                                key: 'remarks',
+                                label: 'Remarks'
+                            },
+                            {
+                                key: 'amount',
+                                label: 'Amount',
+                                render: (value) => {
+                                    const amount = typeof value === 'string' ? parseFloat(value) : Number(value);
+                                    return `PKR ${amount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                }
+                            }
+                        ]}
+                    />
                 </div>
             )}
 
