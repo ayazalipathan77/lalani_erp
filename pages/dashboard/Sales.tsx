@@ -29,9 +29,9 @@ const Sales: React.FC = () => {
                 api.products.getAll(1, 100), // Get all products for dropdown
                 api.customers.getAll(1, 100) // Get all customers for dropdown
             ]);
-            setInvoices(invsResponse.data);
-            setProducts(prodsResponse.data);
-            setCustomers(custsResponse.data);
+            setInvoices(Array.isArray(invsResponse.data) ? invsResponse.data : []);
+            setProducts(Array.isArray(prodsResponse.data) ? prodsResponse.data : []);
+            setCustomers(Array.isArray(custsResponse.data) ? custsResponse.data : []);
         } catch (e) {
             console.error(e);
         } finally {
@@ -101,7 +101,7 @@ const Sales: React.FC = () => {
         }
     };
 
-    const filteredInvoices = invoices.filter(inv =>
+    const filteredInvoices = (Array.isArray(invoices) ? invoices : []).filter(inv =>
         inv.inv_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
         inv.cust_code.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -313,43 +313,27 @@ const Sales: React.FC = () => {
 
                             {/* Mobile Table View */}
                             <MobileTable
-                                data={filteredInvoices}
+                                data={cartItems}
                                 columns={[
                                     {
-                                        key: 'inv_number',
-                                        label: 'Invoice #',
-                                        render: (value) => <span className="font-medium text-brand-600">{value}</span>
+                                        key: 'prod_name',
+                                        label: 'Product',
+                                        render: (value) => <span className="font-medium">{value}</span>
                                     },
                                     {
-                                        key: 'inv_date',
-                                        label: 'Date',
-                                        render: (value) => formatTableDate(value)
+                                        key: 'quantity',
+                                        label: 'Qty',
+                                        render: (value) => value
                                     },
                                     {
-                                        key: 'cust_code',
-                                        label: 'Customer'
-                                    },
-                                    {
-                                        key: 'total_amount',
-                                        label: 'Amount',
+                                        key: 'unit_price',
+                                        label: 'Price',
                                         render: (value) => `PKR ${value.toLocaleString()}`
                                     },
                                     {
-                                        key: 'balance_due',
-                                        label: 'Balance',
+                                        key: 'line_total',
+                                        label: 'Total',
                                         render: (value) => `PKR ${value.toLocaleString()}`
-                                    },
-                                    {
-                                        key: 'status',
-                                        label: 'Status',
-                                        render: (value) => (
-                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
-                                      ${value === 'PAID' ? 'bg-green-100 text-green-800' :
-                                                    value === 'PENDING' ? 'bg-blue-100 text-blue-800' :
-                                                        'bg-red-100 text-red-800'}`}>
-                                                {value}
-                                            </span>
-                                        )
                                     }
                                 ]}
                             />

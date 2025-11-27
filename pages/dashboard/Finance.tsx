@@ -28,8 +28,8 @@ const Finance: React.FC = () => {
         setIsLoading(true);
         try {
             const [transResponse, expsResponse, custsResponse, suppsResponse] = await Promise.all([
-                api.finance.getTransactions(1, 20), // Get first 20 transactions
-                api.finance.getExpenses(1, 20), // Get first 20 expenses
+                api.finance.getTransactions(1, 8), // Get first 8 transactions
+                api.finance.getExpenses(1, 8), // Get first 8 expenses
                 api.customers.getAll(1, 100), // Get all customers for dropdown
                 api.suppliers.getAll(1, 100) // Get all suppliers for dropdown
             ]);

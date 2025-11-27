@@ -31,12 +31,12 @@ const Inventory: React.FC = () => {
     setIsLoading(true);
     try {
       const [prodsResponse, cats] = await Promise.all([
-        api.products.getAll(page, 10),
+        api.products.getAll(page, 8),
         api.categories.getAll()
       ]);
-      setProducts(prodsResponse.data);
+      setProducts(Array.isArray(prodsResponse.data) ? prodsResponse.data : []);
       setPagination(prodsResponse.pagination);
-      setCategories(cats);
+      setCategories(Array.isArray(cats) ? cats : []);
     } catch (error) {
       console.error("Failed to fetch inventory", error);
     } finally {
@@ -97,7 +97,7 @@ const Inventory: React.FC = () => {
     }
   };
 
-  const filteredProducts = products.filter(p =>
+  const filteredProducts = (Array.isArray(products) ? products : []).filter(p =>
     p.prod_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.prod_code.toLowerCase().includes(searchTerm.toLowerCase())
   );

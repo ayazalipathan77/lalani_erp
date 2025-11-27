@@ -84,7 +84,7 @@ export const api = {
 
   // --- USERS MANAGEMENT ---
   users: {
-    getAll: async (page: number = 1, limit: number = 10): Promise<{ data: User[], pagination: any }> => {
+    getAll: async (page: number = 1, limit: number = 8): Promise<{ data: User[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
         const startIndex = (page - 1) * limit;
@@ -152,7 +152,7 @@ export const api = {
 
   // --- INVENTORY ---
   products: {
-    getAll: async (page: number = 1, limit: number = 10): Promise<{ data: Product[], pagination: any }> => {
+    getAll: async (page: number = 1, limit: number = 8): Promise<{ data: Product[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
         const startIndex = (page - 1) * limit;
@@ -219,7 +219,7 @@ export const api = {
 
   // --- PARTNERS (Customers & Suppliers) ---
   customers: {
-    getAll: async (page: number = 1, limit: number = 10): Promise<{ data: Customer[], pagination: any }> => {
+    getAll: async (page: number = 1, limit: number = 8): Promise<{ data: Customer[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
         const startIndex = (page - 1) * limit;
@@ -281,7 +281,7 @@ export const api = {
     }
   },
   suppliers: {
-    getAll: async (page: number = 1, limit: number = 10): Promise<{ data: Supplier[], pagination: any }> => {
+    getAll: async (page: number = 1, limit: number = 8): Promise<{ data: Supplier[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
         const startIndex = (page - 1) * limit;
@@ -343,7 +343,7 @@ export const api = {
 
   // --- SALES & INVOICES ---
   invoices: {
-    getAll: async (page: number = 1, limit: number = 10): Promise<{ data: SalesInvoice[], pagination: any }> => {
+    getAll: async (page: number = 1, limit: number = 8): Promise<{ data: SalesInvoice[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
         const startIndex = (page - 1) * limit;
@@ -403,7 +403,7 @@ export const api = {
 
   // --- FINANCE ---
   finance: {
-    getTransactions: async (page: number = 1, limit: number = 10): Promise<{ data: CashTransaction[], pagination: any }> => {
+    getTransactions: async (page: number = 1, limit: number = 8): Promise<{ data: CashTransaction[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
         const startIndex = (page - 1) * limit;
@@ -422,7 +422,7 @@ export const api = {
       const res = await fetch(`/api/finance/transactions?page=${page}&limit=${limit}`);
       return res.json();
     },
-    getExpenses: async (page: number = 1, limit: number = 10): Promise<{ data: Expense[], pagination: any }> => {
+    getExpenses: async (page: number = 1, limit: number = 8): Promise<{ data: Expense[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
         const startIndex = (page - 1) * limit;

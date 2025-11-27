@@ -45,7 +45,7 @@ const Users: React.FC = () => {
   const fetchData = async (page: number = currentPage) => {
     setIsLoading(true);
     try {
-      const response = await api.users.getAll(page, 10);
+      const response = await api.users.getAll(page, 8);
       setUsers(response.data);
       setPagination(response.pagination);
     } catch (e) {
