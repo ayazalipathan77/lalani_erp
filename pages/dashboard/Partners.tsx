@@ -13,19 +13,19 @@ const Partners: React.FC = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  
+
   // Dynamic Form Data
   const [formData, setFormData] = useState<any>({});
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [custs, supps] = await Promise.all([
-        api.customers.getAll(),
-        api.suppliers.getAll()
+      const [custsResponse, suppsResponse] = await Promise.all([
+        api.customers.getAll(1, 100), // Get all customers for partners page
+        api.suppliers.getAll(1, 100) // Get all suppliers for partners page
       ]);
-      setCustomers(custs);
-      setSuppliers(supps);
+      setCustomers(custsResponse.data);
+      setSuppliers(suppsResponse.data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -79,9 +79,9 @@ const Partners: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if(!window.confirm(`Are you sure you want to delete this ${activeTab === 'customers' ? 'customer' : 'supplier'}?`)) return;
+    if (!window.confirm(`Are you sure you want to delete this ${activeTab === 'customers' ? 'customer' : 'supplier'}?`)) return;
     try {
-      if(activeTab === 'customers') await api.customers.delete(id);
+      if (activeTab === 'customers') await api.customers.delete(id);
       else await api.suppliers.delete(id);
       fetchData();
     } catch (error) {
@@ -89,13 +89,13 @@ const Partners: React.FC = () => {
     }
   };
 
-  const filteredCustomers = customers.filter(c => 
-    c.cust_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredCustomers = customers.filter(c =>
+    c.cust_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.city.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredSuppliers = suppliers.filter(s => 
-    s.supplier_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredSuppliers = suppliers.filter(s =>
+    s.supplier_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.city.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -106,7 +106,7 @@ const Partners: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-900">Partners & Stakeholders</h1>
           <p className="text-slate-500">Manage your network of customers and vendors.</p>
         </div>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           className="bg-brand-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-brand-700 transition-colors shadow-sm"
         >
@@ -120,21 +120,19 @@ const Partners: React.FC = () => {
         <div className="flex border-b border-slate-200">
           <button
             onClick={() => setActiveTab('customers')}
-            className={`flex-1 py-4 text-sm font-medium text-center transition-colors ${
-              activeTab === 'customers'
-                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-            }`}
+            className={`flex-1 py-4 text-sm font-medium text-center transition-colors ${activeTab === 'customers'
+              ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50'
+              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
           >
             Customers ({customers.length})
           </button>
           <button
             onClick={() => setActiveTab('suppliers')}
-            className={`flex-1 py-4 text-sm font-medium text-center transition-colors ${
-              activeTab === 'suppliers'
-                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-            }`}
+            className={`flex-1 py-4 text-sm font-medium text-center transition-colors ${activeTab === 'suppliers'
+              ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50'
+              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
           >
             Suppliers ({suppliers.length})
           </button>
@@ -157,16 +155,16 @@ const Partners: React.FC = () => {
         </div>
 
         {/* Content List */}
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 overflow-hidden">
           {isLoading ? (
             <div className="col-span-full text-center py-12 text-slate-400">Loading data...</div>
           ) : activeTab === 'customers' ? (
             filteredCustomers.map(customer => (
               <div key={customer.cust_id} className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-md transition-shadow group relative">
-                 <div className="absolute top-4 right-4 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => handleOpenModal(customer)} className="p-1 text-slate-400 hover:text-brand-600"><Edit2 className="w-4 h-4" /></button>
-                    <button onClick={() => handleDelete(customer.cust_id)} className="p-1 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
-                 </div>
+                <div className="absolute top-4 right-4 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => handleOpenModal(customer)} className="p-1 text-slate-400 hover:text-brand-600"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(customer.cust_id)} className="p-1 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                </div>
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center">
                     <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold mr-3">
@@ -178,7 +176,7 @@ const Partners: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="space-y-2 text-sm text-slate-600 mb-4">
                   <div className="flex items-center">
                     <MapPin className="w-4 h-4 mr-2 text-slate-400" />
@@ -202,9 +200,9 @@ const Partners: React.FC = () => {
             filteredSuppliers.map(supplier => (
               <div key={supplier.supplier_id} className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-md transition-shadow group relative">
                 <div className="absolute top-4 right-4 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => handleOpenModal(supplier)} className="p-1 text-slate-400 hover:text-brand-600"><Edit2 className="w-4 h-4" /></button>
-                    <button onClick={() => handleDelete(supplier.supplier_id)} className="p-1 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
-                 </div>
+                  <button onClick={() => handleOpenModal(supplier)} className="p-1 text-slate-400 hover:text-brand-600"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(supplier.supplier_id)} className="p-1 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                </div>
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center">
                     <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-bold mr-3">
@@ -216,9 +214,9 @@ const Partners: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="space-y-2 text-sm text-slate-600 mb-4">
-                   <div className="flex items-center">
+                  <div className="flex items-center">
                     <User className="w-4 h-4 mr-2 text-slate-400" />
                     {supplier.contact_person}
                   </div>
@@ -241,86 +239,86 @@ const Partners: React.FC = () => {
       {/* Shared Modal for Customer/Supplier */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-                <div className="flex justify-between items-center p-6 border-b border-slate-100">
-                    <h3 className="text-xl font-bold text-slate-900">
-                        {editingId ? 'Edit' : 'Add New'} {activeTab === 'customers' ? 'Customer' : 'Supplier'}
-                    </h3>
-                    <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100">
+              <h3 className="text-xl font-bold text-slate-900">
+                {editingId ? 'Edit' : 'Add New'} {activeTab === 'customers' ? 'Customer' : 'Supplier'}
+              </h3>
+              <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {/* Common Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Code</label>
+                  <input
+                    type="text" required
+                    className="w-full border border-slate-300 rounded-lg p-2"
+                    value={activeTab === 'customers' ? formData.cust_code : formData.supplier_code}
+                    onChange={e => setFormData({ ...formData, [activeTab === 'customers' ? 'cust_code' : 'supplier_code']: e.target.value })}
+                  />
                 </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    {/* Common Fields */}
-                    <div className="grid grid-cols-2 gap-4">
-                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Code</label>
-                            <input 
-                                type="text" required 
-                                className="w-full border border-slate-300 rounded-lg p-2"
-                                value={activeTab === 'customers' ? formData.cust_code : formData.supplier_code}
-                                onChange={e => setFormData({...formData, [activeTab === 'customers' ? 'cust_code' : 'supplier_code']: e.target.value})}
-                            />
-                         </div>
-                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
-                            <input 
-                                type="text" required 
-                                className="w-full border border-slate-300 rounded-lg p-2"
-                                value={formData.city}
-                                onChange={e => setFormData({...formData, city: e.target.value})}
-                            />
-                         </div>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
-                        <input 
-                            type="text" required 
-                            className="w-full border border-slate-300 rounded-lg p-2"
-                            value={activeTab === 'customers' ? formData.cust_name : formData.supplier_name}
-                            onChange={e => setFormData({...formData, [activeTab === 'customers' ? 'cust_name' : 'supplier_name']: e.target.value})}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
-                        <input 
-                            type="text" 
-                            className="w-full border border-slate-300 rounded-lg p-2"
-                            value={formData.phone}
-                            onChange={e => setFormData({...formData, phone: e.target.value})}
-                        />
-                    </div>
-                    
-                    {/* Specific Fields */}
-                    {activeTab === 'customers' && (
-                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Credit Limit</label>
-                            <input 
-                                type="number" 
-                                className="w-full border border-slate-300 rounded-lg p-2"
-                                value={formData.credit_limit}
-                                onChange={e => setFormData({...formData, credit_limit: Number(e.target.value)})}
-                            />
-                        </div>
-                    )}
-                    {activeTab === 'suppliers' && (
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Contact Person</label>
-                            <input 
-                                type="text" 
-                                className="w-full border border-slate-300 rounded-lg p-2"
-                                value={formData.contact_person}
-                                onChange={e => setFormData({...formData, contact_person: e.target.value})}
-                            />
-                        </div>
-                    )}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
+                  <input
+                    type="text" required
+                    className="w-full border border-slate-300 rounded-lg p-2"
+                    value={formData.city}
+                    onChange={e => setFormData({ ...formData, city: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
+                <input
+                  type="text" required
+                  className="w-full border border-slate-300 rounded-lg p-2"
+                  value={activeTab === 'customers' ? formData.cust_name : formData.supplier_name}
+                  onChange={e => setFormData({ ...formData, [activeTab === 'customers' ? 'cust_name' : 'supplier_name']: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
+                <input
+                  type="text"
+                  className="w-full border border-slate-300 rounded-lg p-2"
+                  value={formData.phone}
+                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </div>
 
-                    <button 
-                        type="submit"
-                        className="w-full bg-brand-600 text-white py-2 rounded-lg hover:bg-brand-700 mt-4"
-                    >
-                        Save Record
-                    </button>
-                </form>
-           </div>
+              {/* Specific Fields */}
+              {activeTab === 'customers' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Credit Limit</label>
+                  <input
+                    type="number"
+                    className="w-full border border-slate-300 rounded-lg p-2"
+                    value={formData.credit_limit}
+                    onChange={e => setFormData({ ...formData, credit_limit: Number(e.target.value) })}
+                  />
+                </div>
+              )}
+              {activeTab === 'suppliers' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Contact Person</label>
+                  <input
+                    type="text"
+                    className="w-full border border-slate-300 rounded-lg p-2"
+                    value={formData.contact_person}
+                    onChange={e => setFormData({ ...formData, contact_person: e.target.value })}
+                  />
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full bg-brand-600 text-white py-2 rounded-lg hover:bg-brand-700 mt-4"
+              >
+                Save Record
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>

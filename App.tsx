@@ -4,6 +4,7 @@ import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import { User } from './types';
 import { api } from './services/api';
+import { initPWA } from './src/utils/pwa';
 
 const App: React.FC = () => {
   // Auth state now holds the User object or null
@@ -35,6 +36,10 @@ const App: React.FC = () => {
       }
       setLoading(false);
     };
+
+    // Initialize PWA features
+    initPWA();
+
     checkAuth();
   }, []);
 

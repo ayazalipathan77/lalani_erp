@@ -3,6 +3,7 @@ import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft } fr
 import { api } from '../../services/api';
 import { SalesInvoiceItem, SalesInvoice, Product, Customer } from '../../types';
 import { formatTableDate } from '../../src/utils/dateUtils';
+import MobileTable from '../../components/MobileTable';
 
 const Sales: React.FC = () => {
     const [view, setView] = useState<'list' | 'create'>('list');
@@ -23,14 +24,14 @@ const Sales: React.FC = () => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [invs, prods, custs] = await Promise.all([
-                api.invoices.getAll(),
-                api.products.getAll(),
-                api.customers.getAll()
+            const [invsResponse, prodsResponse, custsResponse] = await Promise.all([
+                api.invoices.getAll(1, 50), // Get more invoices for sales page
+                api.products.getAll(1, 100), // Get all products for dropdown
+                api.customers.getAll(1, 100) // Get all customers for dropdown
             ]);
-            setInvoices(invs);
-            setProducts(prods);
-            setCustomers(custs);
+            setInvoices(invsResponse.data);
+            setProducts(prodsResponse.data);
+            setCustomers(custsResponse.data);
         } catch (e) {
             console.error(e);
         } finally {
@@ -106,7 +107,7 @@ const Sales: React.FC = () => {
     );
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 lg:space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Sales & Invoicing</h1>
@@ -126,7 +127,7 @@ const Sales: React.FC = () => {
             {view === 'list' ? (
                 /* INVOICE LIST VIEW */
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row gap-4 justify-between items-center">
+                    <div className="p-3 lg:p-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row gap-4 justify-between items-center">
                         <div className="relative w-full sm:w-96">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <Search className="h-5 w-5 text-slate-400" />
@@ -141,16 +142,16 @@ const Sales: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto hidden lg:block">
                         <table className="min-w-full divide-y divide-slate-200">
                             <thead className="bg-slate-50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Invoice #</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Customer</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Amount</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Balance</th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Invoice #</th>
+                                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Customer</th>
+                                    <th className="px-3 lg:px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Amount</th>
+                                    <th className="px-3 lg:px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Balance</th>
+                                    <th className="px-3 lg:px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-slate-200">
@@ -160,12 +161,12 @@ const Sales: React.FC = () => {
                                     <tr><td colSpan={7} className="text-center py-8 text-slate-500">No invoices found.</td></tr>
                                 ) : filteredInvoices.map((inv) => (
                                     <tr key={inv.inv_id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-600">{inv.inv_number}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatTableDate(inv.inv_date)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">{inv.cust_code}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono">{inv.total_amount.toLocaleString()}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-slate-500">{inv.balance_due.toLocaleString()}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-600">{inv.inv_number}</td>
+                                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatTableDate(inv.inv_date)}</td>
+                                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-slate-900">{inv.cust_code}</td>
+                                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-right font-mono">{inv.total_amount.toLocaleString()}</td>
+                                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-slate-500">{inv.balance_due.toLocaleString()}</td>
+                                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-center">
                                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full 
                         ${inv.status === 'PAID' ? 'bg-green-100 text-green-800' :
                                                     inv.status === 'PENDING' ? 'bg-blue-100 text-blue-800' :
@@ -178,13 +179,56 @@ const Sales: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Mobile Table View */}
+                    <MobileTable
+                        data={filteredInvoices}
+                        columns={[
+                            {
+                                key: 'inv_number',
+                                label: 'Invoice #',
+                                render: (value) => <span className="font-medium text-brand-600">{value}</span>
+                            },
+                            {
+                                key: 'inv_date',
+                                label: 'Date',
+                                render: (value) => formatTableDate(value)
+                            },
+                            {
+                                key: 'cust_code',
+                                label: 'Customer'
+                            },
+                            {
+                                key: 'total_amount',
+                                label: 'Amount',
+                                render: (value) => value.toLocaleString()
+                            },
+                            {
+                                key: 'balance_due',
+                                label: 'Balance',
+                                render: (value) => value.toLocaleString()
+                            },
+                            {
+                                key: 'status',
+                                label: 'Status',
+                                render: (value) => (
+                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                              ${value === 'PAID' ? 'bg-green-100 text-green-800' :
+                                            value === 'PENDING' ? 'bg-blue-100 text-blue-800' :
+                                                'bg-red-100 text-red-800'}`}>
+                                        {value}
+                                    </span>
+                                )
+                            }
+                        ]}
+                    />
                 </div>
             ) : (
                 /* CREATE INVOICE VIEW */
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 overflow-hidden">
                     <div className="lg:col-span-2 space-y-6">
                         {/* Product Selection Card */}
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 lg:p-6">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-lg font-bold text-slate-900">Add Items</h2>
                                 <button onClick={() => setView('list')} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
@@ -192,8 +236,8 @@ const Sales: React.FC = () => {
                                 </button>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                                <div className="md:col-span-8">
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-4">
+                                <div className="sm:col-span-8">
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Select Product</label>
                                     <select
                                         className="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-brand-500 focus:border-brand-500 sm:text-sm p-2.5 border"
@@ -208,7 +252,7 @@ const Sales: React.FC = () => {
                                         ))}
                                     </select>
                                 </div>
-                                <div className="md:col-span-2">
+                                <div className="sm:col-span-2">
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
                                     <input
                                         type="number"
@@ -218,7 +262,7 @@ const Sales: React.FC = () => {
                                         onChange={(e) => setQty(parseInt(e.target.value))}
                                     />
                                 </div>
-                                <div className="md:col-span-2 flex items-end">
+                                <div className="sm:col-span-2 flex items-end">
                                     <button
                                         onClick={handleAddItem}
                                         disabled={!selectedProduct}
@@ -230,7 +274,7 @@ const Sales: React.FC = () => {
                             </div>
 
                             {/* Cart Table */}
-                            <div className="mt-6 border rounded-lg overflow-hidden">
+                            <div className="mt-6 border rounded-lg overflow-hidden hidden lg:block">
                                 <table className="min-w-full divide-y divide-slate-200">
                                     <thead className="bg-slate-50">
                                         <tr>
@@ -266,12 +310,55 @@ const Sales: React.FC = () => {
                                     </tbody>
                                 </table>
                             </div>
+
+                            {/* Mobile Table View */}
+                            <MobileTable
+                                data={filteredInvoices}
+                                columns={[
+                                    {
+                                        key: 'inv_number',
+                                        label: 'Invoice #',
+                                        render: (value) => <span className="font-medium text-brand-600">{value}</span>
+                                    },
+                                    {
+                                        key: 'inv_date',
+                                        label: 'Date',
+                                        render: (value) => formatTableDate(value)
+                                    },
+                                    {
+                                        key: 'cust_code',
+                                        label: 'Customer'
+                                    },
+                                    {
+                                        key: 'total_amount',
+                                        label: 'Amount',
+                                        render: (value) => `PKR ${value.toLocaleString()}`
+                                    },
+                                    {
+                                        key: 'balance_due',
+                                        label: 'Balance',
+                                        render: (value) => `PKR ${value.toLocaleString()}`
+                                    },
+                                    {
+                                        key: 'status',
+                                        label: 'Status',
+                                        render: (value) => (
+                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                                      ${value === 'PAID' ? 'bg-green-100 text-green-800' :
+                                                    value === 'PENDING' ? 'bg-blue-100 text-blue-800' :
+                                                        'bg-red-100 text-red-800'}`}>
+                                                {value}
+                                            </span>
+                                        )
+                                    }
+                                ]}
+                            />
                         </div>
                     </div>
 
                     {/* Sidebar Invoice Details */}
                     <div className="space-y-6">
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 lg:p-6">
                             <h2 className="text-lg font-bold text-slate-900 mb-4">Invoice Details</h2>
 
                             <div className="space-y-4">

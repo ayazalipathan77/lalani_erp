@@ -109,8 +109,29 @@ app.post('/api/auth/verify', (req, res) => {
 // Users
 app.get('/api/users', async (req, res) => {
     try {
-        const result = await pool.query('SELECT user_id, username, full_name, role, is_active, permissions FROM users ORDER BY user_id');
-        res.json(result.rows);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM users');
+        const total = parseInt(countResult.rows[0].total);
+
+        // Get paginated data
+        const result = await pool.query(
+            'SELECT user_id, username, full_name, role, is_active, permissions FROM users ORDER BY user_id LIMIT $1 OFFSET $2',
+            [limit, offset]
+        );
+
+        res.json({
+            data: result.rows,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -152,8 +173,29 @@ app.delete('/api/users/:id', async (req, res) => {
 // Inventory (Products)
 app.get('/api/products', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM products ORDER BY prod_name');
-        res.json(result.rows);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM products');
+        const total = parseInt(countResult.rows[0].total);
+
+        // Get paginated data
+        const result = await pool.query(
+            'SELECT * FROM products ORDER BY prod_name LIMIT $1 OFFSET $2',
+            [limit, offset]
+        );
+
+        res.json({
+            data: result.rows,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -198,8 +240,29 @@ app.get('/api/categories', async (req, res) => {
 // Customers
 app.get('/api/customers', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM customers ORDER BY cust_name');
-        res.json(result.rows);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM customers');
+        const total = parseInt(countResult.rows[0].total);
+
+        // Get paginated data
+        const result = await pool.query(
+            'SELECT * FROM customers ORDER BY cust_name LIMIT $1 OFFSET $2',
+            [limit, offset]
+        );
+
+        res.json({
+            data: result.rows,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -236,8 +299,29 @@ app.delete('/api/customers/:id', async (req, res) => {
 // Suppliers
 app.get('/api/suppliers', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM suppliers ORDER BY supplier_name');
-        res.json(result.rows);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM suppliers');
+        const total = parseInt(countResult.rows[0].total);
+
+        // Get paginated data
+        const result = await pool.query(
+            'SELECT * FROM suppliers ORDER BY supplier_name LIMIT $1 OFFSET $2',
+            [limit, offset]
+        );
+
+        res.json({
+            data: result.rows,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -274,20 +358,40 @@ app.delete('/api/suppliers/:id', async (req, res) => {
 // --- INVOICES ---
 app.get('/api/invoices', async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM sales_invoices');
+        const total = parseInt(countResult.rows[0].total);
+
+        // Get paginated data
         const result = await pool.query(`
-            SELECT i.*, 
-            (SELECT json_agg(json_build_object('prod_code', it.prod_code, 'quantity', it.quantity, 'unit_price', it.unit_price, 'line_total', it.line_total, 'prod_name', p.prod_name)) 
-             FROM sales_invoice_items it 
-             JOIN products p ON it.prod_code = p.prod_code 
-             WHERE it.inv_id = i.inv_id) as items 
-            FROM sales_invoices i 
+            SELECT i.*,
+            (SELECT json_agg(json_build_object('prod_code', it.prod_code, 'quantity', it.quantity, 'unit_price', it.unit_price, 'line_total', it.line_total, 'prod_name', p.prod_name))
+             FROM sales_invoice_items it
+             JOIN products p ON it.prod_code = p.prod_code
+             WHERE it.inv_id = i.inv_id) as items
+            FROM sales_invoices i
             ORDER BY i.inv_date DESC, i.inv_id DESC
-        `);
+            LIMIT $1 OFFSET $2
+        `, [limit, offset]);
+
         const invoices = result.rows.map(inv => ({
             ...inv,
             status: Number(inv.balance_due) <= 0 ? 'PAID' : (Number(inv.balance_due) < Number(inv.total_amount) ? 'PARTIAL' : 'PENDING')
         }));
-        res.json(invoices);
+
+        res.json({
+            data: invoices,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -351,15 +455,57 @@ app.post('/api/invoices', async (req, res) => {
 // --- FINANCE ---
 app.get('/api/finance/transactions', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM cash_balance ORDER BY trans_date DESC, trans_id DESC LIMIT 100');
-        res.json(result.rows);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM cash_balance');
+        const total = parseInt(countResult.rows[0].total);
+
+        // Get paginated data
+        const result = await pool.query(
+            'SELECT * FROM cash_balance ORDER BY trans_date DESC, trans_id DESC LIMIT $1 OFFSET $2',
+            [limit, offset]
+        );
+
+        res.json({
+            data: result.rows,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/finance/expenses', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM expenses ORDER BY expense_date DESC');
-        res.json(result.rows);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM expenses');
+        const total = parseInt(countResult.rows[0].total);
+
+        // Get paginated data
+        const result = await pool.query(
+            'SELECT * FROM expenses ORDER BY expense_date DESC LIMIT $1 OFFSET $2',
+            [limit, offset]
+        );
+
+        res.json({
+            data: result.rows,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

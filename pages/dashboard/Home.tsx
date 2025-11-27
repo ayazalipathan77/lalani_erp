@@ -20,6 +20,7 @@ import { DollarSign, ShoppingBag, Users, TrendingUp, AlertCircle, ArrowRight, Pa
 import { api } from '../../services/api';
 import { SalesInvoice, Customer, Product } from '../../types';
 import { formatTableDate } from '../../src/utils/dateUtils';
+import MobileTable from '../../components/MobileTable';
 
 const DashboardHome: React.FC = () => {
   const navigate = useNavigate();
@@ -129,7 +130,7 @@ const DashboardHome: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-brand-50 rounded-lg">
@@ -179,7 +180,7 @@ const DashboardHome: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-slate-200">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-emerald-50 rounded-lg">
               <Target className="w-6 h-6 text-emerald-600" />
@@ -205,11 +206,11 @@ const DashboardHome: React.FC = () => {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6 mb-6 overflow-hidden">
         {/* Sales Trends */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 xl:col-span-2">
-          <h3 className="text-lg font-bold text-slate-900 mb-6">Sales Trends (6 Months)</h3>
-          <div className="h-80">
+        <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-slate-200 xl:col-span-2">
+          <h3 className="text-base lg:text-lg font-bold text-slate-900 mb-4 lg:mb-6">Sales Trends (6 Months)</h3>
+          <div className="h-64 lg:h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={salesData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <defs>
@@ -232,9 +233,9 @@ const DashboardHome: React.FC = () => {
         </div>
 
         {/* Sales by Category Pie Chart */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <h3 className="text-lg font-bold text-slate-900 mb-6">Sales by Category</h3>
-          <div className="h-80">
+        <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-slate-200">
+          <h3 className="text-base lg:text-lg font-bold text-slate-900 mb-4 lg:mb-6">Sales by Category</h3>
+          <div className="h-64 lg:h-80">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -270,11 +271,11 @@ const DashboardHome: React.FC = () => {
       </div>
 
       {/* Bottom Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 overflow-hidden">
         {/* Top Products Bar Chart */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <h3 className="text-lg font-bold text-slate-900 mb-6">Top Products by Revenue</h3>
-          <div className="h-80">
+        <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-slate-200">
+          <h3 className="text-base lg:text-lg font-bold text-slate-900 mb-4 lg:mb-6">Top Products by Revenue</h3>
+          <div className="h-64 lg:h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topProductsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -305,9 +306,9 @@ const DashboardHome: React.FC = () => {
         </div>
 
         {/* Recent Invoices Table */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <h3 className="text-lg font-bold text-slate-900 mb-6">Recent Invoices</h3>
-          <div className="overflow-x-auto">
+        <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-slate-200">
+          <h3 className="text-base lg:text-lg font-bold text-slate-900 mb-4 lg:mb-6">Recent Invoices</h3>
+          <div className="overflow-x-auto hidden lg:block">
             <table className="min-w-full">
               <thead>
                 <tr className="border-b border-slate-100">
@@ -347,6 +348,44 @@ const DashboardHome: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Table View */}
+          <MobileTable
+            data={(analyticsData?.recentInvoices || []).slice(0, 5)}
+            columns={[
+              {
+                key: 'inv_number',
+                label: 'Invoice',
+                render: (value) => <span className="font-medium text-brand-600">{value}</span>
+              },
+              {
+                key: 'inv_date',
+                label: 'Date',
+                render: (value) => formatTableDate(value)
+              },
+              {
+                key: 'total_amount',
+                label: 'Amount',
+                render: (value, item) => {
+                  const amount = typeof item.total_amount === 'string' ? parseFloat(item.total_amount) : Number(item.total_amount);
+                  return amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                }
+              },
+              {
+                key: 'status',
+                label: 'Status',
+                render: (value) => (
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                    ${value === 'PAID' ? 'bg-green-100 text-green-800' :
+                      value === 'PENDING' ? 'bg-blue-100 text-blue-800' :
+                        'bg-red-100 text-red-800'}`}>
+                    {value}
+                  </span>
+                )
+              }
+            ]}
+          />
+
           <div className="mt-4 text-center">
             <Link
               to="/dashboard/sales"

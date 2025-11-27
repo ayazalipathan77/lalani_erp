@@ -29,7 +29,10 @@
     "react-dom": "^18.3.1",
     "react-is": "^18.3.1",
     "react-router-dom": "^6.23.0",
-    "recharts": "^2.12.7"
+    "react-swipeable": "^7.0.2",
+    "recharts": "^2.12.7",
+    "workbox-sw": "^7.4.0",
+    "workbox-webpack-plugin": "^7.4.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

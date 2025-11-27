@@ -17,6 +17,7 @@ import { Product, SalesInvoice, Customer, Supplier, Expense, CashTransaction } f
 import { formatTableDate } from '../../src/utils/dateUtils';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import MobileTable from '../../components/MobileTable';
 
 type ReportType =
   | 'SALES_SUMMARY'
@@ -64,20 +65,20 @@ const Reports: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [p, i, c, s, e, t] = await Promise.all([
-          api.products.getAll(),
-          api.invoices.getAll(),
-          api.customers.getAll(),
-          api.suppliers.getAll(),
-          api.finance.getExpenses(),
-          api.finance.getTransactions()
+        const [pResponse, iResponse, cResponse, sResponse, eResponse, tResponse] = await Promise.all([
+          api.products.getAll(1, 1000), // Get all products for reports
+          api.invoices.getAll(1, 1000), // Get all invoices for reports
+          api.customers.getAll(1, 1000), // Get all customers for reports
+          api.suppliers.getAll(1, 1000), // Get all suppliers for reports
+          api.finance.getExpenses(1, 1000), // Get all expenses for reports
+          api.finance.getTransactions(1, 1000) // Get all transactions for reports
         ]);
-        setRawProducts(p);
-        setRawInvoices(i);
-        setRawCustomers(c);
-        setRawSuppliers(s);
-        setRawExpenses(e);
-        setRawTransactions(t);
+        setRawProducts(pResponse.data);
+        setRawInvoices(iResponse.data);
+        setRawCustomers(cResponse.data);
+        setRawSuppliers(sResponse.data);
+        setRawExpenses(eResponse.data);
+        setRawTransactions(tResponse.data);
       } catch (err) {
         console.error("Failed to load report data", err);
       }
@@ -474,7 +475,7 @@ const Reports: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 print:block">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 print:block overflow-hidden">
         {/* Report Selector Sidebar - Hidden on Print */}
         <div className="lg:col-span-1 space-y-6 print:hidden">
           {/* Categories */}
@@ -580,7 +581,7 @@ const Reports: React.FC = () => {
 
             {/* Metrics Summary */}
             {summaryMetrics.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4 mb-8 overflow-hidden">
                 {summaryMetrics.map((metric, idx) => (
                   <div key={idx} className="bg-slate-50 p-4 rounded-lg border border-slate-100 print:border-slate-300">
                     <p className="text-xs text-slate-500 uppercase font-bold">{metric.label}</p>
@@ -591,7 +592,7 @@ const Reports: React.FC = () => {
             )}
 
             {/* Data Table */}
-            <div className="overflow-x-auto print:overflow-visible">
+            <div className="overflow-x-auto hidden lg:block print:overflow-visible">
               <table className="min-w-full divide-y divide-slate-200 border border-slate-200 print:border-black">
                 <thead className="bg-slate-50 print:bg-slate-100">
                   <tr>
@@ -617,6 +618,16 @@ const Reports: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Table View */}
+            <MobileTable
+              data={reportData}
+              columns={columns.map(col => ({
+                key: col.accessor,
+                label: col.header,
+                render: (value) => formatValue(value, col.format)
+              }))}
+            />
 
             <div className="mt-8 pt-8 border-t border-slate-200 text-center text-xs text-slate-400 print:block hidden">
               <p>This is a computer-generated report and does not require a signature.</p>

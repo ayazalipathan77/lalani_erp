@@ -4,6 +4,7 @@ import { Wallet, TrendingUp, TrendingDown, Plus, FileText, X, CheckCircle } from
 import { api } from '../../services/api';
 import { CashTransaction, Expense, Customer, Supplier } from '../../types';
 import { formatTableDate } from '../../src/utils/dateUtils';
+import MobileTable from '../../components/MobileTable';
 
 const Finance: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'overview' | 'expenses' | 'payments'>('overview');
@@ -26,16 +27,16 @@ const Finance: React.FC = () => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [trans, exps, custs, supps] = await Promise.all([
-                api.finance.getTransactions(),
-                api.finance.getExpenses(),
-                api.customers.getAll(),
-                api.suppliers.getAll()
+            const [transResponse, expsResponse, custsResponse, suppsResponse] = await Promise.all([
+                api.finance.getTransactions(1, 20), // Get first 20 transactions
+                api.finance.getExpenses(1, 20), // Get first 20 expenses
+                api.customers.getAll(1, 100), // Get all customers for dropdown
+                api.suppliers.getAll(1, 100) // Get all suppliers for dropdown
             ]);
-            setTransactions(trans);
-            setExpenses(exps);
-            setCustomers(custs);
-            setSuppliers(supps);
+            setTransactions(transResponse.data);
+            setExpenses(expsResponse.data);
+            setCustomers(custsResponse.data);
+            setSuppliers(suppsResponse.data);
         } catch (e) {
             console.error(e);
         } finally {
@@ -132,7 +133,7 @@ const Finance: React.FC = () => {
             {activeTab === 'overview' && (
                 <div className="space-y-6">
                     {/* Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 overflow-hidden">
                         <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-6 text-white shadow-lg">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="p-3 bg-white/10 rounded-lg">
@@ -173,45 +174,91 @@ const Finance: React.FC = () => {
                         {isLoading ? (
                             <div className="p-8 text-center text-slate-500">Loading ledger...</div>
                         ) : (
-                            <table className="min-w-full divide-y divide-slate-200">
-                                <thead className="bg-slate-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Description</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Type</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Debit (In)</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Credit (Out)</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-slate-200">
-                                    {transactions.map((t) => (
-                                        <tr key={t.trans_id} className="hover:bg-slate-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatTableDate(t.trans_date)}</td>
-                                            <td className="px-6 py-4 text-sm text-slate-900">{t.description}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                            <div className="overflow-x-auto hidden lg:block">
+                                <div className="overflow-x-auto hidden lg:block">
+                                    <table className="min-w-full divide-y divide-slate-200">
+                                        <thead className="bg-slate-50">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Description</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Type</th>
+                                                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Debit (In)</th>
+                                                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Credit (Out)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-slate-200">
+                                            {transactions.map((t) => (
+                                                <tr key={t.trans_id} className="hover:bg-slate-50">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatTableDate(t.trans_date)}</td>
+                                                    <td className="px-6 py-4 text-sm text-slate-900">{t.description}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
                                                 ${t.trans_type === 'RECEIPT' || t.trans_type === 'SALES' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
                                             `}>
-                                                    {t.trans_type}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-green-600">
-                                                {(() => {
-                                                    const debit = typeof t.debit_amount === 'string' ? parseFloat(t.debit_amount) : Number(t.debit_amount);
-                                                    return debit > 0 ? debit.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
-                                                })()}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-red-600">
-                                                {(() => {
-                                                    const credit = typeof t.credit_amount === 'string' ? parseFloat(t.credit_amount) : Number(t.credit_amount);
-                                                    return credit > 0 ? credit.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
-                                                })()}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                                            {t.trans_type}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-green-600">
+                                                        {(() => {
+                                                            const debit = typeof t.debit_amount === 'string' ? parseFloat(t.debit_amount) : Number(t.debit_amount);
+                                                            return debit > 0 ? debit.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
+                                                        })()}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-red-600">
+                                                        {(() => {
+                                                            const credit = typeof t.credit_amount === 'string' ? parseFloat(t.credit_amount) : Number(t.credit_amount);
+                                                            return credit > 0 ? credit.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
+                                                        })()}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         )}
+
+                        {/* Mobile Table View */}
+                        <MobileTable
+                            data={transactions}
+                            columns={[
+                                {
+                                    key: 'trans_date',
+                                    label: 'Date',
+                                    render: (value) => formatTableDate(value)
+                                },
+                                {
+                                    key: 'description',
+                                    label: 'Description'
+                                },
+                                {
+                                    key: 'trans_type',
+                                    label: 'Type',
+                                    render: (value) => (
+                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                                  ${value === 'RECEIPT' || value === 'SALES' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {value}
+                                        </span>
+                                    )
+                                },
+                                {
+                                    key: 'debit_amount',
+                                    label: 'Debit (In)',
+                                    render: (value) => {
+                                        const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+                                        return num > 0 ? `PKR ${num.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
+                                    }
+                                },
+                                {
+                                    key: 'credit_amount',
+                                    label: 'Credit (Out)',
+                                    render: (value) => {
+                                        const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+                                        return num > 0 ? `PKR ${num.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
+                                    }
+                                }
+                            ]}
+                        />
                     </div>
                 </div>
             )}

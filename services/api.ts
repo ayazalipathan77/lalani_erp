@@ -84,12 +84,23 @@ export const api = {
 
   // --- USERS MANAGEMENT ---
   users: {
-    getAll: async (): Promise<User[]> => {
+    getAll: async (page: number = 1, limit: number = 10): Promise<{ data: User[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
-        return _users.map(({ password, ...u }) => u as User);
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedUsers = _users.slice(startIndex, endIndex).map(({ password, ...u }) => u as User);
+        return {
+          data: paginatedUsers,
+          pagination: {
+            page,
+            limit,
+            total: _users.length,
+            totalPages: Math.ceil(_users.length / limit)
+          }
+        };
       }
-      const res = await fetch('/api/users');
+      const res = await fetch(`/api/users?page=${page}&limit=${limit}`);
       return res.json();
     },
     create: async (user: Omit<User, 'user_id'>): Promise<User> => {
@@ -141,12 +152,23 @@ export const api = {
 
   // --- INVENTORY ---
   products: {
-    getAll: async (): Promise<Product[]> => {
+    getAll: async (page: number = 1, limit: number = 10): Promise<{ data: Product[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
-        return [..._products];
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedProducts = _products.slice(startIndex, endIndex);
+        return {
+          data: paginatedProducts,
+          pagination: {
+            page,
+            limit,
+            total: _products.length,
+            totalPages: Math.ceil(_products.length / limit)
+          }
+        };
       }
-      const res = await fetch('/api/products', {
+      const res = await fetch(`/api/products?page=${page}&limit=${limit}`, {
         headers: getAuthHeaders()
       });
       return res.json();
@@ -197,12 +219,23 @@ export const api = {
 
   // --- PARTNERS (Customers & Suppliers) ---
   customers: {
-    getAll: async (): Promise<Customer[]> => {
+    getAll: async (page: number = 1, limit: number = 10): Promise<{ data: Customer[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
-        return [..._customers];
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedCustomers = _customers.slice(startIndex, endIndex);
+        return {
+          data: paginatedCustomers,
+          pagination: {
+            page,
+            limit,
+            total: _customers.length,
+            totalPages: Math.ceil(_customers.length / limit)
+          }
+        };
       }
-      const res = await fetch('/api/customers', {
+      const res = await fetch(`/api/customers?page=${page}&limit=${limit}`, {
         headers: getAuthHeaders()
       });
       return res.json();
@@ -248,12 +281,23 @@ export const api = {
     }
   },
   suppliers: {
-    getAll: async (): Promise<Supplier[]> => {
+    getAll: async (page: number = 1, limit: number = 10): Promise<{ data: Supplier[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
-        return [..._suppliers];
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedSuppliers = _suppliers.slice(startIndex, endIndex);
+        return {
+          data: paginatedSuppliers,
+          pagination: {
+            page,
+            limit,
+            total: _suppliers.length,
+            totalPages: Math.ceil(_suppliers.length / limit)
+          }
+        };
       }
-      const res = await fetch('/api/suppliers');
+      const res = await fetch(`/api/suppliers?page=${page}&limit=${limit}`);
       return res.json();
     },
     create: async (supplier: Omit<Supplier, 'supplier_id'>): Promise<Supplier> => {
@@ -299,12 +343,23 @@ export const api = {
 
   // --- SALES & INVOICES ---
   invoices: {
-    getAll: async (): Promise<SalesInvoice[]> => {
+    getAll: async (page: number = 1, limit: number = 10): Promise<{ data: SalesInvoice[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
-        return [..._invoices];
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedInvoices = _invoices.slice(startIndex, endIndex);
+        return {
+          data: paginatedInvoices,
+          pagination: {
+            page,
+            limit,
+            total: _invoices.length,
+            totalPages: Math.ceil(_invoices.length / limit)
+          }
+        };
       }
-      const res = await fetch('/api/invoices');
+      const res = await fetch(`/api/invoices?page=${page}&limit=${limit}`);
       return res.json();
     },
     create: async (invoiceData: {
@@ -348,20 +403,42 @@ export const api = {
 
   // --- FINANCE ---
   finance: {
-    getTransactions: async (): Promise<CashTransaction[]> => {
+    getTransactions: async (page: number = 1, limit: number = 10): Promise<{ data: CashTransaction[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
-        return [..._transactions];
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedTransactions = _transactions.slice(startIndex, endIndex);
+        return {
+          data: paginatedTransactions,
+          pagination: {
+            page,
+            limit,
+            total: _transactions.length,
+            totalPages: Math.ceil(_transactions.length / limit)
+          }
+        };
       }
-      const res = await fetch('/api/finance/transactions');
+      const res = await fetch(`/api/finance/transactions?page=${page}&limit=${limit}`);
       return res.json();
     },
-    getExpenses: async (): Promise<Expense[]> => {
+    getExpenses: async (page: number = 1, limit: number = 10): Promise<{ data: Expense[], pagination: any }> => {
       if (USE_MOCK) {
         await delay(300);
-        return [..._expenses];
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedExpenses = _expenses.slice(startIndex, endIndex);
+        return {
+          data: paginatedExpenses,
+          pagination: {
+            page,
+            limit,
+            total: _expenses.length,
+            totalPages: Math.ceil(_expenses.length / limit)
+          }
+        };
       }
-      const res = await fetch('/api/finance/expenses');
+      const res = await fetch(`/api/finance/expenses?page=${page}&limit=${limit}`);
       return res.json();
     },
     addExpense: async (expense: Omit<Expense, 'expense_id'>): Promise<Expense> => {

@@ -2,17 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Filter, AlertTriangle, Edit2, Trash2, X } from 'lucide-react';
 import { api } from '../../services/api';
 import { Product, Category } from '../../types';
+import MobileTable from '../../components/MobileTable';
+import Pagination from '../../components/Pagination';
 
 const Inventory: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [pagination, setPagination] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  
+
   // Form State
   const [formData, setFormData] = useState<Partial<Product>>({
     prod_code: '',
@@ -23,14 +27,15 @@ const Inventory: React.FC = () => {
     min_stock_level: 0
   });
 
-  const fetchData = async () => {
+  const fetchData = async (page: number = currentPage) => {
     setIsLoading(true);
     try {
-      const [prods, cats] = await Promise.all([
-        api.products.getAll(),
+      const [prodsResponse, cats] = await Promise.all([
+        api.products.getAll(page, 10),
         api.categories.getAll()
       ]);
-      setProducts(prods);
+      setProducts(prodsResponse.data);
+      setPagination(prodsResponse.pagination);
       setCategories(cats);
     } catch (error) {
       console.error("Failed to fetch inventory", error);
@@ -92,10 +97,15 @@ const Inventory: React.FC = () => {
     }
   };
 
-  const filteredProducts = products.filter(p => 
+  const filteredProducts = products.filter(p =>
     p.prod_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.prod_code.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    fetchData(page);
+  };
 
   return (
     <div className="space-y-6 relative">
@@ -104,7 +114,7 @@ const Inventory: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-900">Inventory Management</h1>
           <p className="text-slate-500">Track stock levels, prices, and product categories.</p>
         </div>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           className="bg-brand-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-brand-700 transition-colors shadow-sm"
         >
@@ -133,7 +143,7 @@ const Inventory: React.FC = () => {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto hidden lg:block">
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
@@ -154,7 +164,7 @@ const Inventory: React.FC = () => {
                   <td colSpan={7} className="px-6 py-12 text-center text-slate-500">Loading inventory...</td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
-                 <tr>
+                <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-slate-500">No products found.</td>
                 </tr>
               ) : (
@@ -195,13 +205,13 @@ const Inventory: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
-                        <button 
+                        <button
                           onClick={() => handleOpenModal(product)}
                           className="text-slate-400 hover:text-brand-600 transition-colors"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDelete(product.prod_id)}
                           className="text-slate-400 hover:text-red-600 transition-colors"
                         >
@@ -215,6 +225,71 @@ const Inventory: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Table View */}
+        <MobileTable
+          data={filteredProducts}
+          columns={[
+            {
+              key: 'prod_code',
+              label: 'Code',
+              render: (value) => <span className="font-medium text-brand-600">{value}</span>
+            },
+            {
+              key: 'prod_name',
+              label: 'Name'
+            },
+            {
+              key: 'category_code',
+              label: 'Category',
+              render: (value) => (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                  {value}
+                </span>
+              )
+            },
+            {
+              key: 'unit_price',
+              label: 'Price',
+              render: (value) => `PKR ${value.toLocaleString()}`
+            },
+            {
+              key: 'current_stock',
+              label: 'Stock',
+              render: (value, item) => (
+                <div className="flex items-center justify-end">
+                  {value <= item.min_stock_level && (
+                    <AlertTriangle className="w-4 h-4 text-amber-500 mr-2" />
+                  )}
+                  {value}
+                </div>
+              )
+            },
+            {
+              key: 'current_stock',
+              label: 'Status',
+              render: (value, item) => (
+                value <= item.min_stock_level ? (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                    Low Stock
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    In Stock
+                  </span>
+                )
+              )
+            }
+          ]}
+        />
+
+        {pagination && (
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
+        )}
       </div>
 
       {/* Add/Edit Product Modal */}
@@ -229,25 +304,25 @@ const Inventory: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Product Code</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     required
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-brand-500 focus:border-brand-500"
                     value={formData.prod_code}
-                    onChange={e => setFormData({...formData, prod_code: e.target.value})}
+                    onChange={e => setFormData({ ...formData, prod_code: e.target.value })}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
-                  <select 
+                  <select
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-brand-500 focus:border-brand-500"
                     value={formData.category_code}
-                    onChange={e => setFormData({...formData, category_code: e.target.value})}
+                    onChange={e => setFormData({ ...formData, category_code: e.target.value })}
                   >
                     <option value="">Select Category</option>
                     {categories.map(c => (
@@ -259,60 +334,60 @@ const Inventory: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Product Name</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-brand-500 focus:border-brand-500"
                   value={formData.prod_name}
-                  onChange={e => setFormData({...formData, prod_name: e.target.value})}
+                  onChange={e => setFormData({ ...formData, prod_name: e.target.value })}
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Price (PKR)</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     required
                     min="0"
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-brand-500 focus:border-brand-500"
                     value={formData.unit_price}
-                    onChange={e => setFormData({...formData, unit_price: Number(e.target.value)})}
+                    onChange={e => setFormData({ ...formData, unit_price: Number(e.target.value) })}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Stock</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     required
                     min="0"
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-brand-500 focus:border-brand-500"
                     value={formData.current_stock}
-                    onChange={e => setFormData({...formData, current_stock: Number(e.target.value)})}
+                    onChange={e => setFormData({ ...formData, current_stock: Number(e.target.value) })}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Min Level</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     required
                     min="0"
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-brand-500 focus:border-brand-500"
                     value={formData.min_stock_level}
-                    onChange={e => setFormData({...formData, min_stock_level: Number(e.target.value)})}
+                    onChange={e => setFormData({ ...formData, min_stock_level: Number(e.target.value) })}
                   />
                 </div>
               </div>
 
               <div className="pt-4 flex justify-end space-x-3">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={handleCloseModal}
                   className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 shadow-lg shadow-brand-500/30"
                 >
