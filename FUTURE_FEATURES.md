@@ -272,324 +272,132 @@ CREATE TABLE notifications (
 
 ---
 
-## 🟢 3. Enhanced Dashboard Analytics (Low Priority)
 
-**Status**: ✅ Completed | **Estimated Time**: 8-12 hours | **Priority**: Low
 
-**Overview**: Expand the dashboard with additional charts, graphs, and visual analytics to provide deeper business insights including inventory trends, customer analytics, financial metrics, and performance indicators.
+## 🟡 3. Biometric Login on Mobile Devices
+
+**Status**: 📋 Planned | **Estimated Time**: 10-14 hours | **Priority**: Medium
+
+**Overview**: Implement biometric authentication (fingerprint/face recognition) for mobile devices using the Web Authentication (WebAuthn) API, allowing users to log in securely without passwords on supported mobile browsers and devices.
 
 ### Requirements
-- [ ] Add more KPI cards with additional business metrics
-- [ ] Implement multiple chart types (bar, line, pie, donut)
-- [ ] Create inventory analytics charts
-- [ ] Add customer performance visualizations
-- [ ] Include financial trend analysis
-- [ ] Add real-time data updates
-- [ ] Ensure mobile-responsive chart layouts
+- [ ] WebAuthn API support for biometric authentication on mobile devices
+- [ ] Secure registration and storage of biometric credentials per user
+- [ ] Challenge-response authentication flow for security
+- [ ] Fallback to traditional password login when biometrics unavailable
+- [ ] Mobile-optimized UI for biometric prompts and registration
+- [ ] Proper error handling and user feedback
+- [ ] Security measures to prevent replay attacks and credential theft
 
 ### Technical Specifications
 
-**Database Changes**: No schema changes - uses existing tables and data
+**Database Changes**: New table for WebAuthn credentials
+```sql
+CREATE TABLE user_webauthn_credentials (
+    credential_id VARCHAR(255) PRIMARY KEY,
+    user_id INTEGER REFERENCES users(user_id),
+    public_key TEXT NOT NULL,
+    counter BIGINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_used TIMESTAMP,
+    device_info JSONB -- Store device/browser info for security
+);
+```
 
-**API Endpoints**: New analytics endpoints for aggregated data
-- `GET /api/analytics/dashboard-metrics` - Comprehensive dashboard data
-- `GET /api/analytics/sales-by-category` - Sales breakdown by product category
-- `GET /api/analytics/customer-performance` - Top customers by revenue
-- `GET /api/analytics/inventory-turnover` - Inventory movement analytics
+**API Endpoints**:
+- `POST /api/auth/webauthn/register-start` - Generate registration challenge
+- `POST /api/auth/webauthn/register-finish` - Complete registration with credential
+- `POST /api/auth/webauthn/login-start` - Generate authentication challenge
+- `POST /api/auth/webauthn/login-finish` - Verify authentication response
+- `GET /api/auth/webauthn/credentials` - List user's registered credentials
+- `DELETE /api/auth/webauthn/credentials/:id` - Remove a credential
 
 **Frontend Components**:
-- Enhanced DashboardHome component with multiple chart sections
-- New chart components using Recharts library
-- Dashboard layout reorganization for better visual hierarchy
-- Loading states and error handling for charts
+- BiometricLoginButton component with fingerprint/face icons
+- WebAuthnRegistrationModal for initial setup
+- Enhanced LoginForm with biometric option
+- CredentialManagement component for users to manage their biometrics
 
 **Business Logic**:
-- Real-time KPI calculations
-- Time-based data aggregation (daily, weekly, monthly)
-- Performance trend analysis
-- Inventory health scoring
+- Cryptographically secure challenge generation
+- Public key credential verification
+- Counter-based replay attack prevention
+- User session management with JWT tokens
+- Graceful degradation to password authentication
 
 ### Implementation Tasks
 
-#### Phase 1: Enhanced KPI Cards
-- [ ] Add more metric cards:
-  - Monthly Growth Rate
-  - Average Order Value
-  - Customer Acquisition Rate
-  - Inventory Turnover Ratio
-  - Profit Margin Percentage
-  - Cash Flow Status
-- [ ] Implement trend indicators (up/down arrows with percentages)
-- [ ] Add color coding for performance thresholds
-- [ ] Create responsive grid layout for KPI cards
+#### Phase 1: Backend WebAuthn Infrastructure
+- [ ] Create user_webauthn_credentials table schema
+- [ ] Implement WebAuthn challenge generation utilities
+- [ ] Add registration endpoints (start/finish)
+- [ ] Add authentication endpoints (start/finish)
+- [ ] Integrate WebAuthn with existing JWT authentication
+- [ ] Add credential management endpoints
 
-#### Phase 2: Sales & Revenue Analytics
-- [ ] Sales by Product Category (Pie Chart)
-- [ ] Revenue Trends by Month (Line Chart)
-- [ ] Top Performing Products (Horizontal Bar Chart)
-- [ ] Sales Channel Performance (if applicable)
-- [ ] Seasonal Sales Patterns
-- [ ] Customer Lifetime Value Distribution
+#### Phase 2: Frontend Biometric Integration
+- [ ] Create WebAuthn utility functions for browser API calls
+- [ ] Add biometric login button to login form
+- [ ] Implement registration flow with user guidance
+- [ ] Add credential management in user settings
+- [ ] Handle WebAuthn API availability detection
+- [ ] Implement error states and fallback options
 
-#### Phase 3: Inventory & Operations Analytics
-- [ ] Inventory Value Over Time (Area Chart)
-- [ ] Stock Level Distribution (Bar Chart)
-- [ ] Product Performance Matrix (Scatter Plot)
-- [ ] Supplier Performance Metrics
-- [ ] Order Fulfillment Times
-- [ ] Inventory Turnover by Category
-
-#### Phase 4: Customer & Financial Analytics
-- [ ] Customer Revenue Distribution (Pareto Chart)
-- [ ] Payment Terms Compliance (Donut Chart)
-- [ ] Outstanding Receivables Aging (Stacked Bar)
-- [ ] Cash Flow Projections (Line Chart)
-- [ ] Expense Breakdown by Category (Pie Chart)
-- [ ] Profit & Loss Trends
-
-#### Phase 5: Advanced Dashboard Features
-- [ ] Dashboard customization (drag-drop widgets)
-- [ ] Date range filters for all charts
-- [ ] Export dashboard data to PDF/Excel
-- [ ] Real-time data refresh toggle
-- [ ] Alert thresholds for KPIs
-- [ ] Comparative period analysis (YoY, MoM)
-
-### Chart Types & Visualizations
-
-**Primary Charts:**
-- **Area Chart**: Revenue trends, inventory value over time
-- **Bar Chart**: Monthly comparisons, category breakdowns
-- **Line Chart**: Performance trends, projections
-- **Pie/Donut Chart**: Distribution analysis, percentages
-- **Stacked Bar**: Aging analysis, multi-dimensional data
-
-**Advanced Charts:**
-- **Scatter Plot**: Product performance correlation
-- **Radar Chart**: Multi-metric performance comparison
-- **Heat Map**: Time-based activity patterns
-- **Gauge Charts**: KPI status indicators
-- **Funnel Chart**: Sales pipeline visualization
-
-### Dashboard Layout Structure
-
-```
-┌─────────────────────────────────────────────────┐
-│ KPI Cards Row (6-8 cards)                      │
-├─────────────────┬───────────────────────────────┤
-│ Sales Charts    │ Inventory Analytics           │
-│ • Revenue Trend │ • Stock Levels               │
-│ • Category Pie  │ • Turnover Rates             │
-├─────────────────┼───────────────────────────────┤
-│ Customer        │ Financial Overview            │
-│ Analytics       │ • Cash Flow                  │
-│ • Top Customers │ • Expense Breakdown          │
-│ • Payment Status│ • Profit Trends              │
-├─────────────────┴───────────────────────────────┤
-│ Recent Activity & Quick Actions                 │
-└─────────────────────────────────────────────────┘
-```
-
-### Data Sources & Calculations
-
-**Sales Metrics:**
-- Total Revenue: Sum of all paid invoices
-- Monthly Growth: Percentage change from previous month
-- Average Order Value: Total revenue ÷ number of orders
-- Top Products: Revenue ranked products
-
-**Inventory Metrics:**
-- Stock Value: Sum of (quantity × unit_price) for all products
-- Turnover Ratio: Cost of goods sold ÷ average inventory
-- Low Stock Alerts: Products below minimum threshold
-- Stock Distribution: Categorization by stock levels
-
-**Customer Metrics:**
-- Active Customers: Customers with invoices in last 6 months
-- Top Customers: Revenue-ranked customer list
-- Payment Performance: Percentage of on-time payments
-- Customer Lifetime Value: Average revenue per customer
-
-**Financial Metrics:**
-- Gross Profit Margin: (Revenue - COGS) ÷ Revenue × 100
-- Operating Expenses: Sum of all expense categories
-- Cash Position: Current balance + receivables - payables
-- Working Capital: Current assets - current liabilities
-
-### Technical Considerations
-- **Performance**: Aggregate data server-side to reduce client load
-- **Caching**: Implement data caching for frequently accessed metrics
-- **Responsiveness**: Ensure charts work on all screen sizes
-- **Accessibility**: Add proper ARIA labels and keyboard navigation
-- **Real-time**: Optional WebSocket integration for live updates
-
-### Dependencies
-- Recharts library (already included)
-- Existing API endpoints for data fetching
-- Dashboard routing and layout system
-- Date utility functions
-
-### Testing Criteria
-- [ ] All charts render correctly with real data
-- [ ] Charts are responsive on mobile devices
-- [ ] KPI calculations are accurate
-- [ ] Date filters work across all visualizations
-- [ ] Performance is acceptable with large datasets
-- [ ] Error states are handled gracefully
-
----
-
-## 🟡 4. Mobile Compatibility & PWA (Medium Priority)
-
-**Status**: ✅ Completed | **Estimated Time**: 20-28 hours | **Priority**: Medium
-
-**Overview**: Transform the Lalani ERP system into a fully mobile-compatible Progressive Web App (PWA) with responsive design, touch-optimized interfaces, offline capabilities, and native mobile app features for better field operations and remote access.
-
-### Requirements
-- [ ] Responsive design for all screen sizes (mobile, tablet, desktop)
-- [ ] Touch-optimized interfaces with gesture support
-- [ ] Progressive Web App (PWA) capabilities
-- [ ] Offline data access and synchronization
-- [ ] Mobile-specific features (camera integration, GPS, etc.)
+#### Phase 3: Mobile Optimization & Testing
+- [ ] Optimize UI for mobile biometric prompts
+- [ ] Test on various mobile browsers (Chrome, Safari, Firefox)
+- [ ] Implement proper loading states and user feedback
+- [ ] Add biometric preference settings per user
+- [ ] Security testing and vulnerability assessment
 - [ ] Performance optimization for mobile networks
-- [ ] Cross-platform compatibility (iOS Safari, Android Chrome, etc.)
 
-### Technical Specifications
+### Biometric Authentication Flow
 
-**Frontend Enhancements**:
-- Mobile-first responsive design using Tailwind CSS breakpoints
-- Touch gesture support for tables and interactive elements
-- Optimized component layouts for small screens
-- Mobile navigation patterns (hamburger menu, bottom tabs)
-- Touch-friendly form inputs and buttons
+**Registration**:
+1. User clicks "Enable Biometric Login"
+2. Server generates challenge and options
+3. Browser prompts for biometric enrollment
+4. User provides biometric (fingerprint/face)
+5. Browser creates public key credential
+6. Credential sent to server for storage
 
-**PWA Features**:
-- Service worker for offline functionality
-- App manifest for native app installation
-- Push notifications for critical alerts
-- Background sync for offline data submission
-- Cache strategies for optimal performance
+**Authentication**:
+1. User selects biometric login option
+2. Server generates authentication challenge
+3. Browser prompts for biometric verification
+4. User provides biometric input
+5. Browser signs challenge with private key
+6. Signed response sent to server for verification
+7. Server validates and issues JWT token
 
-**Mobile-Specific Features**:
-- Camera integration for product photos and receipts
-- GPS location tracking for delivery routes
-- Voice input for search and data entry
-- Biometric authentication (fingerprint/face)
-- Mobile payment integration
+### Security Considerations
+- **Challenge-Response**: Each authentication uses unique challenges
+- **Public Key Cryptography**: Private keys never leave device
+- **Counter Prevention**: Prevents replay attacks
+- **HTTPS Required**: WebAuthn requires secure context
+- **Credential Isolation**: Each credential tied to specific user and relying party
 
-### Implementation Tasks
-
-#### Phase 1: Responsive Design Foundation
-- [ ] Audit all components for mobile compatibility
-- [ ] Update Tailwind configuration for mobile breakpoints
-- [ ] Implement mobile-first CSS approach
-- [ ] Create mobile navigation components
-- [ ] Optimize typography and spacing for small screens
-- [ ] Test touch interactions on mobile devices
-
-#### Phase 2: Layout & Navigation Optimization
-- [ ] Redesign dashboard for mobile screens
-- [ ] Implement collapsible sidebar for mobile
-- [ ] Create mobile-optimized table components
-- [ ] Add swipe gestures for navigation
-- [ ] Optimize form layouts for mobile input
-- [ ] Implement mobile search and filtering
-
-#### Phase 3: PWA Implementation
-- [ ] Create service worker for caching
-- [ ] Add web app manifest
-- [ ] Implement offline data storage
-- [ ] Add background sync capabilities
-- [ ] Create offline indicators and messaging
-- [ ] Test PWA installation process
-
-#### Phase 4: Mobile-Specific Features
-- [ ] Camera integration for image capture
-- [ ] GPS location services
-- [ ] Voice search and input
-- [ ] Mobile payment processing
-- [ ] Biometric authentication
-- [ ] Mobile-optimized file uploads
-
-#### Phase 5: Performance & Testing
-- [ ] Optimize bundle size for mobile networks
-- [ ] Implement lazy loading for components
-- [ ] Add mobile performance monitoring
-- [ ] Test on various mobile devices
-- [ ] Cross-browser mobile testing
-- [ ] Performance benchmarking
-
-### Mobile UI Patterns
-
-**Navigation**:
-- Bottom tab bar for main sections
-- Hamburger menu for secondary navigation
-- Swipe gestures for page navigation
-- Back button optimization
-
-**Data Display**:
-- Card-based layouts for lists
-- Collapsible sections for detailed views
-- Horizontal scrolling for wide tables
-- Pull-to-refresh functionality
-
-**Forms & Input**:
-- Large touch targets (minimum 44px)
-- Input type optimization (tel, email, number)
-- Date/time pickers optimized for mobile
-- Auto-complete and suggestions
-
-### PWA Capabilities
-
-**Offline Features**:
-- View cached data when offline
-- Queue actions for later sync
-- Offline form submission
-- Critical data caching
-
-**App-like Experience**:
-- Install prompt and banner
-- Splash screen and icons
-- Full-screen mode
-- Native app shortcuts
-
-### Mobile-Specific Business Features
-
-**Field Operations**:
-- Customer visit logging with GPS
-- Product inventory checks on-site
-- Photo capture for delivery verification
-- Voice notes for customer feedback
-- Offline order placement
-
-**Driver/Mobile Worker Features**:
-- Route optimization with GPS
-- Delivery status updates
-- Customer signature capture
-- Real-time location sharing
-- Emergency contact features
-
-### Technical Considerations
-- **Performance**: Optimize for slow mobile networks
-- **Storage**: Efficient data caching strategies
-- **Security**: Secure offline data storage
-- **Compatibility**: Support for older mobile browsers
-- **Battery**: Minimize background processing
+### Mobile Device Support
+- **iOS Safari**: Face ID and Touch ID support
+- **Android Chrome**: Fingerprint and face unlock
+- **Samsung Internet**: Biometric authentication
+- **Fallback**: Graceful degradation to password on unsupported devices
 
 ### Dependencies
-- Service worker support in target browsers
-- HTTPS for PWA features
-- Geolocation API for GPS features
-- Camera API for image capture
-- Existing responsive design foundation
+- WebAuthn API support in target mobile browsers
+- HTTPS certificate for secure context
+- Existing user authentication and session management
+- Mobile-responsive UI components
 
 ### Testing Criteria
-- [ ] All pages render correctly on mobile devices
-- [ ] Touch interactions work smoothly
-- [ ] PWA installs and works offline
-- [ ] Performance meets mobile standards (< 3s load time)
-- [ ] Cross-device compatibility verified
-- [ ] Offline functionality works as expected
+- [ ] Biometric registration completes successfully on mobile devices
+- [ ] Biometric authentication logs users in correctly
+- [ ] Fallback to password login works when biometrics fail
+- [ ] Multiple credentials per user supported
+- [ ] Credential removal works properly
+- [ ] Security measures prevent unauthorized access
+- [ ] Mobile browser compatibility across iOS and Android
+- [ ] Error handling provides clear user feedback
 
 ---
 
@@ -668,4 +476,4 @@ Use this section to quickly note new feature ideas before creating detailed plan
 
 *Last Updated: November 26, 2025*
 *Next Review: Monthly*
-*Features Added: Notification System, Global Search System, Enhanced Dashboard Analytics, Mobile Compatibility & PWA*
+*Features Added: Notification System, Global Search System, Biometric Login on Mobile Devices*

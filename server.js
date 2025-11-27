@@ -6,6 +6,12 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import {
+    generateRegistrationOptions,
+    verifyRegistrationResponse,
+    generateAuthenticationOptions,
+    verifyAuthenticationResponse,
+} from '@simplewebauthn/server';
 
 dotenv.config();
 
@@ -31,6 +37,11 @@ const pool = new pg.Pool({
 
 app.use(cors());
 app.use(express.json());
+
+// WebAuthn configuration
+const WEBAUTHN_RP_NAME = 'Lalani ERP';
+const WEBAUTHN_RP_ID = process.env.WEBAUTHN_RP_ID || 'localhost'; // In production, use your domain
+const WEBAUTHN_ORIGIN = process.env.WEBAUTHN_ORIGIN || `http://${WEBAUTHN_RP_ID}:5173`; // Frontend URL
 
 // Middleware to extract user from JWT token
 const authenticateToken = (req, res, next) => {
@@ -103,6 +114,259 @@ app.post('/api/auth/verify', (req, res) => {
         res.json({ valid: true, userId: decoded.userId, username: decoded.username });
     } catch (err) {
         res.status(401).json({ message: 'Invalid token' });
+    }
+});
+
+// WebAuthn Registration Start
+app.post('/api/auth/webauthn/register-start', async (req, res) => {
+    const { username } = req.body;
+    try {
+        // Get user
+        const userResult = await pool.query(
+            'SELECT user_id, username FROM users WHERE username = $1 AND is_active = $2',
+            [username, 'Y']
+        );
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const user = userResult.rows[0];
+
+        // Get existing credentials for the user
+        const credentialsResult = await pool.query(
+            'SELECT credential_id FROM user_webauthn_credentials WHERE user_id = $1',
+            [user.user_id]
+        );
+        const excludeCredentials = credentialsResult.rows.map(cred => ({
+            id: cred.credential_id,
+            type: 'public-key'
+        }));
+
+        const options = generateRegistrationOptions({
+            rpName: WEBAUTHN_RP_NAME,
+            rpID: WEBAUTHN_RP_ID,
+            userID: user.user_id.toString(),
+            userName: user.username,
+            userDisplayName: user.username,
+            attestationType: 'direct',
+            excludeCredentials,
+            authenticatorSelection: {
+                authenticatorAttachment: 'platform', // Prefer platform authenticators (biometrics)
+                userVerification: 'preferred',
+                requireResidentKey: false
+            }
+        });
+
+        // Store challenge in session/database (simplified - in production use proper session management)
+        // For demo, we'll store in memory, but in production use Redis or database
+        global.webauthnChallenges = global.webauthnChallenges || {};
+        global.webauthnChallenges[user.user_id] = options.challenge;
+
+        res.json(options);
+    } catch (error) {
+        console.error('WebAuthn registration start error:', error);
+        res.status(500).json({ message: 'Failed to start registration' });
+    }
+});
+
+// WebAuthn Registration Finish
+app.post('/api/auth/webauthn/register-finish', async (req, res) => {
+    const { username, credential } = req.body;
+    try {
+        // Get user
+        const userResult = await pool.query(
+            'SELECT user_id FROM users WHERE username = $1 AND is_active = $2',
+            [username, 'Y']
+        );
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const user = userResult.rows[0];
+
+        const expectedChallenge = global.webauthnChallenges?.[user.user_id];
+        if (!expectedChallenge) {
+            return res.status(400).json({ message: 'No registration in progress' });
+        }
+
+        const verification = verifyRegistrationResponse({
+            response: credential,
+            expectedChallenge,
+            expectedOrigin: WEBAUTHN_ORIGIN,
+            expectedRPID: WEBAUTHN_RP_ID,
+        });
+
+        if (!verification.verified) {
+            return res.status(400).json({ message: 'Registration verification failed' });
+        }
+
+        const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
+
+        // Store credential
+        await pool.query(
+            'INSERT INTO user_webauthn_credentials (credential_id, user_id, public_key, counter, device_info) VALUES ($1, $2, $3, $4, $5)',
+            [credentialID, user.user_id, Buffer.from(credentialPublicKey).toString('base64'), counter, JSON.stringify(credential)]
+        );
+
+        // Clean up challenge
+        delete global.webauthnChallenges[user.user_id];
+
+        res.json({ success: true, message: 'Biometric registration successful' });
+    } catch (error) {
+        console.error('WebAuthn registration finish error:', error);
+        res.status(500).json({ message: 'Failed to complete registration' });
+    }
+});
+
+// WebAuthn Authentication Start
+app.post('/api/auth/webauthn/login-start', async (req, res) => {
+    const { username } = req.body;
+    try {
+        // Get user
+        const userResult = await pool.query(
+            'SELECT user_id FROM users WHERE username = $1 AND is_active = $2',
+            [username, 'Y']
+        );
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const user = userResult.rows[0];
+
+        // Get user's credentials
+        const credentialsResult = await pool.query(
+            'SELECT credential_id FROM user_webauthn_credentials WHERE user_id = $1',
+            [user.user_id]
+        );
+
+        if (credentialsResult.rows.length === 0) {
+            return res.status(400).json({ message: 'No biometric credentials registered' });
+        }
+
+        const allowCredentials = credentialsResult.rows.map(cred => ({
+            id: cred.credential_id,
+            type: 'public-key'
+        }));
+
+        const options = generateAuthenticationOptions({
+            allowCredentials,
+            userVerification: 'preferred'
+        });
+
+        // Store challenge
+        global.webauthnChallenges = global.webauthnChallenges || {};
+        global.webauthnChallenges[user.user_id] = options.challenge;
+
+        res.json(options);
+    } catch (error) {
+        console.error('WebAuthn login start error:', error);
+        res.status(500).json({ message: 'Failed to start authentication' });
+    }
+});
+
+// WebAuthn Authentication Finish
+app.post('/api/auth/webauthn/login-finish', async (req, res) => {
+    const { username, credential } = req.body;
+    try {
+        // Get user
+        const userResult = await pool.query(
+            'SELECT user_id, username FROM users WHERE username = $1 AND is_active = $2',
+            [username, 'Y']
+        );
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const user = userResult.rows[0];
+
+        const expectedChallenge = global.webauthnChallenges?.[user.user_id];
+        if (!expectedChallenge) {
+            return res.status(400).json({ message: 'No authentication in progress' });
+        }
+
+        // Get credential from database
+        const credentialResult = await pool.query(
+            'SELECT public_key, counter FROM user_webauthn_credentials WHERE credential_id = $1 AND user_id = $2',
+            [credential.id, user.user_id]
+        );
+
+        if (credentialResult.rows.length === 0) {
+            return res.status(400).json({ message: 'Credential not found' });
+        }
+
+        const dbCredential = credentialResult.rows[0];
+        const publicKey = Buffer.from(dbCredential.public_key, 'base64');
+
+        const verification = verifyAuthenticationResponse({
+            response: credential,
+            expectedChallenge,
+            expectedOrigin: WEBAUTHN_ORIGIN,
+            expectedRPID: WEBAUTHN_RP_ID,
+            authenticator: {
+                credentialID: credential.id,
+                credentialPublicKey: publicKey,
+                counter: dbCredential.counter
+            }
+        });
+
+        if (!verification.verified) {
+            return res.status(400).json({ message: 'Authentication verification failed' });
+        }
+
+        // Update counter
+        await pool.query(
+            'UPDATE user_webauthn_credentials SET counter = $1, last_used = CURRENT_TIMESTAMP WHERE credential_id = $2',
+            [verification.authenticationInfo.newCounter, credential.id]
+        );
+
+        // Clean up challenge
+        delete global.webauthnChallenges[user.user_id];
+
+        // Generate JWT token
+        const token = jwt.sign({ userId: user.user_id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '24h' });
+
+        res.json({ user, token, message: 'Biometric authentication successful' });
+    } catch (error) {
+        console.error('WebAuthn login finish error:', error);
+        res.status(500).json({ message: 'Failed to complete authentication' });
+    }
+});
+
+// Get user's WebAuthn credentials
+app.get('/api/auth/webauthn/credentials', async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Not authenticated' });
+        }
+
+        const result = await pool.query(
+            'SELECT credential_id, created_at, last_used, device_info FROM user_webauthn_credentials WHERE user_id = $1 ORDER BY created_at DESC',
+            [req.user.id]
+        );
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get credentials error:', error);
+        res.status(500).json({ message: 'Failed to fetch credentials' });
+    }
+});
+
+// Delete WebAuthn credential
+app.delete('/api/auth/webauthn/credentials/:id', async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Not authenticated' });
+        }
+
+        const result = await pool.query(
+            'DELETE FROM user_webauthn_credentials WHERE credential_id = $1 AND user_id = $2',
+            [req.params.id, req.user.id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: 'Credential not found' });
+        }
+
+        res.json({ message: 'Credential deleted successfully' });
+    } catch (error) {
+        console.error('Delete credential error:', error);
+        res.status(500).json({ message: 'Failed to delete credential' });
     }
 });
 

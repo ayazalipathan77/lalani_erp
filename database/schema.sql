@@ -31,6 +31,17 @@ CREATE TABLE IF NOT EXISTS users (
     updated_by INTEGER REFERENCES users(user_id)
 );
 
+-- WebAuthn credentials for biometric authentication
+CREATE TABLE IF NOT EXISTS user_webauthn_credentials (
+    credential_id VARCHAR(255) PRIMARY KEY,
+    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    public_key TEXT NOT NULL,
+    counter BIGINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_used TIMESTAMP,
+    device_info JSONB -- Store device/browser info for security
+);
+
 -- Categories for product classification
 CREATE TABLE IF NOT EXISTS categories (
     category_id SERIAL PRIMARY KEY,
@@ -144,6 +155,7 @@ CREATE TABLE IF NOT EXISTS expenses (
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active);
+CREATE INDEX IF NOT EXISTS idx_webauthn_user_id ON user_webauthn_credentials(user_id);
 CREATE INDEX IF NOT EXISTS idx_products_code ON products(prod_code);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_code);
 CREATE INDEX IF NOT EXISTS idx_customers_code ON customers(cust_code);

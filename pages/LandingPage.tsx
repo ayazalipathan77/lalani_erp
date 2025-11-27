@@ -1,8 +1,12 @@
 
 import React, { useState } from 'react';
-import { Truck, ShieldCheck, BarChart3, MapPin, ArrowRight, ChevronRight, X, AlertCircle } from 'lucide-react';
+import { Truck, ShieldCheck, BarChart3, MapPin, ArrowRight, ChevronRight, X, AlertCircle, Fingerprint } from 'lucide-react';
 import { api } from '../services/api';
 import { User } from '../types';
+import {
+  startRegistration,
+  startAuthentication,
+} from '@simplewebauthn/browser';
 
 interface LandingPageProps {
   onLogin: (data: { user: User; token: string }) => void;
@@ -14,6 +18,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('123');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+  const [showBiometricOptions, setShowBiometricOptions] = useState(false);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +32,65 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       setError('Invalid username or password');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    if (!username.trim()) {
+      setError('Please enter username first');
+      return;
+    }
+    setError('');
+    setBiometricLoading(true);
+    try {
+      // Start authentication
+      const authOptions = await api.auth.webauthn.loginStart(username.trim());
+      // Use WebAuthn browser API
+      const credential = await startAuthentication(authOptions);
+      // Complete authentication
+      const data = await api.auth.webauthn.loginFinish(username.trim(), credential);
+      onLogin(data);
+    } catch (err: any) {
+      console.error('Biometric login error:', err);
+      if (err.name === 'NotAllowedError') {
+        setError('Biometric authentication was cancelled');
+      } else if (err.name === 'NotSupportedError') {
+        setError('Biometric authentication is not supported on this device');
+      } else {
+        setError('Biometric login failed. Please try password login.');
+      }
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
+
+  const handleBiometricRegister = async () => {
+    if (!username.trim()) {
+      setError('Please enter username first');
+      return;
+    }
+    setError('');
+    setBiometricLoading(true);
+    try {
+      // Start registration
+      const regOptions = await api.auth.webauthn.registerStart(username.trim());
+      // Use WebAuthn browser API
+      const credential = await startRegistration(regOptions);
+      // Complete registration
+      await api.auth.webauthn.registerFinish(username.trim(), credential);
+      setError(''); // Clear any errors
+      alert('Biometric authentication registered successfully! You can now use biometric login.');
+    } catch (err: any) {
+      console.error('Biometric registration error:', err);
+      if (err.name === 'NotAllowedError') {
+        setError('Biometric registration was cancelled');
+      } else if (err.name === 'NotSupportedError') {
+        setError('Biometric authentication is not supported on this device');
+      } else {
+        setError('Biometric registration failed. Please try again.');
+      }
+    } finally {
+      setBiometricLoading(false);
     }
   };
 
@@ -260,7 +325,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                   />
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-2 space-y-3">
                   <button
                     type="submit"
                     disabled={loading}
@@ -272,6 +337,56 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                       <>Sign In <ArrowRight className="w-4 h-4 ml-2" /></>
                     )}
                   </button>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-slate-300"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-slate-500">or</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowBiometricOptions(!showBiometricOptions)}
+                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 px-4 rounded-lg transition-all flex justify-center items-center"
+                  >
+                    <Fingerprint className="w-4 h-4 mr-2" />
+                    Biometric Login
+                  </button>
+
+                  {showBiometricOptions && (
+                    <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
+                      <button
+                        type="button"
+                        onClick={handleBiometricLogin}
+                        disabled={biometricLoading}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center"
+                      >
+                        {biometricLoading ? (
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                        ) : (
+                          <Fingerprint className="w-4 h-4 mr-2" />
+                        )}
+                        Login with Biometrics
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleBiometricRegister}
+                        disabled={biometricLoading}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center text-sm"
+                      >
+                        {biometricLoading ? (
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                        ) : (
+                          <Fingerprint className="w-4 h-4 mr-2" />
+                        )}
+                        Register Biometrics
+                      </button>
+                    </div>
+                  )}
                 </div>
               </form>
 
