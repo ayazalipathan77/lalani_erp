@@ -353,36 +353,204 @@ const Reports: React.FC = () => {
     }
   };
 
-  // PDF Generation using html2canvas + jspdf
+  // PDF Generation using jsPDF with modern styling
   const handleDownloadPDF = async () => {
-    if (!reportContentRef.current) return;
     setIsGeneratingPdf(true);
     try {
-      const canvas = await html2canvas(reportContentRef.current, {
-        scale: 2, // Higher resolution
-        logging: false,
-        useCORS: true,
-        backgroundColor: '#ffffff'
-      });
-
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
         format: 'a4'
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 15;
+      let yPosition = margin;
 
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      // Helper function to add background rectangle
+      const addBackground = (x: number, y: number, width: number, height: number, color: [number, number, number]) => {
+        pdf.setFillColor(color[0], color[1], color[2]);
+        pdf.rect(x, y, width, height, 'F');
+      };
 
-      // If image height is greater than page height, we might need multiple pages (simplified to 1 page fit for now)
-      // For now, we scale to fit width.
+      // Helper function to add border
+      const addBorder = (x: number, y: number, width: number, height: number, color: [number, number, number] = [0, 0, 0]) => {
+        pdf.setDrawColor(color[0], color[1], color[2]);
+        pdf.setLineWidth(0.2);
+        pdf.rect(x, y, width, height);
+      };
 
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-      pdf.save(`Lalani_${reportType}.pdf`);
+      // Header section with branding
+      addBackground(margin, yPosition - 5, pageWidth - 2 * margin, 25, [64, 64, 64]); // Dark grey header
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('LALANI TRADERS', margin + 5, yPosition + 5);
+
+      // Report title - place below for better fit
+      const reportTitle = getReportTitle();
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(reportTitle, margin + 5, yPosition + 15);
+
+      yPosition += 25;
+
+      // Reset text color
+      pdf.setTextColor(0, 0, 0);
+
+      // Generation info
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      const genText = `Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+      pdf.text(genText, margin, yPosition);
+      yPosition += 6;
+
+      // Add date range if applicable
+      if (startDate && endDate && ['SALES_SUMMARY', 'EXPENSE_BREAKDOWN', 'SALES_BY_PRODUCT', 'TRANSACTION_HISTORY'].includes(reportType)) {
+        addBackground(margin, yPosition - 2, pageWidth - 2 * margin, 8, [248, 250, 252]); // Light gray background
+        addBorder(margin, yPosition - 2, pageWidth - 2 * margin, 8);
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(`Date Range: ${startDate} to ${endDate}`, margin + 3, yPosition + 3);
+        yPosition += 12;
+      }
+
+      // Summary Metrics Cards
+      if (summaryMetrics.length > 0) {
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Summary Metrics', margin, yPosition);
+        yPosition += 10;
+
+        const metricsPerRow = 3;
+        const metricWidth = (pageWidth - 2 * margin - 10) / metricsPerRow;
+        const metricHeight = 15;
+
+        summaryMetrics.forEach((metric, index) => {
+          const row = Math.floor(index / metricsPerRow);
+          const col = index % metricsPerRow;
+          const x = margin + col * (metricWidth + 3.33);
+          const y = yPosition + row * (metricHeight + 5);
+
+          // Metric card background
+          addBackground(x, y, metricWidth, metricHeight, [255, 255, 255]);
+          addBorder(x, y, metricWidth, metricHeight, [226, 232, 240]);
+
+          // Metric label
+          pdf.setFontSize(8);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setTextColor(71, 85, 105);
+          pdf.text(metric.label, x + 3, y + 5);
+
+          // Metric value
+          pdf.setFontSize(11);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setTextColor(30, 58, 138);
+          const valueText = metric.value;
+          const maxWidth = metricWidth - 6;
+          if (pdf.getTextWidth(valueText) > maxWidth) {
+            const truncated = valueText.substring(0, Math.floor(maxWidth / 3)) + '...';
+            pdf.text(truncated, x + 3, y + 12);
+          } else {
+            pdf.text(valueText, x + 3, y + 12);
+          }
+        });
+
+        yPosition += Math.ceil(summaryMetrics.length / metricsPerRow) * (metricHeight + 5) + 10;
+      }
+
+      // Detailed Report Table
+      if (reportData.length > 0) {
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(0, 0, 0);
+        pdf.text('Detailed Report', margin, yPosition);
+        yPosition += 10;
+
+        const colWidth = (pageWidth - 2 * margin) / columns.length;
+        const rowHeight = 8;
+        const headerHeight = 10;
+
+        // Table headers
+        addBackground(margin, yPosition, pageWidth - 2 * margin, headerHeight, [64, 64, 64]); // Dark grey header
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'bold');
+
+        let xPosition = margin + 2;
+        columns.forEach((col, index) => {
+          const headerText = col.header.length > 15 ? col.header.substring(0, 12) + '...' : col.header;
+          pdf.text(headerText, xPosition, yPosition + 6);
+          xPosition += colWidth;
+        });
+
+        yPosition += headerHeight;
+
+        // Table rows
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+
+        reportData.forEach((row, rowIndex) => {
+          // Alternate row background
+          if (rowIndex % 2 === 0) {
+            addBackground(margin, yPosition, pageWidth - 2 * margin, rowHeight, [248, 250, 252]);
+          }
+
+          xPosition = margin + 2;
+          columns.forEach((col, colIndex) => {
+            const cellValue = formatValue(row[col.accessor], col.format);
+            const truncatedValue = cellValue.length > 20 ? cellValue.substring(0, 17) + '...' : cellValue;
+            pdf.text(truncatedValue, xPosition, yPosition + 5);
+            xPosition += colWidth;
+          });
+
+          // Row border
+          addBorder(margin, yPosition, pageWidth - 2 * margin, rowHeight, [226, 232, 240]);
+          yPosition += rowHeight;
+
+          // Add page break if needed
+          if (yPosition > pageHeight - 25) {
+            pdf.addPage();
+            yPosition = margin;
+
+            // Repeat headers on new page
+            addBackground(margin, yPosition, pageWidth - 2 * margin, headerHeight, [64, 64, 64]);
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFontSize(9);
+            pdf.setFont('helvetica', 'bold');
+
+            xPosition = margin + 2;
+            columns.forEach((col, index) => {
+              const headerText = col.header.length > 15 ? col.header.substring(0, 12) + '...' : col.header;
+              pdf.text(headerText, xPosition, yPosition + 6);
+              xPosition += colWidth;
+            });
+
+            yPosition += headerHeight;
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+          }
+        });
+
+        // Table border
+        addBorder(margin, yPosition - reportData.length * rowHeight - headerHeight, pageWidth - 2 * margin, reportData.length * rowHeight + headerHeight, [64, 64, 64]);
+      }
+
+      // Footer
+      const footerY = pageHeight - 15;
+      addBackground(margin, footerY - 3, pageWidth - 2 * margin, 12, [248, 250, 252]);
+      addBorder(margin, footerY - 3, pageWidth - 2 * margin, 12, [226, 232, 240]);
+
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'italic');
+      pdf.setTextColor(107, 114, 128);
+      pdf.text('This is a computer-generated report and does not require a signature.', margin + 3, footerY);
+      pdf.text('Lalani Traders - Plot 44, SITE Area, Karachi', margin + 3, footerY + 4);
+
+      pdf.save(`Lalani_${reportType}_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (err) {
       console.error("PDF generation failed", err);
       alert("Failed to generate PDF. Please try again.");
