@@ -101,9 +101,15 @@ const Sales: React.FC = () => {
         }
     };
 
+    // Helper function to get customer name from code
+    const getCustomerName = (custCode: string) => {
+        const customer = customers.find(c => c.cust_code === custCode);
+        return customer ? customer.cust_name : custCode;
+    };
+
     const filteredInvoices = (Array.isArray(invoices) ? invoices : []).filter(inv =>
         inv.inv_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        inv.cust_code.toLowerCase().includes(searchTerm.toLowerCase())
+        getCustomerName(inv.cust_code).toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -163,7 +169,7 @@ const Sales: React.FC = () => {
                                     <tr key={inv.inv_id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-600">{inv.inv_number}</td>
                                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatTableDate(inv.inv_date)}</td>
-                                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-slate-900">{inv.cust_code}</td>
+                                        <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-slate-900">{getCustomerName(inv.cust_code)}</td>
                                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-right font-mono">{inv.total_amount.toLocaleString()}</td>
                                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-slate-500">{inv.balance_due.toLocaleString()}</td>
                                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-center">
@@ -196,7 +202,8 @@ const Sales: React.FC = () => {
                             },
                             {
                                 key: 'cust_code',
-                                label: 'Customer'
+                                label: 'Customer',
+                                render: (value) => getCustomerName(value)
                             },
                             {
                                 key: 'total_amount',

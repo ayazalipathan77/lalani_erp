@@ -85,6 +85,19 @@ const Finance: React.FC = () => {
 
     const currentBalance = totalDebit - totalCredit;
 
+    // Utility function to format large numbers (same as dashboard)
+    const formatNumber = (num: number): string => {
+        if (num >= 1000000000) {
+            return `PKR ${(num / 1000000000).toFixed(1)}B`;
+        } else if (num >= 1000000) {
+            return `PKR ${(num / 1000000).toFixed(1)}M`;
+        } else if (num >= 1000) {
+            return `PKR ${(num / 1000).toFixed(1)}K`;
+        } else {
+            return `PKR ${num.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -142,7 +155,7 @@ const Finance: React.FC = () => {
                                 <span className="text-xs font-medium bg-white/20 px-2 py-1 rounded">Net Cash</span>
                             </div>
                             <p className="text-slate-300 text-sm">Current Balance</p>
-                            <h3 className="text-3xl font-bold mt-1 font-mono">PKR {currentBalance.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+                            <h3 className="text-3xl font-bold mt-1 font-mono">{formatNumber(currentBalance)}</h3>
                         </div>
 
                         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
@@ -152,7 +165,7 @@ const Finance: React.FC = () => {
                                 </div>
                             </div>
                             <p className="text-slate-500 text-sm">Total Money In</p>
-                            <h3 className="text-2xl font-bold mt-1 text-slate-900 font-mono">PKR {totalDebit.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+                            <h3 className="text-2xl font-bold mt-1 text-slate-900 font-mono">{formatNumber(totalDebit)}</h3>
                         </div>
 
                         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
@@ -162,7 +175,7 @@ const Finance: React.FC = () => {
                                 </div>
                             </div>
                             <p className="text-slate-500 text-sm">Total Money Out</p>
-                            <h3 className="text-2xl font-bold mt-1 text-slate-900 font-mono">PKR {totalCredit.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+                            <h3 className="text-2xl font-bold mt-1 text-slate-900 font-mono">{formatNumber(totalCredit)}</h3>
                         </div>
                     </div>
 

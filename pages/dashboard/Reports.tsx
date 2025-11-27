@@ -89,7 +89,13 @@ const Reports: React.FC = () => {
   // Generate Report Logic
   useEffect(() => {
     generateReport();
-  }, [reportType, startDate, endDate, rawProducts, rawInvoices, rawTransactions]);
+  }, [reportType, startDate, endDate, rawProducts, rawInvoices, rawTransactions, rawCustomers]);
+
+  // Helper function to get customer name from code
+  const getCustomerName = (custCode: string) => {
+    const customer = rawCustomers.find(c => c.cust_code === custCode);
+    return customer ? customer.cust_name : custCode;
+  };
 
   const generateReport = () => {
     setIsLoading(true);
@@ -105,7 +111,7 @@ const Reports: React.FC = () => {
         cols = [
           { header: 'Date', accessor: 'date', format: 'date' },
           { header: 'Invoice #', accessor: 'inv_number' },
-          { header: 'Customer', accessor: 'cust_code' },
+          { header: 'Customer', accessor: 'customer_name' },
           { header: 'Status', accessor: 'status' },
           { header: 'Amount', accessor: 'amount', format: 'currency' },
         ];
@@ -114,7 +120,7 @@ const Reports: React.FC = () => {
         data = filteredInvoices.map(i => ({
           date: i.inv_date,
           inv_number: i.inv_number,
-          cust_code: i.cust_code,
+          customer_name: getCustomerName(i.cust_code),
           status: i.status,
           amount: i.total_amount
         }));
@@ -549,6 +555,9 @@ const Reports: React.FC = () => {
       pdf.setTextColor(107, 114, 128);
       pdf.text('This is a computer-generated report and does not require a signature.', margin + 3, footerY);
       pdf.text('Lalani Traders - Plot 44, SITE Area, Karachi', margin + 3, footerY + 4);
+      pdf.setTextColor(239, 68, 68); // Brand red color
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Application developed by Ayaz Ali (03453662534)', margin + 3, footerY + 8);
 
       pdf.save(`Lalani_${reportType}_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (err) {
@@ -817,6 +826,7 @@ const Reports: React.FC = () => {
             <div className="mt-8 pt-8 border-t border-slate-200 text-center text-xs text-slate-400 print:block hidden">
               <p>This is a computer-generated report and does not require a signature.</p>
               <p>Lalani Traders - Plot 44, SITE Area, Karachi</p>
+              <p className="mt-2 text-brand-600 font-medium">Application developed by Ayaz Ali (03453662534)</p>
             </div>
           </div>
         </div>

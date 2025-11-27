@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Truck, ShieldCheck, BarChart3, MapPin, ArrowRight, ChevronRight, X, AlertCircle, Fingerprint } from 'lucide-react';
 import { api } from '../services/api';
 import { User } from '../types';
@@ -20,6 +20,36 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [showBiometricOptions, setShowBiometricOptions] = useState(false);
+  const [isWebAuthnSupported, setIsWebAuthnSupported] = useState(false);
+
+  // Check WebAuthn support on component mount
+  useEffect(() => {
+    const checkWebAuthnSupport = async () => {
+      try {
+        // Check if WebAuthn is supported
+        if (!navigator.credentials || !navigator.credentials.create || !navigator.credentials.get) {
+          setIsWebAuthnSupported(false);
+          return;
+        }
+
+        // Check if we're in a secure context (required for WebAuthn)
+        // Allow localhost for development even over HTTP
+        if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+          setIsWebAuthnSupported(false);
+          return;
+        }
+
+        // Try to check if biometric authentication is available
+        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        setIsWebAuthnSupported(available);
+      } catch (error) {
+        console.warn('WebAuthn support check failed:', error);
+        setIsWebAuthnSupported(false);
+      }
+    };
+
+    checkWebAuthnSupport();
+  }, []);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +103,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
     setBiometricLoading(true);
     try {
       // Start registration
+      console.log('Starting biometric registration for user:', username.trim());
       const regOptions = await api.auth.webauthn.registerStart(username.trim());
+      console.log('Registration options received:', regOptions);
+      console.log('Challenge present:', !!regOptions?.challenge);
+
       // Use WebAuthn browser API
       const credential = await startRegistration(regOptions);
       // Complete registration
@@ -82,12 +116,22 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       alert('Biometric authentication registered successfully! You can now use biometric login.');
     } catch (err: any) {
       console.error('Biometric registration error:', err);
+      console.error('Error details:', {
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+      });
+
       if (err.name === 'NotAllowedError') {
         setError('Biometric registration was cancelled');
       } else if (err.name === 'NotSupportedError') {
         setError('Biometric authentication is not supported on this device');
+      } else if (err.name === 'NotSecureError' || err.message?.includes('secure')) {
+        setError('Biometric authentication requires HTTPS. Please use a secure connection.');
+      } else if (err.message?.includes('network') || err.message?.includes('fetch')) {
+        setError('Network error. Please check your connection and try again.');
       } else {
-        setError('Biometric registration failed. Please try again.');
+        setError(`Biometric registration failed: ${err.message || 'Please try again.'}`);
       }
     } finally {
       setBiometricLoading(false);
@@ -275,7 +319,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-4 mt-8 pt-8 border-t border-slate-900 text-center text-xs">
-          &copy; 2023 Lalani Traders. All rights reserved.
+          <p>&copy; 2023 Lalani Traders. All rights reserved.</p>
+          <p className="mt-2 text-brand-400 font-medium">Application developed by Ayaz Ali (03453662534)</p>
         </div>
       </footer>
 
@@ -347,14 +392,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setShowBiometricOptions(!showBiometricOptions)}
-                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 px-4 rounded-lg transition-all flex justify-center items-center"
-                  >
-                    <Fingerprint className="w-4 h-4 mr-2" />
-                    Biometric Login
-                  </button>
+                  {/* Biometric login temporarily hidden - will be implemented later */}
+                  {/* 
+                  {isWebAuthnSupported ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowBiometricOptions(!showBiometricOptions)}
+                      className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 px-4 rounded-lg transition-all flex justify-center items-center"
+                    >
+                      <Fingerprint className="w-4 h-4 mr-2" />
+                      Biometric Login
+                    </button>
+                  ) : (
+                    <div className="w-full bg-slate-100 text-slate-500 font-medium py-2.5 px-4 rounded-lg text-center text-sm">
+                      <Fingerprint className="w-4 h-4 mr-2 inline" />
+                      Biometric login not available on this device/browser
+                    </div>
+                  )}
 
                   {showBiometricOptions && (
                     <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
@@ -387,6 +441,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                       </button>
                     </div>
                   )}
+                  */}
                 </div>
               </form>
 

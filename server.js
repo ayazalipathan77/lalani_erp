@@ -41,7 +41,7 @@ app.use(express.json());
 // WebAuthn configuration
 const WEBAUTHN_RP_NAME = 'Lalani ERP';
 const WEBAUTHN_RP_ID = process.env.WEBAUTHN_RP_ID || 'localhost'; // In production, use your domain
-const WEBAUTHN_ORIGIN = process.env.WEBAUTHN_ORIGIN || `http://${WEBAUTHN_RP_ID}:5173`; // Frontend URL
+const WEBAUTHN_ORIGIN = process.env.WEBAUTHN_ORIGIN || `http://localhost:5173`; // Frontend URL - adjust port if needed
 
 // Middleware to extract user from JWT token
 const authenticateToken = (req, res, next) => {
@@ -120,6 +120,9 @@ app.post('/api/auth/verify', (req, res) => {
 // WebAuthn Registration Start
 app.post('/api/auth/webauthn/register-start', async (req, res) => {
     const { username } = req.body;
+    console.log('WebAuthn registration start for user:', username);
+    console.log('WEBAUTHN_RP_ID:', WEBAUTHN_RP_ID);
+    console.log('WEBAUTHN_ORIGIN:', WEBAUTHN_ORIGIN);
     try {
         // Get user
         const userResult = await pool.query(
@@ -127,9 +130,11 @@ app.post('/api/auth/webauthn/register-start', async (req, res) => {
             [username, 'Y']
         );
         if (userResult.rows.length === 0) {
+            console.log('User not found:', username);
             return res.status(404).json({ message: 'User not found' });
         }
         const user = userResult.rows[0];
+        console.log('Found user:', user);
 
         // Get existing credentials for the user
         const credentialsResult = await pool.query(
@@ -140,6 +145,7 @@ app.post('/api/auth/webauthn/register-start', async (req, res) => {
             id: cred.credential_id,
             type: 'public-key'
         }));
+        console.log('Exclude credentials:', excludeCredentials.length);
 
         const options = generateRegistrationOptions({
             rpName: WEBAUTHN_RP_NAME,
@@ -160,17 +166,21 @@ app.post('/api/auth/webauthn/register-start', async (req, res) => {
         // For demo, we'll store in memory, but in production use Redis or database
         global.webauthnChallenges = global.webauthnChallenges || {};
         global.webauthnChallenges[user.user_id] = options.challenge;
+        console.log('Stored challenge for user:', user.user_id);
 
+        console.log('Registration options generated successfully');
         res.json(options);
     } catch (error) {
         console.error('WebAuthn registration start error:', error);
-        res.status(500).json({ message: 'Failed to start registration' });
+        res.status(500).json({ message: 'Failed to start registration', error: error.message });
     }
 });
 
 // WebAuthn Registration Finish
 app.post('/api/auth/webauthn/register-finish', async (req, res) => {
     const { username, credential } = req.body;
+    console.log('WebAuthn registration finish for user:', username);
+    console.log('Credential received:', !!credential);
     try {
         // Get user
         const userResult = await pool.query(
@@ -178,14 +188,22 @@ app.post('/api/auth/webauthn/register-finish', async (req, res) => {
             [username, 'Y']
         );
         if (userResult.rows.length === 0) {
+            console.log('User not found during finish:', username);
             return res.status(404).json({ message: 'User not found' });
         }
         const user = userResult.rows[0];
+        console.log('Found user for finish:', user);
 
         const expectedChallenge = global.webauthnChallenges?.[user.user_id];
+        console.log('Expected challenge:', !!expectedChallenge);
         if (!expectedChallenge) {
+            console.log('No registration in progress for user:', user.user_id);
             return res.status(400).json({ message: 'No registration in progress' });
         }
+
+        console.log('Verifying registration response...');
+        console.log('Expected origin:', WEBAUTHN_ORIGIN);
+        console.log('Expected RPID:', WEBAUTHN_RP_ID);
 
         const verification = verifyRegistrationResponse({
             response: credential,
@@ -194,25 +212,33 @@ app.post('/api/auth/webauthn/register-finish', async (req, res) => {
             expectedRPID: WEBAUTHN_RP_ID,
         });
 
+        console.log('Verification result:', verification.verified);
         if (!verification.verified) {
+            console.log('Registration verification failed');
             return res.status(400).json({ message: 'Registration verification failed' });
         }
 
         const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
+        console.log('Credential info:', { credentialID: !!credentialID, publicKey: !!credentialPublicKey, counter });
 
         // Store credential
+        console.log('Storing credential in database...');
         await pool.query(
             'INSERT INTO user_webauthn_credentials (credential_id, user_id, public_key, counter, device_info) VALUES ($1, $2, $3, $4, $5)',
             [credentialID, user.user_id, Buffer.from(credentialPublicKey).toString('base64'), counter, JSON.stringify(credential)]
         );
+        console.log('Credential stored successfully');
 
         // Clean up challenge
         delete global.webauthnChallenges[user.user_id];
+        console.log('Challenge cleaned up');
 
         res.json({ success: true, message: 'Biometric registration successful' });
     } catch (error) {
         console.error('WebAuthn registration finish error:', error);
-        res.status(500).json({ message: 'Failed to complete registration' });
+        console.error('Error details:', error.message);
+        console.error('Stack:', error.stack);
+        res.status(500).json({ message: 'Failed to complete registration', error: error.message });
     }
 });
 
