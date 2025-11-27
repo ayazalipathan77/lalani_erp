@@ -130,8 +130,8 @@ const Reports: React.FC = () => {
         }, 0);
 
         metrics = [
-          { label: 'Total Revenue', value: `PKR ${totalSales.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
-          { label: 'Cash Collected', value: `PKR ${paidSales.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+          { label: 'Total Revenue', value: formatCompactCurrency(`PKR ${totalSales}`) },
+          { label: 'Cash Collected', value: formatCompactCurrency(`PKR ${paidSales}`) },
           { label: 'Invoices Count', value: filteredInvoices.length.toString() }
         ];
         break;
@@ -195,7 +195,7 @@ const Reports: React.FC = () => {
         }, 0);
 
         metrics = [
-          { label: 'Total Inventory Value', value: `PKR ${totalStockValue.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+          { label: 'Total Inventory Value', value: formatCompactCurrency(`PKR ${totalStockValue}`) },
           { label: 'Total Items in Stock', value: totalItems.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }
         ];
         break;
@@ -242,7 +242,7 @@ const Reports: React.FC = () => {
         }, 0);
 
         metrics = [
-          { label: 'Total Receivables', value: `PKR ${totalReceivables.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+          { label: 'Total Receivables', value: formatCompactCurrency(`PKR ${totalReceivables}`) },
           {
             label: 'Customers with Balance', value: data.filter(c => {
               const balance = typeof c.outstanding_balance === 'string' ? parseFloat(c.outstanding_balance) : Number(c.outstanding_balance);
@@ -273,7 +273,7 @@ const Reports: React.FC = () => {
         }, 0);
 
         metrics = [
-          { label: 'Total Payables', value: `PKR ${totalPayables.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+          { label: 'Total Payables', value: formatCompactCurrency(`PKR ${totalPayables}`) },
           {
             label: 'Vendors to Pay', value: data.filter(s => {
               const balance = typeof s.outstanding_balance === 'string' ? parseFloat(s.outstanding_balance) : Number(s.outstanding_balance);
@@ -300,7 +300,7 @@ const Reports: React.FC = () => {
         }, 0);
 
         metrics = [
-          { label: 'Total Expenses', value: `PKR ${totalExpenses.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+          { label: 'Total Expenses', value: formatCompactCurrency(`PKR ${totalExpenses}`) },
           { label: 'Count', value: filteredExpenses.length.toString() }
         ];
         break;
@@ -330,9 +330,9 @@ const Reports: React.FC = () => {
         const netChange = totDeb - totCred;
 
         metrics = [
-          { label: 'Total Inflow', value: `PKR ${totDeb.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
-          { label: 'Total Outflow', value: `PKR ${totCred.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
-          { label: 'Net Change', value: `PKR ${netChange.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }
+          { label: 'Total Inflow', value: formatCompactCurrency(`PKR ${totDeb}`) },
+          { label: 'Total Outflow', value: formatCompactCurrency(`PKR ${totCred}`) },
+          { label: 'Net Change', value: formatCompactCurrency(`PKR ${Math.abs(netChange)}`) + (netChange < 0 ? ' (Dr)' : ' (Cr)') }
         ];
         break;
     }
@@ -425,6 +425,23 @@ const Reports: React.FC = () => {
     }
     if (format === 'date') return formatTableDate(value);
     return value;
+  };
+
+  const formatCompactCurrency = (value: string) => {
+    // Extract number from "PKR 12345.67"
+    const match = value.match(/PKR\s+([\d,]+\.?\d*)/);
+    if (!match) return value;
+
+    const num = parseFloat(match[1].replace(/,/g, ''));
+    if (isNaN(num)) return value;
+
+    if (num >= 1000000) {
+      return `PKR ${(num / 1000000).toFixed(1)}M`;
+    } else if (num >= 1000) {
+      return `PKR ${(num / 1000).toFixed(1)}K`;
+    } else {
+      return `PKR ${num.toFixed(0)}`;
+    }
   };
 
   const getReportTitle = () => {
