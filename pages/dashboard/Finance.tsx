@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Wallet, TrendingUp, TrendingDown, Plus, FileText, X, CheckCircle } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Plus, FileText, X, CheckCircle, Edit2 } from 'lucide-react';
+import { useLoading } from '../../components/LoadingContext';
 import { api } from '../../services/api';
 import { CashTransaction, Expense, Customer, Supplier } from '../../types';
 import { formatTableDate } from '../../src/utils/dateUtils';
@@ -11,10 +12,15 @@ const Finance: React.FC = () => {
     const [transactions, setTransactions] = useState<CashTransaction[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const { showLoader, hideLoader } = useLoading();
 
     // Modals
     const [showExpenseModal, setShowExpenseModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+    // Edit state
+    const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+    const [editingTransaction, setEditingTransaction] = useState<CashTransaction | null>(null);
 
     // Form Data
     const [expenseForm, setExpenseForm] = useState({ head_code: '', amount: 0, remarks: '', expense_date: new Date().toISOString().split('T')[0] });
@@ -51,25 +57,76 @@ const Finance: React.FC = () => {
     const handleCreateExpense = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.finance.addExpense(expenseForm);
+            showLoader(editingExpense ? 'Updating expense...' : 'Creating expense...');
+            if (editingExpense) {
+                await api.finance.updateExpense(editingExpense.expense_id, expenseForm);
+            } else {
+                await api.finance.addExpense(expenseForm);
+            }
             setShowExpenseModal(false);
+            setEditingExpense(null);
             setExpenseForm({ head_code: '', amount: 0, remarks: '', expense_date: new Date().toISOString().split('T')[0] });
-            fetchData();
+            await fetchData();
         } catch (error) {
             console.error(error);
+        } finally {
+            hideLoader();
         }
     };
 
     const handleProcessPayment = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.finance.addPayment(paymentForm as any);
+            showLoader(editingTransaction ? 'Updating transaction...' : 'Processing payment...');
+            if (editingTransaction) {
+                await api.finance.updateTransaction(editingTransaction.trans_id, {
+                    trans_type: paymentForm.type as 'RECEIPT' | 'PAYMENT',
+                    party_code: paymentForm.party_code,
+                    amount: paymentForm.amount,
+                    trans_date: paymentForm.date,
+                    description: paymentForm.remarks
+                });
+            } else {
+                await api.finance.addPayment(paymentForm as any);
+            }
             setShowPaymentModal(false);
+            setEditingTransaction(null);
             setPaymentForm({ type: 'RECEIPT', party_code: '', amount: 0, date: new Date().toISOString().split('T')[0], remarks: '' });
-            fetchData();
+            await fetchData();
         } catch (error) {
             console.error(error);
+        } finally {
+            hideLoader();
         }
+    };
+
+    const handleEditExpense = (expense: Expense) => {
+        setEditingExpense(expense);
+        setExpenseForm({
+            head_code: expense.head_code,
+            amount: expense.amount,
+            remarks: expense.remarks,
+            expense_date: expense.expense_date.split('T')[0]
+        });
+        setShowExpenseModal(true);
+    };
+
+    const handleEditTransaction = (transaction: CashTransaction) => {
+        setEditingTransaction(transaction);
+        // Parse the party code and type from description
+        const descriptionParts = transaction.description.split(': ');
+        const type = transaction.trans_type;
+        const partyCode = descriptionParts[1]?.split(' - ')[0] || '';
+        const remarks = descriptionParts[1]?.split(' - ')[1] || '';
+
+        setPaymentForm({
+            type: type as 'RECEIPT' | 'PAYMENT',
+            party_code: partyCode,
+            amount: type === 'RECEIPT' ? transaction.debit_amount : transaction.credit_amount,
+            date: transaction.trans_date.split('T')[0],
+            remarks: remarks
+        });
+        setShowPaymentModal(true);
     };
 
     // Stats - Convert string values to numbers for proper calculation
@@ -197,6 +254,9 @@ const Finance: React.FC = () => {
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Type</th>
                                                 <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Debit (In)</th>
                                                 <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Credit (Out)</th>
+                                                <th className="relative px-6 py-3">
+                                                    <span className="sr-only">Actions</span>
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-slate-200">
@@ -222,6 +282,16 @@ const Finance: React.FC = () => {
                                                             const credit = typeof t.credit_amount === 'string' ? parseFloat(t.credit_amount) : Number(t.credit_amount);
                                                             return credit > 0 ? credit.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
                                                         })()}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        {(t.trans_type === 'RECEIPT' || t.trans_type === 'PAYMENT') && (
+                                                            <button
+                                                                onClick={() => handleEditTransaction(t)}
+                                                                className="text-slate-400 hover:text-brand-600 transition-colors"
+                                                            >
+                                                                <Edit2 className="w-4 h-4" />
+                                                            </button>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -291,6 +361,9 @@ const Finance: React.FC = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Head</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Remarks</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Amount</th>
+                                    <th className="relative px-6 py-3">
+                                        <span className="sr-only">Actions</span>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-slate-200">
@@ -304,6 +377,14 @@ const Finance: React.FC = () => {
                                                 const amount = typeof exp.amount === 'string' ? parseFloat(exp.amount) : Number(exp.amount);
                                                 return amount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                                             })()}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <button
+                                                onClick={() => handleEditExpense(exp)}
+                                                className="text-slate-400 hover:text-brand-600 transition-colors"
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
@@ -353,7 +434,9 @@ const Finance: React.FC = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
                         <div className="flex justify-between items-center p-6 border-b border-slate-100">
-                            <h3 className="text-xl font-bold text-slate-900">Record Expense</h3>
+                            <h3 className="text-xl font-bold text-slate-900">
+                                {editingExpense ? 'Edit Expense' : 'Record Expense'}
+                            </h3>
                             <button onClick={() => setShowExpenseModal(false)} className="text-slate-400"><X className="w-5 h-5" /></button>
                         </div>
                         <form onSubmit={handleCreateExpense} className="p-6 space-y-4">
@@ -414,7 +497,9 @@ const Finance: React.FC = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
                         <div className="flex justify-between items-center p-6 border-b border-slate-100">
-                            <h3 className="text-xl font-bold text-slate-900">Record Payment</h3>
+                            <h3 className="text-xl font-bold text-slate-900">
+                                {editingTransaction ? 'Edit Transaction' : 'Record Payment'}
+                            </h3>
                             <button onClick={() => setShowPaymentModal(false)} className="text-slate-400"><X className="w-5 h-5" /></button>
                         </div>
                         <form onSubmit={handleProcessPayment} className="p-6 space-y-4">

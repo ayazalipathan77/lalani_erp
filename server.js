@@ -61,7 +61,8 @@ const authenticateToken = (req, res, next) => {
             logger.auth('TOKEN_VERIFICATION_FAILED', null, null, req.ip);
         } else {
             req.user = { id: decoded.userId, username: decoded.username };
-            logger.auth('TOKEN_VERIFIED', decoded.username, decoded.userId, req.ip);
+            // Only log successful token verification for important endpoints, not every request
+            // This prevents log spam from frontend polling and routine requests
         }
         next();
     });
@@ -134,7 +135,7 @@ app.post('/api/auth/verify', (req, res) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        logger.auth('TOKEN_VERIFY_SUCCESS', decoded.username, decoded.userId, clientIP);
+        // Don't log successful token verification to reduce log spam
         res.json({ valid: true, userId: decoded.userId, username: decoded.username });
     } catch (err) {
         logger.auth('TOKEN_VERIFY_FAILED', null, null, clientIP);
@@ -794,6 +795,119 @@ app.post('/api/invoices', async (req, res) => {
     }
 });
 
+// Edit invoice
+app.put('/api/invoices/:id', async (req, res) => {
+    const { id } = req.params;
+    const { cust_code, items, inv_date, status } = req.body;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // Get original invoice
+        const originalInv = await client.query(
+            'SELECT * FROM sales_invoices WHERE inv_id = $1',
+            [id]
+        );
+
+        if (originalInv.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Invoice not found' });
+        }
+
+        const oldInv = originalInv.rows[0];
+
+        // Get original invoice items
+        const originalItems = await client.query(
+            'SELECT * FROM sales_invoice_items WHERE inv_id = $1',
+            [id]
+        );
+
+        // Reverse stock changes for original items
+        for (const item of originalItems.rows) {
+            await client.query(
+                `UPDATE products SET current_stock = current_stock + $1 WHERE prod_code = $2`,
+                [item.quantity, item.prod_code]
+            );
+        }
+
+        // Reverse customer balance if it was pending
+        if (oldInv.balance_due > 0) {
+            await client.query(
+                `UPDATE customers SET outstanding_balance = outstanding_balance - $1 WHERE cust_code = $2`,
+                [oldInv.total_amount, oldInv.cust_code]
+            );
+        }
+
+        // Reverse cash transaction if it was paid
+        if (oldInv.balance_due <= 0) {
+            await client.query(
+                `DELETE FROM cash_balance
+                 WHERE trans_type = 'SALES'
+                 AND description LIKE $1
+                 AND trans_date = $2
+                 AND debit_amount = $3`,
+                [`Cash Sale ${oldInv.inv_number}%`, oldInv.inv_date, oldInv.total_amount]
+            );
+        }
+
+        // Calculate new totals
+        const sub_total = items.reduce((acc, item) => acc + Number(item.line_total), 0);
+        const tax_amount = sub_total * 0.05;
+        const total_amount = sub_total + tax_amount;
+        const balance_due = status === 'PAID' ? 0 : total_amount;
+
+        // Update invoice header
+        const updateRes = await client.query(
+            `UPDATE sales_invoices SET inv_date=$1, cust_code=$2, sub_total=$3, tax_amount=$4,
+             total_amount=$5, balance_due=$6, updated_by=$7 WHERE inv_id=$8 RETURNING *`,
+            [inv_date, cust_code, sub_total, tax_amount, total_amount, balance_due, req.user?.id, id]
+        );
+
+        // Delete old invoice items
+        await client.query('DELETE FROM sales_invoice_items WHERE inv_id = $1', [id]);
+
+        // Insert new invoice items and update stock
+        for (const item of items) {
+            await client.query(
+                `INSERT INTO sales_invoice_items (inv_id, prod_code, quantity, unit_price, line_total)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [id, item.prod_code, item.quantity, item.unit_price, item.line_total]
+            );
+            await client.query(
+                `UPDATE products SET current_stock = current_stock - $1 WHERE prod_code = $2`,
+                [item.quantity, item.prod_code]
+            );
+        }
+
+        // Update customer balance for new invoice
+        if (status === 'PENDING') {
+            await client.query(
+                `UPDATE customers SET outstanding_balance = outstanding_balance + $1 WHERE cust_code = $2`,
+                [total_amount, cust_code]
+            );
+        }
+
+        // Create cash transaction if paid
+        if (status === 'PAID') {
+            await client.query(
+                `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                [inv_date, 'SALES', `Cash Sale ${oldInv.inv_number}`, total_amount, 0, 'CMP01', req.user?.id]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.json(updateRes.rows[0]);
+    } catch (e) {
+        await client.query('ROLLBACK');
+        logger.error('Invoice update error', e, { invoiceId: id, userId: req.user?.id });
+        res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
 // --- FINANCE ---
 app.get('/api/finance/transactions', async (req, res) => {
     try {
@@ -905,6 +1019,135 @@ app.post('/api/finance/payment', async (req, res) => {
         res.json(transRes.rows[0]);
     } catch (e) {
         await client.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// Edit expense
+app.put('/api/finance/expenses/:id', async (req, res) => {
+    const { id } = req.params;
+    const { head_code, amount, remarks, expense_date } = req.body;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // Get original expense to reverse the transaction
+        const originalExpense = await client.query(
+            'SELECT * FROM expenses WHERE expense_id = $1',
+            [id]
+        );
+
+        if (originalExpense.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Expense not found' });
+        }
+
+        const oldExpense = originalExpense.rows[0];
+
+        // Reverse the old cash transaction
+        await client.query(
+            `DELETE FROM cash_balance
+             WHERE trans_type = 'EXPENSE'
+             AND description LIKE $1
+             AND trans_date = $2
+             AND credit_amount = $3`,
+            [`EXP: ${oldExpense.head_code}%`, oldExpense.expense_date, oldExpense.amount]
+        );
+
+        // Update the expense
+        const updateRes = await client.query(
+            `UPDATE expenses SET head_code=$1, amount=$2, remarks=$3, expense_date=$4, updated_by=$5
+             WHERE expense_id=$6 RETURNING *`,
+            [head_code, amount, remarks, expense_date, req.user?.id, id]
+        );
+
+        // Create new cash transaction
+        await client.query(
+            `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [expense_date, 'EXPENSE', `EXP: ${head_code} - ${remarks}`, 0, amount, 'CMP01', req.user?.id]
+        );
+
+        await client.query('COMMIT');
+        res.json(updateRes.rows[0]);
+    } catch (e) {
+        await client.query('ROLLBACK');
+        logger.error('Expense update error', e, { expenseId: id, userId: req.user?.id });
+        res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// Edit payment/receipt transaction
+app.put('/api/finance/transactions/:id', async (req, res) => {
+    const { id } = req.params;
+    const { trans_type, party_code, amount, trans_date, description } = req.body;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // Get original transaction
+        const originalTrans = await client.query(
+            'SELECT * FROM cash_balance WHERE trans_id = $1',
+            [id]
+        );
+
+        if (originalTrans.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Transaction not found' });
+        }
+
+        const oldTrans = originalTrans.rows[0];
+
+        // Reverse the old transaction effects
+        if (oldTrans.trans_type === 'RECEIPT') {
+            // Reverse customer balance update
+            await client.query(
+                `UPDATE customers SET outstanding_balance = outstanding_balance + $1 WHERE cust_code = $2`,
+                [oldTrans.debit_amount, oldTrans.description.split(': ')[1]?.split(' - ')[0]]
+            );
+        } else if (oldTrans.trans_type === 'PAYMENT') {
+            // Reverse supplier balance update
+            await client.query(
+                `UPDATE suppliers SET outstanding_balance = outstanding_balance + $1 WHERE supplier_code = $2`,
+                [oldTrans.credit_amount, oldTrans.description.split(': ')[1]?.split(' - ')[0]]
+            );
+        }
+
+        // Calculate new amounts
+        const debit = trans_type === 'RECEIPT' ? amount : 0;
+        const credit = trans_type === 'PAYMENT' ? amount : 0;
+
+        // Update the transaction
+        const updateRes = await client.query(
+            `UPDATE cash_balance SET trans_date=$1, trans_type=$2, description=$3, debit_amount=$4, credit_amount=$5
+             WHERE trans_id=$6 RETURNING *`,
+            [trans_date, trans_type, description, debit, credit, id]
+        );
+
+        // Apply new transaction effects
+        if (trans_type === 'RECEIPT') {
+            await client.query(
+                `UPDATE customers SET outstanding_balance = outstanding_balance - $1 WHERE cust_code = $2`,
+                [amount, party_code]
+            );
+        } else if (trans_type === 'PAYMENT') {
+            await client.query(
+                `UPDATE suppliers SET outstanding_balance = outstanding_balance - $1 WHERE supplier_code = $2`,
+                [amount, party_code]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.json(updateRes.rows[0]);
+    } catch (e) {
+        await client.query('ROLLBACK');
+        logger.error('Transaction update error', e, { transactionId: id, userId: req.user?.id });
         res.status(500).json({ error: e.message });
     } finally {
         client.release();

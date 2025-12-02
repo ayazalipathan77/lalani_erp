@@ -5,14 +5,17 @@ import Dashboard from './pages/Dashboard';
 import { User } from './types';
 import { api } from './services/api';
 import { initPWA } from './src/utils/pwa';
+import { LoadingProvider, useLoading } from './components/LoadingContext';
+import FullScreenLoader from './components/FullScreenLoader';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   // Auth state now holds the User object or null
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { showLoader, hideLoader, isLoading, loadingMessage } = useLoading();
 
   useEffect(() => {
     const checkAuth = async () => {
+      showLoader("Initializing...");
       const token = localStorage.getItem('authToken');
       if (token) {
         try {
@@ -34,14 +37,14 @@ const App: React.FC = () => {
           localStorage.removeItem('currentUser');
         }
       }
-      setLoading(false);
+      hideLoader();
     };
 
     // Initialize PWA features
     initPWA();
 
     checkAuth();
-  }, []);
+  }, [showLoader, hideLoader]);
 
   const handleLogin = (data: { user: User; token: string }) => {
     setCurrentUser(data.user);
@@ -55,36 +58,45 @@ const App: React.FC = () => {
     localStorage.removeItem('currentUser');
   };
 
-  if (loading) {
-    return <div>Loading...</div>; // Or a proper loading component
-  }
-
   return (
-    <Router>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            currentUser ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <LandingPage onLogin={handleLogin} />
-            )
-          }
-        />
-        <Route
-          path="/dashboard/*"
-          element={
-            currentUser ? (
-              <Dashboard user={currentUser} onLogout={handleLogout} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+    <>
+      <Router>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              currentUser ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <LandingPage onLogin={handleLogin} />
+              )
+            }
+          />
+          <Route
+            path="/dashboard/*"
+            element={
+              currentUser ? (
+                <Dashboard user={currentUser} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+
+      {/* Global Fullscreen Loader */}
+      <FullScreenLoader isVisible={isLoading} message={loadingMessage} />
+    </>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <LoadingProvider>
+      <AppContent />
+    </LoadingProvider>
   );
 };
 

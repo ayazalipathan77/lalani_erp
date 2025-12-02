@@ -480,6 +480,26 @@ export const api = {
       });
       if (!res.ok) throw new Error("Failed to create invoice");
       return res.json();
+    },
+    update: async (id: number, invoiceData: {
+      cust_code: string;
+      items: SalesInvoiceItem[];
+      inv_date: string;
+      status: 'PAID' | 'PENDING'
+    }): Promise<SalesInvoice> => {
+      if (USE_MOCK) {
+        await delay(500);
+        // Mock implementation would be complex, skipping for now
+        throw new Error("Mock update not implemented");
+      }
+
+      const res = await fetch(`/api/invoices/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invoiceData)
+      });
+      if (!res.ok) throw new Error("Failed to update invoice");
+      return res.json();
     }
   },
 
@@ -536,6 +556,19 @@ export const api = {
       });
       return res.json();
     },
+    updateExpense: async (id: number, expense: Partial<Expense>): Promise<Expense> => {
+      if (USE_MOCK) {
+        await delay(300);
+        // Mock implementation would be complex, skipping for now
+        throw new Error("Mock update not implemented");
+      }
+      const res = await fetch(`/api/finance/expenses/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expense)
+      });
+      return res.json();
+    },
     addPayment: async (data: {
       type: 'RECEIPT' | 'PAYMENT',
       party_code: string,
@@ -550,6 +583,25 @@ export const api = {
       }
       const res = await fetch('/api/finance/payment', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return res.json();
+    },
+    updateTransaction: async (id: number, data: {
+      trans_type: 'RECEIPT' | 'PAYMENT',
+      party_code: string,
+      amount: number,
+      trans_date: string,
+      description: string
+    }): Promise<CashTransaction> => {
+      if (USE_MOCK) {
+        await delay(300);
+        // Mock implementation would be complex, skipping for now
+        throw new Error("Mock update not implemented");
+      }
+      const res = await fetch(`/api/finance/transactions/${id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });

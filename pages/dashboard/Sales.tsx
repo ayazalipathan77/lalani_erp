@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft } from 'lucide-react';
+import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft, Edit2 } from 'lucide-react';
+import { useLoading } from '../../components/LoadingContext';
 import { api } from '../../services/api';
 import { SalesInvoiceItem, SalesInvoice, Product, Customer } from '../../types';
 import { formatTableDate } from '../../src/utils/dateUtils';
@@ -12,6 +13,7 @@ const Sales: React.FC = () => {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
+    const { showLoader, hideLoader } = useLoading();
 
     // Create Invoice State
     const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -20,6 +22,9 @@ const Sales: React.FC = () => {
     const [cartItems, setCartItems] = useState<SalesInvoiceItem[]>([]);
     const [selectedProduct, setSelectedProduct] = useState('');
     const [qty, setQty] = useState(1);
+
+    // Edit state
+    const [editingInvoice, setEditingInvoice] = useState<SalesInvoice | null>(null);
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -82,23 +87,45 @@ const Sales: React.FC = () => {
         if (!selectedCustomer || cartItems.length === 0) return;
 
         try {
-            await api.invoices.create({
-                cust_code: selectedCustomer,
-                items: cartItems,
-                date: invoiceDate,
-                status: paymentStatus
-            });
-
-            alert("Invoice Created Successfully!");
+            showLoader(editingInvoice ? 'Updating invoice...' : 'Creating invoice...');
+            if (editingInvoice) {
+                await api.invoices.update(editingInvoice.inv_id, {
+                    cust_code: selectedCustomer,
+                    items: cartItems,
+                    inv_date: invoiceDate,
+                    status: paymentStatus
+                });
+                alert("Invoice Updated Successfully!");
+            } else {
+                await api.invoices.create({
+                    cust_code: selectedCustomer,
+                    items: cartItems,
+                    date: invoiceDate,
+                    status: paymentStatus
+                });
+                alert("Invoice Created Successfully!");
+            }
 
             // Reset
             setCartItems([]);
             setSelectedCustomer('');
+            setEditingInvoice(null);
             setView('list');
-            fetchData(); // Refresh list
+            await fetchData(); // Refresh list
         } catch (error) {
-            console.error("Failed to create invoice", error);
+            console.error("Failed to save invoice", error);
+        } finally {
+            hideLoader();
         }
+    };
+
+    const handleEditInvoice = (invoice: SalesInvoice) => {
+        setEditingInvoice(invoice);
+        setSelectedCustomer(invoice.cust_code);
+        setInvoiceDate(invoice.inv_date.split('T')[0]);
+        setPaymentStatus(invoice.status === 'PAID' ? 'PAID' : 'PENDING');
+        setCartItems(invoice.items || []);
+        setView('create');
     };
 
     // Helper function to get customer name from code
@@ -158,13 +185,16 @@ const Sales: React.FC = () => {
                                     <th className="px-3 lg:px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Amount</th>
                                     <th className="px-3 lg:px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Balance</th>
                                     <th className="px-3 lg:px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+                                    <th className="relative px-6 py-3">
+                                        <span className="sr-only">Actions</span>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-slate-200">
                                 {isLoading ? (
-                                    <tr><td colSpan={7} className="text-center py-8 text-slate-500">Loading invoices...</td></tr>
+                                    <tr><td colSpan={8} className="text-center py-8 text-slate-500">Loading invoices...</td></tr>
                                 ) : filteredInvoices.length === 0 ? (
-                                    <tr><td colSpan={7} className="text-center py-8 text-slate-500">No invoices found.</td></tr>
+                                    <tr><td colSpan={8} className="text-center py-8 text-slate-500">No invoices found.</td></tr>
                                 ) : filteredInvoices.map((inv) => (
                                     <tr key={inv.inv_id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-600">{inv.inv_number}</td>
@@ -173,12 +203,20 @@ const Sales: React.FC = () => {
                                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-right font-mono">{inv.total_amount.toLocaleString()}</td>
                                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-slate-500">{inv.balance_due.toLocaleString()}</td>
                                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-center">
-                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full 
+                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
                         ${inv.status === 'PAID' ? 'bg-green-100 text-green-800' :
                                                     inv.status === 'PENDING' ? 'bg-blue-100 text-blue-800' :
                                                         'bg-red-100 text-red-800'}`}>
                                                 {inv.status}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <button
+                                                onClick={() => handleEditInvoice(inv)}
+                                                className="text-slate-400 hover:text-brand-600 transition-colors"
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
@@ -416,7 +454,7 @@ const Sales: React.FC = () => {
                                 disabled={cartItems.length === 0 || !selectedCustomer}
                             >
                                 <Check className="w-4 h-4 mr-2" />
-                                Finalize Invoice
+                                {editingInvoice ? 'Update Invoice' : 'Finalize Invoice'}
                             </button>
                         </div>
                     </div>
