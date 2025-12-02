@@ -13,7 +13,9 @@ import {
   FileBarChart,
   X,
   Undo2,
-  Receipt
+  Receipt,
+  Building2,
+  Calculator
 } from 'lucide-react';
 import { User } from '../types';
 
@@ -76,6 +78,12 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isMobileOpen = false,
       visible: hasPermission('FINANCE_VIEW')
     },
     {
+      to: '/dashboard/tax-rates',
+      icon: Calculator,
+      label: 'Tax Rates',
+      visible: hasPermission('FINANCE_VIEW')
+    },
+    {
       to: '/dashboard/purchase-invoices',
       icon: Receipt,
       label: 'Purchase Invoices',
@@ -98,6 +106,12 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isMobileOpen = false,
       icon: UserCog,
       label: 'User Management',
       visible: hasPermission('USERS_VIEW') || user.role === 'ADMIN' // Fallback for pure admin role check if needed
+    },
+    {
+      to: '/dashboard/companies',
+      icon: Building2,
+      label: 'Company Management',
+      visible: user.role === 'ADMIN' // Only admins can manage companies
     }
   ];
 

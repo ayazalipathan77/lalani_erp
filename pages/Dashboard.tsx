@@ -14,6 +14,8 @@ const Finance = lazy(() => import('./dashboard/Finance'));
 const PurchaseInvoices = lazy(() => import('./dashboard/PurchaseInvoices'));
 const Partners = lazy(() => import('./dashboard/Partners'));
 const Users = lazy(() => import('./dashboard/Users'));
+const Companies = lazy(() => import('./dashboard/Companies'));
+const TaxRates = lazy(() => import('./dashboard/TaxRates'));
 const Reports = lazy(() => import('./dashboard/Reports'));
 
 interface DashboardProps {
@@ -188,6 +190,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 </ProtectedRoute>
               } />
 
+              <Route path="/tax-rates" element={
+                <ProtectedRoute user={user} permission="FINANCE_VIEW">
+                  <TaxRates />
+                </ProtectedRoute>
+              } />
+
               <Route path="/purchase-invoices" element={
                 <ProtectedRoute user={user} permission="FINANCE_VIEW">
                   <PurchaseInvoices />
@@ -209,6 +217,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <Route path="/users" element={
                 <ProtectedRoute user={user} permission="USERS_VIEW">
                   <Users />
+                </ProtectedRoute>
+              } />
+
+              <Route path="/companies" element={
+                <ProtectedRoute user={user}>
+                  <Companies />
                 </ProtectedRoute>
               } />
 

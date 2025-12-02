@@ -364,6 +364,20 @@ CREATE TABLE IF NOT EXISTS expense_heads (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tax Rates Configuration
+CREATE TABLE IF NOT EXISTS tax_rates (
+    tax_id SERIAL PRIMARY KEY,
+    tax_code VARCHAR(20) UNIQUE NOT NULL,
+    tax_name VARCHAR(100) NOT NULL,
+    tax_rate DECIMAL(5,2) NOT NULL, -- Percentage (e.g., 5.00 for 5%)
+    tax_type VARCHAR(20) DEFAULT 'GST', -- GST, VAT, etc.
+    description TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS system_backups (
     backup_id SERIAL PRIMARY KEY,
     backup_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -422,6 +436,7 @@ CREATE INDEX IF NOT EXISTS idx_loan_taken_date ON loan_taken(loan_date);
 CREATE INDEX IF NOT EXISTS idx_loan_return_loan ON loan_return(loan_id);
 CREATE INDEX IF NOT EXISTS idx_loan_return_date ON loan_return(return_date);
 CREATE INDEX IF NOT EXISTS idx_expense_heads_code ON expense_heads(head_code);
+CREATE INDEX IF NOT EXISTS idx_tax_rates_code ON tax_rates(tax_code);
 CREATE INDEX IF NOT EXISTS idx_system_backups_date ON system_backups(backup_date);
 
 -- Insert sample data for new tables
@@ -437,6 +452,14 @@ INSERT INTO expense_heads (head_code, head_name, description) VALUES
 ('OFFICE', 'Office Supplies', 'Stationery and office equipment'),
 ('TAX', 'Tax Payments', 'Government tax payments')
 ON CONFLICT (head_code) DO NOTHING;
+
+-- Insert default tax rates
+INSERT INTO tax_rates (tax_code, tax_name, tax_rate, tax_type, description) VALUES
+('GST5', 'GST 5%', 5.00, 'GST', 'Standard GST rate'),
+('GST12', 'GST 12%', 12.00, 'GST', 'Higher GST rate'),
+('GST18', 'GST 18%', 18.00, 'GST', 'Highest GST rate'),
+('GST0', 'GST Exempt', 0.00, 'GST', 'GST exempted items')
+ON CONFLICT (tax_code) DO NOTHING;
 
 -- Update existing expenses to use new head codes
 UPDATE expenses SET head_code = 'FUEL' WHERE head_code = 'FUEL' OR remarks LIKE '%Fuel%';

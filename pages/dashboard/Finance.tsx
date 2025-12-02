@@ -11,6 +11,7 @@ const Finance: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'overview' | 'expenses' | 'payments'>('overview');
     const [transactions, setTransactions] = useState<CashTransaction[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [expenseHeads, setExpenseHeads] = useState<ExpenseHead[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { showLoader, hideLoader } = useLoading();
 
@@ -33,14 +34,16 @@ const Finance: React.FC = () => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [transResponse, expsResponse, custsResponse, suppsResponse] = await Promise.all([
+            const [transResponse, expsResponse, headsResponse, custsResponse, suppsResponse] = await Promise.all([
                 api.finance.getTransactions(1, 8), // Get first 8 transactions
                 api.finance.getExpenses(1, 8), // Get first 8 expenses
+                api.expenseHeads.getAll(), // Get all expense heads
                 api.customers.getAll(1, 100), // Get all customers for dropdown
                 api.suppliers.getAll(1, 100) // Get all suppliers for dropdown
             ]);
             setTransactions(transResponse.data);
             setExpenses(expsResponse.data);
+            setExpenseHeads(headsResponse);
             setCustomers(custsResponse.data);
             setSuppliers(suppsResponse.data);
         } catch (e) {
@@ -449,11 +452,11 @@ const Finance: React.FC = () => {
                                     onChange={e => setExpenseForm({ ...expenseForm, head_code: e.target.value })}
                                 >
                                     <option value="">Select Category</option>
-                                    <option value="FUEL">Fuel</option>
-                                    <option value="UTIL">Utilities (Elec/Water)</option>
-                                    <option value="RENT">Rent</option>
-                                    <option value="MAINT">Maintenance</option>
-                                    <option value="MISC">Miscellaneous</option>
+                                    {expenseHeads.map(head => (
+                                        <option key={head.head_code} value={head.head_code}>
+                                            {head.head_name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                             <div>

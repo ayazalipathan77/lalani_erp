@@ -225,6 +225,16 @@ export interface ExpenseHead {
   is_active: boolean;
 }
 
+export interface TaxRate {
+  tax_id: number;
+  tax_code: string;
+  tax_name: string;
+  tax_rate: number;
+  tax_type: string;
+  description: string;
+  is_active: boolean;
+}
+
 export interface SystemBackup {
   backup_id: number;
   backup_date: string;

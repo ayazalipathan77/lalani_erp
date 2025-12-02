@@ -20,7 +20,9 @@ import {
   LoanTaken,
   LoanReturn,
   ExpenseHead,
-  SystemBackup
+  SystemBackup,
+  Company,
+  TaxRate
 } from '../types';
 import {
   mockProducts,
@@ -966,6 +968,163 @@ export const api = {
         body: JSON.stringify(headData)
       });
       return res.json();
+    }
+  },
+
+  taxRates: {
+    getAll: async (): Promise<TaxRate[]> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return [
+          { tax_id: 1, tax_code: 'GST5', tax_name: 'GST 5%', tax_rate: 5.00, tax_type: 'GST', description: 'Standard GST rate', is_active: true },
+          { tax_id: 2, tax_code: 'GST12', tax_name: 'GST 12%', tax_rate: 12.00, tax_type: 'GST', description: 'Higher GST rate', is_active: true },
+          { tax_id: 3, tax_code: 'GST18', tax_name: 'GST 18%', tax_rate: 18.00, tax_type: 'GST', description: 'Highest GST rate', is_active: true },
+          { tax_id: 4, tax_code: 'GST0', tax_name: 'GST Exempt', tax_rate: 0.00, tax_type: 'GST', description: 'GST exempted items', is_active: true }
+        ];
+      }
+      const res = await fetch('/api/finance/tax-rates');
+      return res.json();
+    },
+    getByCode: async (code: string): Promise<TaxRate> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return { tax_id: 1, tax_code: code, tax_name: 'GST 5%', tax_rate: 5.00, tax_type: 'GST', description: 'Standard GST rate', is_active: true };
+      }
+      const res = await fetch(`/api/finance/tax-rates/${code}`);
+      return res.json();
+    },
+    create: async (taxData: {
+      tax_code: string;
+      tax_name: string;
+      tax_rate: number;
+      tax_type?: string;
+      description?: string;
+    }): Promise<TaxRate> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {
+          tax_id: Math.floor(Math.random() * 1000),
+          tax_code: taxData.tax_code,
+          tax_name: taxData.tax_name,
+          tax_rate: taxData.tax_rate,
+          tax_type: taxData.tax_type || 'GST',
+          description: taxData.description || '',
+          is_active: true
+        };
+      }
+      const res = await fetch('/api/finance/tax-rates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(taxData)
+      });
+      return res.json();
+    },
+    update: async (code: string, taxData: Partial<TaxRate>): Promise<TaxRate> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {
+          tax_id: 1,
+          tax_code: code,
+          tax_name: taxData.tax_name || 'Updated Tax',
+          tax_rate: taxData.tax_rate || 5.00,
+          tax_type: taxData.tax_type || 'GST',
+          description: taxData.description || '',
+          is_active: taxData.is_active !== undefined ? taxData.is_active : true
+        };
+      }
+      const res = await fetch(`/api/finance/tax-rates/${code}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(taxData)
+      });
+      return res.json();
+    },
+    delete: async (code: string): Promise<void> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return;
+      }
+      await fetch(`/api/finance/tax-rates/${code}`, { method: 'DELETE' });
+    }
+  },
+
+  companies: {
+    getAll: async (): Promise<Company[]> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return [
+          {
+            comp_code: 'CMP01',
+            comp_name: 'Lalani Traders',
+            address: 'Karachi, Pakistan',
+            phone: '+92-21-1234567',
+            email: 'info@lalanitraders.com',
+            gstin: '27AAAAA0000A1Z5',
+            pan_number: 'AAAAA0000A',
+            tax_registration: 'TR001'
+          }
+        ];
+      }
+      const res = await fetch('/api/companies');
+      return res.json();
+    },
+    getByCode: async (code: string): Promise<Company> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return {
+          comp_code: code,
+          comp_name: 'Lalani Traders',
+          address: 'Karachi, Pakistan',
+          phone: '+92-21-1234567',
+          email: 'info@lalanitraders.com',
+          gstin: '27AAAAA0000A1Z5',
+          pan_number: 'AAAAA0000A',
+          tax_registration: 'TR001'
+        };
+      }
+      const res = await fetch(`/api/companies/${code}`);
+      return res.json();
+    },
+    create: async (companyData: Omit<Company, 'created_at'>): Promise<Company> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {
+          ...companyData,
+          created_at: new Date().toISOString()
+        } as Company;
+      }
+      const res = await fetch('/api/companies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(companyData)
+      });
+      return res.json();
+    },
+    update: async (code: string, companyData: Partial<Company>): Promise<Company> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {
+          comp_code: code,
+          comp_name: 'Updated Company',
+          address: 'Updated Address',
+          phone: '1234567890',
+          email: 'test@example.com',
+          ...companyData
+        } as Company;
+      }
+      const res = await fetch(`/api/companies/${code}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(companyData)
+      });
+      return res.json();
+    },
+    delete: async (code: string): Promise<void> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return;
+      }
+      await fetch(`/api/companies/${code}`, { method: 'DELETE' });
     }
   },
 
