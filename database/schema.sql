@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(20) DEFAULT 'USER' CHECK (role IN ('ADMIN', 'USER')),
     is_active CHAR(1) DEFAULT 'Y' CHECK (is_active IN ('Y', 'N')),
     permissions TEXT[], -- Array of permission strings
+    default_company VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by INTEGER REFERENCES users(user_id),
@@ -401,6 +402,7 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS credit_terms_days INTEGER DEFAULT
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS tax_number VARCHAR(50);
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS payment_terms_days INTEGER DEFAULT 30;
 
+ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_code VARCHAR(20) REFERENCES tax_rates(tax_code);
 ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,2) DEFAULT 5.00;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS hsn_code VARCHAR(20);
 ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_price DECIMAL(12,2);
@@ -411,6 +413,9 @@ ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS shipping_address TEXT;
 ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS shipping_charges DECIMAL(12,2) DEFAULT 0;
 
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS head_code VARCHAR(20) REFERENCES expense_heads(head_code);
+
+-- Set default tax rate for existing products
+UPDATE products SET tax_code = 'GST5' WHERE tax_code IS NULL;
 
 -- Add indexes for new tables
 CREATE INDEX IF NOT EXISTS idx_sales_returns_number ON sales_returns(return_number);

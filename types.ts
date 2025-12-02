@@ -61,6 +61,7 @@ export interface Product {
   unit_price: number;
   current_stock: number;
   min_stock_level: number;
+  tax_code?: string;
   tax_rate?: number;
   hsn_code?: string;
   purchase_price?: number;

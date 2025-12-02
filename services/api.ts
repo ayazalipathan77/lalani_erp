@@ -53,7 +53,13 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // Helper function to get auth headers
 const getAuthHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('authToken');
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
+  const selectedCompany = localStorage.getItem('selectedCompany') || 'CMP01';
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  headers['X-Company-Code'] = selectedCompany;
+  return headers;
 };
 
 export const api = {

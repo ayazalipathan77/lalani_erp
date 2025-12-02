@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import CompanySelector from '../components/CompanySelector';
 import { Bell, Search, LogOut, ChevronDown, Menu, X } from 'lucide-react';
 import { User } from '../types';
 
@@ -59,6 +60,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<string>(
+    localStorage.getItem('selectedCompany') || 'CMP01'
+  );
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -114,6 +118,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           </div>
 
           <div className="flex items-center space-x-6">
+            <CompanySelector
+              selectedCompany={selectedCompany}
+              onCompanyChange={setSelectedCompany}
+            />
+
             <button className="relative text-slate-400 hover:text-slate-600 transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />

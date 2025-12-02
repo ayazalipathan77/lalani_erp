@@ -12,6 +12,7 @@ const Sales: React.FC = () => {
     const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [customers, setCustomers] = useState<Customer[]>([]);
+    const [taxRates, setTaxRates] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const { showLoader, hideLoader } = useLoading();
@@ -31,14 +32,16 @@ const Sales: React.FC = () => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [invsResponse, prodsResponse, custsResponse] = await Promise.all([
+            const [invsResponse, prodsResponse, custsResponse, taxResponse] = await Promise.all([
                 api.invoices.getAll(1, 50), // Get more invoices for sales page
                 api.products.getAll(1, 100), // Get all products for dropdown
-                api.customers.getAll(1, 100) // Get all customers for dropdown
+                api.customers.getAll(1, 100), // Get all customers for dropdown
+                api.taxRates.getAll() // Get all tax rates
             ]);
             setInvoices(Array.isArray(invsResponse.data) ? invsResponse.data : []);
             setProducts(Array.isArray(prodsResponse.data) ? prodsResponse.data : []);
             setCustomers(Array.isArray(custsResponse.data) ? custsResponse.data : []);
+            setTaxRates(Array.isArray(taxResponse) ? taxResponse : []);
         } catch (e) {
             console.error(e);
         } finally {
@@ -52,7 +55,23 @@ const Sales: React.FC = () => {
 
     // Calculations
     const subtotal = cartItems.reduce((acc, item) => acc + item.line_total, 0);
-    const tax = subtotal * 0.05; // 5% tax example
+
+    // Calculate tax dynamically based on product tax rates
+    const calculateTax = () => {
+        return cartItems.reduce((totalTax, item) => {
+            const product = products.find(p => p.prod_code === item.prod_code);
+            if (product && product.tax_code) {
+                const taxRate = taxRates.find(tr => tr.tax_code === product.tax_code);
+                if (taxRate) {
+                    return totalTax + (item.line_total * (taxRate.tax_rate / 100));
+                }
+            }
+            // Fallback to 5% if tax rate not found
+            return totalTax + (item.line_total * 0.05);
+        }, 0);
+    };
+
+    const tax = calculateTax();
     const total = subtotal + tax;
 
     const handleAddItem = () => {
@@ -329,6 +348,8 @@ const Sales: React.FC = () => {
                                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Product</th>
                                             <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Qty</th>
                                             <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Price</th>
+                                            <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Tax Rate</th>
+                                            <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Tax Amount</th>
                                             <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Total</th>
                                             <th className="px-4 py-3"></th>
                                         </tr>
@@ -336,24 +357,33 @@ const Sales: React.FC = () => {
                                     <tbody className="divide-y divide-slate-200 bg-white">
                                         {cartItems.length === 0 ? (
                                             <tr>
-                                                <td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-sm">
+                                                <td colSpan={7} className="px-4 py-8 text-center text-slate-400 text-sm">
                                                     No items added yet.
                                                 </td>
                                             </tr>
                                         ) : (
-                                            cartItems.map((item, idx) => (
-                                                <tr key={idx}>
-                                                    <td className="px-4 py-3 text-sm text-slate-900">{item.prod_name}</td>
-                                                    <td className="px-4 py-3 text-sm text-slate-900 text-right">{item.quantity}</td>
-                                                    <td className="px-4 py-3 text-sm text-slate-500 text-right">{item.unit_price.toLocaleString()}</td>
-                                                    <td className="px-4 py-3 text-sm font-medium text-slate-900 text-right">{item.line_total.toLocaleString()}</td>
-                                                    <td className="px-4 py-3 text-right">
-                                                        <button onClick={() => handleRemoveItem(idx)} className="text-red-400 hover:text-red-600">
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))
+                                            cartItems.map((item, idx) => {
+                                                const product = products.find(p => p.prod_code === item.prod_code);
+                                                const taxRateInfo = product?.tax_code ? taxRates.find(tr => tr.tax_code === product.tax_code) : null;
+                                                const itemTaxRate = taxRateInfo ? taxRateInfo.tax_rate : 5; // Default to 5%
+                                                const itemTaxAmount = item.line_total * (itemTaxRate / 100);
+
+                                                return (
+                                                    <tr key={idx}>
+                                                        <td className="px-4 py-3 text-sm text-slate-900">{item.prod_name}</td>
+                                                        <td className="px-4 py-3 text-sm text-slate-900 text-right">{item.quantity}</td>
+                                                        <td className="px-4 py-3 text-sm text-slate-500 text-right">{item.unit_price.toLocaleString()}</td>
+                                                        <td className="px-4 py-3 text-sm text-slate-500 text-right">{itemTaxRate}%</td>
+                                                        <td className="px-4 py-3 text-sm text-slate-500 text-right">{itemTaxAmount.toLocaleString()}</td>
+                                                        <td className="px-4 py-3 text-sm font-medium text-slate-900 text-right">{item.line_total.toLocaleString()}</td>
+                                                        <td className="px-4 py-3 text-right">
+                                                            <button onClick={() => handleRemoveItem(idx)} className="text-red-400 hover:text-red-600">
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
                                         )}
                                     </tbody>
                                 </table>
@@ -441,7 +471,7 @@ const Sales: React.FC = () => {
                                     <span>PKR {subtotal.toLocaleString()}</span>
                                 </div>
                                 <div className="flex justify-between text-sm text-slate-600">
-                                    <span>Tax (5%)</span>
+                                    <span>Tax Amount</span>
                                     <span>PKR {tax.toLocaleString()}</span>
                                 </div>
                                 <div className="flex justify-between text-lg font-bold text-slate-900 pt-2 border-t border-slate-100 mt-2">

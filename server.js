@@ -60,12 +60,24 @@ const authenticateToken = (req, res, next) => {
             req.user = null;
             logger.auth('TOKEN_VERIFICATION_FAILED', null, null, req.ip);
         } else {
-            req.user = { id: decoded.userId, username: decoded.username };
+            req.user = {
+                id: decoded.userId,
+                username: decoded.username,
+                selectedCompany: decoded.selectedCompany || 'CMP01'
+            };
             // Only log successful token verification for important endpoints, not every request
             // This prevents log spam from frontend polling and routine requests
         }
         next();
     });
+};
+
+// Company context middleware
+const getCompanyContext = (req) => {
+    // Priority: 1. Request header, 2. User session, 3. Default
+    return req.headers['x-company-code'] ||
+        req.user?.selectedCompany ||
+        'CMP01';
 };
 
 // Apply authentication middleware to all routes except auth
@@ -103,7 +115,11 @@ app.post('/api/auth/login', async (req, res) => {
         if (result.rows.length > 0) {
             const user = result.rows[0];
             delete user.password;
-            const token = jwt.sign({ userId: user.user_id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '24h' });
+            const token = jwt.sign({
+                userId: user.user_id,
+                username: user.username,
+                selectedCompany: user.default_company || 'CMP01'
+            }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
             // Log successful login
             logger.login(username, true, clientIP, userAgent);
@@ -515,15 +531,16 @@ app.get('/api/products', async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
+        const companyCode = getCompanyContext(req);
 
         // Get total count
-        const countResult = await pool.query('SELECT COUNT(*) as total FROM products');
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM products WHERE comp_code = $1', [companyCode]);
         const total = parseInt(countResult.rows[0].total);
 
         // Get paginated data
         const result = await pool.query(
-            'SELECT * FROM products ORDER BY prod_name LIMIT $1 OFFSET $2',
-            [limit, offset]
+            'SELECT * FROM products WHERE comp_code = $1 ORDER BY prod_name LIMIT $2 OFFSET $3',
+            [companyCode, limit, offset]
         );
 
         res.json({
@@ -539,11 +556,12 @@ app.get('/api/products', async (req, res) => {
 });
 
 app.post('/api/products', async (req, res) => {
-    const { prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level } = req.body;
+    const { prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, tax_code } = req.body;
+    const companyCode = getCompanyContext(req);
     try {
         const result = await pool.query(
-            'INSERT INTO products (prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, comp_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-            [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, 'CMP01', req.user?.id]
+            'INSERT INTO products (prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, tax_code, comp_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+            [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, tax_code || 'GST5', companyCode, req.user?.id]
         );
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -551,11 +569,11 @@ app.post('/api/products', async (req, res) => {
 
 app.put('/api/products/:id', async (req, res) => {
     const { id } = req.params;
-    const { prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level } = req.body;
+    const { prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, tax_code } = req.body;
     try {
         const result = await pool.query(
-            'UPDATE products SET prod_code=$1, prod_name=$2, category_code=$3, unit_price=$4, current_stock=$5, min_stock_level=$6, updated_by=$7 WHERE prod_id=$8 RETURNING *',
-            [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, req.user?.id, id]
+            'UPDATE products SET prod_code=$1, prod_name=$2, category_code=$3, unit_price=$4, current_stock=$5, min_stock_level=$6, tax_code=$7, updated_by=$8 WHERE prod_id=$9 RETURNING *',
+            [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, tax_code, req.user?.id, id]
         );
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -582,15 +600,16 @@ app.get('/api/customers', async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
+        const companyCode = getCompanyContext(req);
 
         // Get total count
-        const countResult = await pool.query('SELECT COUNT(*) as total FROM customers');
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM customers WHERE comp_code = $1', [companyCode]);
         const total = parseInt(countResult.rows[0].total);
 
         // Get paginated data
         const result = await pool.query(
-            'SELECT * FROM customers ORDER BY cust_name LIMIT $1 OFFSET $2',
-            [limit, offset]
+            'SELECT * FROM customers WHERE comp_code = $1 ORDER BY cust_name LIMIT $2 OFFSET $3',
+            [companyCode, limit, offset]
         );
 
         res.json({
@@ -607,10 +626,11 @@ app.get('/api/customers', async (req, res) => {
 
 app.post('/api/customers', async (req, res) => {
     const { cust_code, cust_name, city, phone, credit_limit, outstanding_balance } = req.body;
+    const companyCode = getCompanyContext(req);
     try {
         const result = await pool.query(
             'INSERT INTO customers (cust_code, cust_name, city, phone, credit_limit, outstanding_balance, comp_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-            [cust_code, cust_name, city, phone, credit_limit, outstanding_balance, 'CMP01', req.user?.id]
+            [cust_code, cust_name, city, phone, credit_limit, outstanding_balance, companyCode, req.user?.id]
         );
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -736,12 +756,26 @@ app.get('/api/invoices', async (req, res) => {
 
 app.post('/api/invoices', async (req, res) => {
     const { cust_code, items, date, status } = req.body;
+    const companyCode = getCompanyContext(req);
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
         const sub_total = items.reduce((acc, item) => acc + Number(item.line_total), 0);
-        const tax_amount = sub_total * 0.05;
+
+        // Calculate tax based on product tax rates
+        let totalTaxAmount = 0;
+        for (const item of items) {
+            const productResult = await client.query(
+                'SELECT p.*, tr.tax_rate FROM products p JOIN tax_rates tr ON p.tax_code = tr.tax_code WHERE p.prod_code = $1 AND p.comp_code = $2',
+                [item.prod_code, companyCode]
+            );
+            const product = productResult.rows[0];
+            const itemTax = item.line_total * (product.tax_rate / 100);
+            totalTaxAmount += itemTax;
+        }
+
+        const tax_amount = totalTaxAmount;
         const total_amount = sub_total + tax_amount;
         const balance_due = status === 'PAID' ? 0 : total_amount;
         const inv_number = `INV-${Date.now()}`;
@@ -749,7 +783,7 @@ app.post('/api/invoices', async (req, res) => {
         const invRes = await client.query(
             `INSERT INTO sales_invoices (inv_number, inv_date, cust_code, comp_code, sub_total, tax_amount, total_amount, balance_due, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING inv_id`,
-            [inv_number, date, cust_code, 'CMP01', sub_total, tax_amount, total_amount, balance_due, req.user?.id]
+            [inv_number, date, cust_code, companyCode, sub_total, tax_amount, total_amount, balance_due, req.user?.id]
         );
         const inv_id = invRes.rows[0].inv_id;
 
@@ -851,9 +885,22 @@ app.put('/api/invoices/:id', async (req, res) => {
             );
         }
 
-        // Calculate new totals
+        // Calculate new totals with dynamic tax rates
         const sub_total = items.reduce((acc, item) => acc + Number(item.line_total), 0);
-        const tax_amount = sub_total * 0.05;
+
+        // Calculate tax based on product tax rates
+        let totalTaxAmount = 0;
+        for (const item of items) {
+            const productResult = await client.query(
+                'SELECT p.*, tr.tax_rate FROM products p JOIN tax_rates tr ON p.tax_code = tr.tax_code WHERE p.prod_code = $1',
+                [item.prod_code]
+            );
+            const product = productResult.rows[0];
+            const itemTax = item.line_total * (product.tax_rate / 100);
+            totalTaxAmount += itemTax;
+        }
+
+        const tax_amount = totalTaxAmount;
         const total_amount = sub_total + tax_amount;
         const balance_due = status === 'PAID' ? 0 : total_amount;
 
