@@ -1271,6 +1271,573 @@ app.get('/api/analytics/sales-trends', async (req, res) => {
     }
 });
 
+// --- NEW API ENDPOINTS FOR PHASE 3 ---
+
+// Sales Returns
+app.get('/api/sales-returns', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM sales_returns');
+        const total = parseInt(countResult.rows[0].total);
+
+        // Get paginated data with items
+        const result = await pool.query(`
+            SELECT sr.*,
+            (SELECT json_agg(json_build_object('prod_code', sri.prod_code, 'quantity', sri.quantity, 'unit_price', sri.unit_price, 'line_total', sri.line_total, 'prod_name', p.prod_name))
+             FROM sales_return_items sri
+             JOIN products p ON sri.prod_code = p.prod_code
+             WHERE sri.return_id = sr.return_id) as items
+            FROM sales_returns sr
+            ORDER BY sr.return_date DESC, sr.return_id DESC
+            LIMIT $1 OFFSET $2
+        `, [limit, offset]);
+
+        res.json({
+            data: result.rows,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+    } catch (err) {
+        logger.error('Sales returns fetch error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/sales-returns', async (req, res) => {
+    const { inv_id, items, return_date } = req.body;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // Get original invoice
+        const invResult = await client.query(
+            'SELECT * FROM sales_invoices WHERE inv_id = $1',
+            [inv_id]
+        );
+
+        if (invResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Invoice not found' });
+        }
+
+        const invoice = invResult.rows[0];
+        const totalAmount = items.reduce((acc, item) => acc + Number(item.line_total), 0);
+        const returnNumber = `RTN-${Date.now()}`;
+
+        // Create sales return
+        const returnResult = await client.query(
+            `INSERT INTO sales_returns (return_number, return_date, inv_id, cust_code, total_amount, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [returnNumber, return_date, inv_id, invoice.cust_code, totalAmount, 'CMP01', req.user?.id]
+        );
+
+        const returnId = returnResult.rows[0].return_id;
+
+        // Add return items and restore stock
+        for (const item of items) {
+            await client.query(
+                `INSERT INTO sales_return_items (return_id, prod_code, quantity, unit_price, line_total)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [returnId, item.prod_code, item.quantity, item.unit_price, item.line_total]
+            );
+
+            // Restore stock
+            await client.query(
+                `UPDATE products SET current_stock = current_stock + $1 WHERE prod_code = $2`,
+                [item.quantity, item.prod_code]
+            );
+        }
+
+        // Update customer balance (reduce outstanding)
+        await client.query(
+            `UPDATE customers SET outstanding_balance = outstanding_balance - $1 WHERE cust_code = $2`,
+            [totalAmount, invoice.cust_code]
+        );
+
+        // Update invoice balance
+        await client.query(
+            `UPDATE sales_invoices SET balance_due = balance_due - $1 WHERE inv_id = $2`,
+            [totalAmount, inv_id]
+        );
+
+        await client.query('COMMIT');
+        res.json(returnResult.rows[0]);
+    } catch (e) {
+        await client.query('ROLLBACK');
+        logger.error('Sales return creation error', e, { userId: req.user?.id, invoiceId: inv_id });
+        res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// Purchase Invoices
+app.get('/api/purchase-invoices', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM purchase_invoices');
+        const total = parseInt(countResult.rows[0].total);
+
+        // Get paginated data with items
+        const result = await pool.query(`
+            SELECT pi.*,
+            (SELECT json_agg(json_build_object('prod_code', pii.prod_code, 'quantity', pii.quantity, 'unit_price', pii.unit_price, 'line_total', pii.line_total, 'prod_name', p.prod_name))
+             FROM purchase_invoice_items pii
+             JOIN products p ON pii.prod_code = p.prod_code
+             WHERE pii.purchase_id = pi.purchase_id) as items
+            FROM purchase_invoices pi
+            ORDER BY pi.purchase_date DESC, pi.purchase_id DESC
+            LIMIT $1 OFFSET $2
+        `, [limit, offset]);
+
+        res.json({
+            data: result.rows,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+    } catch (err) {
+        logger.error('Purchase invoices fetch error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/purchase-invoices', async (req, res) => {
+    const { supplier_code, items, purchase_date } = req.body;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const totalAmount = items.reduce((acc, item) => acc + Number(item.line_total), 0);
+        const purchaseNumber = `PUR-${Date.now()}`;
+
+        // Create purchase invoice
+        const purchaseResult = await client.query(
+            `INSERT INTO purchase_invoices (purchase_number, purchase_date, supplier_code, total_amount, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [purchaseNumber, purchase_date, supplier_code, totalAmount, 'CMP01', req.user?.id]
+        );
+
+        const purchaseId = purchaseResult.rows[0].purchase_id;
+
+        // Add purchase items and increase stock
+        for (const item of items) {
+            await client.query(
+                `INSERT INTO purchase_invoice_items (purchase_id, prod_code, quantity, unit_price, line_total)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [purchaseId, item.prod_code, item.quantity, item.unit_price, item.line_total]
+            );
+
+            // Increase stock
+            await client.query(
+                `UPDATE products SET current_stock = current_stock + $1 WHERE prod_code = $2`,
+                [item.quantity, item.prod_code]
+            );
+        }
+
+        // Update supplier balance (increase outstanding)
+        await client.query(
+            `UPDATE suppliers SET outstanding_balance = outstanding_balance + $1 WHERE supplier_code = $2`,
+            [totalAmount, supplier_code]
+        );
+
+        await client.query('COMMIT');
+        res.json(purchaseResult.rows[0]);
+    } catch (e) {
+        await client.query('ROLLBACK');
+        logger.error('Purchase invoice creation error', e, { userId: req.user?.id, supplierCode: supplier_code });
+        res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// Payment Receipts
+app.get('/api/payment-receipts', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM payment_receipts');
+        const total = parseInt(countResult.rows[0].total);
+
+        const result = await pool.query(
+            'SELECT * FROM payment_receipts ORDER BY receipt_date DESC LIMIT $1 OFFSET $2',
+            [limit, offset]
+        );
+
+        res.json({
+            data: result.rows,
+            pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+        });
+    } catch (err) {
+        logger.error('Payment receipts fetch error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/payment-receipts', async (req, res) => {
+    const { cust_code, amount, payment_method, reference_number, receipt_date } = req.body;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const receiptNumber = `REC-${Date.now()}`;
+
+        const result = await client.query(
+            `INSERT INTO payment_receipts (receipt_number, receipt_date, cust_code, amount, payment_method, reference_number, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+            [receiptNumber, receipt_date, cust_code, amount, payment_method, reference_number, 'CMP01', req.user?.id]
+        );
+
+        // Update customer balance
+        await client.query(
+            `UPDATE customers SET outstanding_balance = outstanding_balance - $1 WHERE cust_code = $2`,
+            [amount, cust_code]
+        );
+
+        // Add to cash balance
+        await client.query(
+            `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [receipt_date, 'RECEIPT', `Payment receipt ${receiptNumber}`, amount, 0, 'CMP01', req.user?.id]
+        );
+
+        await client.query('COMMIT');
+        res.json(result.rows[0]);
+    } catch (e) {
+        await client.query('ROLLBACK');
+        logger.error('Payment receipt creation error', e, { userId: req.user?.id, customerCode: cust_code });
+        res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// Supplier Payments
+app.get('/api/supplier-payments', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM supplier_payments');
+        const total = parseInt(countResult.rows[0].total);
+
+        const result = await pool.query(
+            'SELECT * FROM supplier_payments ORDER BY payment_date DESC LIMIT $1 OFFSET $2',
+            [limit, offset]
+        );
+
+        res.json({
+            data: result.rows,
+            pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+        });
+    } catch (err) {
+        logger.error('Supplier payments fetch error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/supplier-payments', async (req, res) => {
+    const { supplier_code, amount, payment_method, reference_number, payment_date } = req.body;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const paymentNumber = `PAY-${Date.now()}`;
+
+        const result = await client.query(
+            `INSERT INTO supplier_payments (payment_number, payment_date, supplier_code, amount, payment_method, reference_number, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+            [paymentNumber, payment_date, supplier_code, amount, payment_method, reference_number, 'CMP01', req.user?.id]
+        );
+
+        // Update supplier balance
+        await client.query(
+            `UPDATE suppliers SET outstanding_balance = outstanding_balance - $1 WHERE supplier_code = $2`,
+            [amount, supplier_code]
+        );
+
+        // Add to cash balance
+        await client.query(
+            `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [payment_date, 'PAYMENT', `Supplier payment ${paymentNumber}`, 0, amount, 'CMP01', req.user?.id]
+        );
+
+        await client.query('COMMIT');
+        res.json(result.rows[0]);
+    } catch (e) {
+        await client.query('ROLLBACK');
+        logger.error('Supplier payment creation error', e, { userId: req.user?.id, supplierCode: supplier_code });
+        res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// Discount Vouchers
+app.get('/api/discount-vouchers', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM discount_vouchers');
+        const total = parseInt(countResult.rows[0].total);
+
+        const result = await pool.query(
+            'SELECT * FROM discount_vouchers ORDER BY voucher_date DESC LIMIT $1 OFFSET $2',
+            [limit, offset]
+        );
+
+        res.json({
+            data: result.rows,
+            pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+        });
+    } catch (err) {
+        logger.error('Discount vouchers fetch error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/discount-vouchers', async (req, res) => {
+    const { cust_code, amount, reason, voucher_date } = req.body;
+
+    try {
+        const voucherNumber = `VOU-${Date.now()}`;
+
+        const result = await pool.query(
+            `INSERT INTO discount_vouchers (voucher_number, voucher_date, cust_code, amount, reason, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [voucherNumber, voucher_date, cust_code, amount, reason, 'CMP01', req.user?.id]
+        );
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        logger.error('Discount voucher creation error', err, { userId: req.user?.id, customerCode: cust_code });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Opening Cash Balance
+app.get('/api/finance/opening-balance', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM opening_cash_balance WHERE status = $1 ORDER BY balance_date DESC LIMIT 1',
+            ['OPEN']
+        );
+
+        res.json(result.rows[0] || null);
+    } catch (err) {
+        logger.error('Opening cash balance fetch error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/finance/opening-balance', async (req, res) => {
+    const { balance_date, opening_amount, closing_amount } = req.body;
+
+    try {
+        // Close any existing open balance
+        await pool.query(
+            'UPDATE opening_cash_balance SET status = $1 WHERE status = $2',
+            ['CLOSED', 'OPEN']
+        );
+
+        const result = await pool.query(
+            `INSERT INTO opening_cash_balance (balance_date, opening_amount, closing_amount, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [balance_date, opening_amount, closing_amount || opening_amount, 'CMP01', req.user?.id]
+        );
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        logger.error('Opening cash balance creation error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Loan Management
+app.get('/api/finance/loans', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        const countResult = await pool.query('SELECT COUNT(*) as total FROM loan_taken');
+        const total = parseInt(countResult.rows[0].total);
+
+        const result = await pool.query(
+            'SELECT * FROM loan_taken ORDER BY loan_date DESC LIMIT $1 OFFSET $2',
+            [limit, offset]
+        );
+
+        res.json({
+            data: result.rows,
+            pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+        });
+    } catch (err) {
+        logger.error('Loans fetch error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/finance/loans', async (req, res) => {
+    const { loan_number, loan_date, amount, interest_rate, term_months, lender_name } = req.body;
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO loan_taken (loan_number, loan_date, amount, interest_rate, term_months, lender_name, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+            [loan_number, loan_date, amount, interest_rate, term_months, lender_name, 'CMP01', req.user?.id]
+        );
+
+        // Add to cash balance as incoming money
+        await pool.query(
+            `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [loan_date, 'RECEIPT', `Loan from ${lender_name}`, amount, 0, 'CMP01', req.user?.id]
+        );
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        logger.error('Loan creation error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Loan Returns
+app.get('/api/finance/loans/:loanId/returns', async (req, res) => {
+    const { loanId } = req.params;
+
+    try {
+        const result = await pool.query(
+            'SELECT * FROM loan_return WHERE loan_id = $1 ORDER BY return_date DESC',
+            [loanId]
+        );
+
+        res.json(result.rows);
+    } catch (err) {
+        logger.error('Loan returns fetch error', err, { userId: req.user?.id, loanId });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/finance/loan-returns', async (req, res) => {
+    const { loan_id, return_date, amount, payment_method, reference_number } = req.body;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const result = await client.query(
+            `INSERT INTO loan_return (loan_id, return_date, amount, payment_method, reference_number, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [loan_id, return_date, amount, payment_method, reference_number, 'CMP01', req.user?.id]
+        );
+
+        // Add to cash balance as outgoing money
+        await client.query(
+            `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [return_date, 'PAYMENT', `Loan return payment`, 0, amount, 'CMP01', req.user?.id]
+        );
+
+        await client.query('COMMIT');
+        res.json(result.rows[0]);
+    } catch (e) {
+        await client.query('ROLLBACK');
+        logger.error('Loan return creation error', e, { userId: req.user?.id, loanId: loan_id });
+        res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// Expense Heads
+app.get('/api/finance/expense-heads', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM expense_heads WHERE is_active = true ORDER BY head_name'
+        );
+
+        res.json(result.rows);
+    } catch (err) {
+        logger.error('Expense heads fetch error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/finance/expense-heads', async (req, res) => {
+    const { head_code, head_name, description } = req.body;
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO expense_heads (head_code, head_name, description, comp_code)
+             VALUES ($1, $2, $3, $4) RETURNING *`,
+            [head_code, head_name, description, 'CMP01']
+        );
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        logger.error('Expense head creation error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// System Backups
+app.get('/api/system/backups', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM system_backups ORDER BY backup_date DESC'
+        );
+
+        res.json(result.rows);
+    } catch (err) {
+        logger.error('System backups fetch error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/system/backups', async (req, res) => {
+    const { backup_type, file_path, file_size } = req.body;
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO system_backups (backup_type, file_path, file_size, comp_code, created_by)
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [backup_type, file_path, file_size, 'CMP01', req.user?.id]
+        );
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        logger.error('System backup creation error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // --- SERVE FRONTEND (PRODUCTION) ---
 app.use(express.static(path.join(__dirname, 'dist')));
 

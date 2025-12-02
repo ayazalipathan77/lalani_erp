@@ -8,7 +8,19 @@ import {
   CashTransaction,
   Category,
   SalesInvoiceItem,
-  User
+  User,
+  SalesReturn,
+  SalesReturnItem,
+  PurchaseInvoice,
+  PurchaseInvoiceItem,
+  PaymentReceipt,
+  SupplierPayment,
+  DiscountVoucher,
+  OpeningCashBalance,
+  LoanTaken,
+  LoanReturn,
+  ExpenseHead,
+  SystemBackup
 } from '../types';
 import {
   mockProducts,
@@ -660,6 +672,332 @@ export const api = {
       }
       const res = await fetch('/api/analytics/sales-trends', {
         headers: getAuthHeaders()
+      });
+      return res.json();
+    }
+  },
+
+  // --- NEW API ENDPOINTS FOR PHASE 3 ---
+  salesReturns: {
+    getAll: async (page: number = 1, limit: number = 8): Promise<{ data: SalesReturn[], pagination: any }> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+      }
+      const res = await fetch(`/api/sales-returns?page=${page}&limit=${limit}`);
+      return res.json();
+    },
+    create: async (returnData: {
+      inv_id: number;
+      items: SalesReturnItem[];
+      return_date: string;
+    }): Promise<SalesReturn> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {} as SalesReturn;
+      }
+      const res = await fetch('/api/sales-returns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(returnData)
+      });
+      return res.json();
+    }
+  },
+
+  purchaseInvoices: {
+    getAll: async (page: number = 1, limit: number = 8): Promise<{ data: PurchaseInvoice[], pagination: any }> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+      }
+      const res = await fetch(`/api/purchase-invoices?page=${page}&limit=${limit}`);
+      return res.json();
+    },
+    create: async (purchaseData: {
+      supplier_code: string;
+      items: PurchaseInvoiceItem[];
+      purchase_date: string;
+    }): Promise<PurchaseInvoice> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {} as PurchaseInvoice;
+      }
+      const res = await fetch('/api/purchase-invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(purchaseData)
+      });
+      return res.json();
+    }
+  },
+
+  paymentReceipts: {
+    getAll: async (page: number = 1, limit: number = 8): Promise<{ data: PaymentReceipt[], pagination: any }> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+      }
+      const res = await fetch(`/api/payment-receipts?page=${page}&limit=${limit}`);
+      return res.json();
+    },
+    create: async (receiptData: {
+      cust_code: string;
+      amount: number;
+      payment_method: string;
+      reference_number: string;
+      receipt_date: string;
+    }): Promise<PaymentReceipt> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {} as PaymentReceipt;
+      }
+      const res = await fetch('/api/payment-receipts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(receiptData)
+      });
+      return res.json();
+    }
+  },
+
+  supplierPayments: {
+    getAll: async (page: number = 1, limit: number = 8): Promise<{ data: SupplierPayment[], pagination: any }> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+      }
+      const res = await fetch(`/api/supplier-payments?page=${page}&limit=${limit}`);
+      return res.json();
+    },
+    create: async (paymentData: {
+      supplier_code: string;
+      amount: number;
+      payment_method: string;
+      reference_number: string;
+      payment_date: string;
+    }): Promise<SupplierPayment> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {} as SupplierPayment;
+      }
+      const res = await fetch('/api/supplier-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentData)
+      });
+      return res.json();
+    }
+  },
+
+  discountVouchers: {
+    getAll: async (page: number = 1, limit: number = 8): Promise<{ data: DiscountVoucher[], pagination: any }> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+      }
+      const res = await fetch(`/api/discount-vouchers?page=${page}&limit=${limit}`);
+      return res.json();
+    },
+    create: async (voucherData: {
+      cust_code: string;
+      amount: number;
+      reason: string;
+      voucher_date: string;
+    }): Promise<DiscountVoucher> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {} as DiscountVoucher;
+      }
+      const res = await fetch('/api/discount-vouchers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(voucherData)
+      });
+      return res.json();
+    }
+  },
+
+  openingCashBalance: {
+    getCurrent: async (): Promise<OpeningCashBalance | null> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return {
+          balance_id: 1,
+          balance_date: new Date().toISOString().split('T')[0],
+          opening_amount: 500000,
+          closing_amount: 450000,
+          status: 'OPEN'
+        };
+      }
+      const res = await fetch('/api/finance/opening-balance');
+      return res.json();
+    },
+    create: async (balanceData: {
+      balance_date: string;
+      opening_amount: number;
+      closing_amount?: number;
+    }): Promise<OpeningCashBalance> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {
+          balance_id: 1,
+          balance_date: balanceData.balance_date,
+          opening_amount: balanceData.opening_amount,
+          closing_amount: balanceData.closing_amount || 0,
+          status: 'OPEN'
+        };
+      }
+      const res = await fetch('/api/finance/opening-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(balanceData)
+      });
+      return res.json();
+    }
+  },
+
+  loanManagement: {
+    getAll: async (page: number = 1, limit: number = 8): Promise<{ data: LoanTaken[], pagination: any }> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+      }
+      const res = await fetch(`/api/finance/loans?page=${page}&limit=${limit}`);
+      return res.json();
+    },
+    create: async (loanData: {
+      loan_number: string;
+      loan_date: string;
+      amount: number;
+      interest_rate?: number;
+      term_months?: number;
+      lender_name: string;
+    }): Promise<LoanTaken> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {
+          loan_id: 1,
+          loan_number: loanData.loan_number,
+          loan_date: loanData.loan_date,
+          amount: loanData.amount,
+          interest_rate: loanData.interest_rate || 0,
+          term_months: loanData.term_months || 0,
+          lender_name: loanData.lender_name,
+          status: 'ACTIVE'
+        };
+      }
+      const res = await fetch('/api/finance/loans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loanData)
+      });
+      return res.json();
+    }
+  },
+
+  loanReturns: {
+    getByLoan: async (loanId: number): Promise<LoanReturn[]> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return [];
+      }
+      const res = await fetch(`/api/finance/loans/${loanId}/returns`);
+      return res.json();
+    },
+    create: async (returnData: {
+      loan_id: number;
+      return_date: string;
+      amount: number;
+      payment_method: string;
+      reference_number: string;
+    }): Promise<LoanReturn> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {
+          return_id: 1,
+          loan_id: returnData.loan_id,
+          return_date: returnData.return_date,
+          amount: returnData.amount,
+          payment_method: returnData.payment_method,
+          reference_number: returnData.reference_number,
+          status: 'COMPLETED'
+        };
+      }
+      const res = await fetch('/api/finance/loan-returns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(returnData)
+      });
+      return res.json();
+    }
+  },
+
+  expenseHeads: {
+    getAll: async (): Promise<ExpenseHead[]> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return [
+          { head_code: 'FUEL', head_name: 'Fuel Expenses', description: 'Vehicle and equipment fuel costs', is_active: true },
+          { head_code: 'UTIL', head_name: 'Utilities', description: 'Electricity, water, and gas bills', is_active: true },
+          { head_code: 'RENT', head_name: 'Rent', description: 'Office and warehouse rental expenses', is_active: true }
+        ];
+      }
+      const res = await fetch('/api/finance/expense-heads');
+      return res.json();
+    },
+    create: async (headData: {
+      head_code: string;
+      head_name: string;
+      description: string;
+    }): Promise<ExpenseHead> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {
+          head_code: headData.head_code,
+          head_name: headData.head_name,
+          description: headData.description,
+          is_active: true
+        };
+      }
+      const res = await fetch('/api/finance/expense-heads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(headData)
+      });
+      return res.json();
+    }
+  },
+
+  systemBackups: {
+    getAll: async (): Promise<SystemBackup[]> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return [];
+      }
+      const res = await fetch('/api/system/backups');
+      return res.json();
+    },
+    create: async (backupData: {
+      backup_type: string;
+      file_path: string;
+      file_size: number;
+    }): Promise<SystemBackup> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {
+          backup_id: 1,
+          backup_date: new Date().toISOString(),
+          backup_type: backupData.backup_type,
+          file_path: backupData.file_path,
+          file_size: backupData.file_size,
+          status: 'COMPLETED'
+        };
+      }
+      const res = await fetch('/api/system/backups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(backupData)
       });
       return res.json();
     }

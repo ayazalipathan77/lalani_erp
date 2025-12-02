@@ -11,7 +11,9 @@ import {
   LogOut,
   UserCog,
   FileBarChart,
-  X
+  X,
+  Undo2,
+  Receipt
 } from 'lucide-react';
 import { User } from '../types';
 
@@ -62,9 +64,21 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isMobileOpen = false,
       visible: hasPermission('SALES_VIEW')
     },
     {
+      to: '/dashboard/sales-returns',
+      icon: Undo2,
+      label: 'Sales Returns',
+      visible: hasPermission('SALES_VIEW')
+    },
+    {
       to: '/dashboard/finance',
       icon: Wallet,
       label: 'Finance',
+      visible: hasPermission('FINANCE_VIEW')
+    },
+    {
+      to: '/dashboard/purchase-invoices',
+      icon: Receipt,
+      label: 'Purchase Invoices',
       visible: hasPermission('FINANCE_VIEW')
     },
     {

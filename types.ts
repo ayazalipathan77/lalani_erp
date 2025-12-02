@@ -6,6 +6,9 @@ export interface Company {
   address: string;
   phone: string;
   email: string;
+  gstin?: string;
+  pan_number?: string;
+  tax_registration?: string;
 }
 
 export interface User {
@@ -26,6 +29,9 @@ export interface Customer {
   phone?: string;
   outstanding_balance: number;
   credit_limit: number;
+  route_code?: string;
+  tax_number?: string;
+  credit_terms_days?: number;
 }
 
 export interface Supplier {
@@ -36,6 +42,8 @@ export interface Supplier {
   city: string;
   phone: string;
   outstanding_balance: number;
+  tax_number?: string;
+  payment_terms_days?: number;
 }
 
 export interface Category {
@@ -53,6 +61,9 @@ export interface Product {
   unit_price: number;
   current_stock: number;
   min_stock_level: number;
+  tax_rate?: number;
+  hsn_code?: string;
+  purchase_price?: number;
 }
 
 export interface SalesInvoice {
@@ -63,6 +74,10 @@ export interface SalesInvoice {
   total_amount: number;
   balance_due: number;
   status: 'PAID' | 'PENDING' | 'OVERDUE';
+  tax_amount?: number;
+  discount_amount?: number;
+  shipping_address?: string;
+  shipping_charges?: number;
   items?: SalesInvoiceItem[];
 }
 
@@ -98,4 +113,123 @@ export interface DashboardMetrics {
   totalRevenue: number;
   pendingInvoices: number;
   lowStockItems: number;
+}
+
+// New interfaces for Phase 2 - Type Definitions Expansion
+export interface SalesReturn {
+  return_id: number;
+  return_number: string;
+  return_date: string;
+  inv_id: number;
+  cust_code: string;
+  total_amount: number;
+  status: 'COMPLETED' | 'PENDING' | 'CANCELLED';
+  items?: SalesReturnItem[];
+}
+
+export interface SalesReturnItem {
+  item_id?: number;
+  return_id?: number;
+  prod_code: string;
+  prod_name?: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+}
+
+export interface PurchaseInvoice {
+  purchase_id: number;
+  purchase_number: string;
+  purchase_date: string;
+  supplier_code: string;
+  total_amount: number;
+  status: 'RECEIVED' | 'PENDING' | 'CANCELLED';
+  items?: PurchaseInvoiceItem[];
+}
+
+export interface PurchaseInvoiceItem {
+  item_id?: number;
+  purchase_id?: number;
+  prod_code: string;
+  prod_name?: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+}
+
+export interface PaymentReceipt {
+  receipt_id: number;
+  receipt_number: string;
+  receipt_date: string;
+  cust_code: string;
+  amount: number;
+  payment_method: string;
+  reference_number: string;
+  status: 'COMPLETED' | 'PENDING' | 'FAILED';
+}
+
+export interface SupplierPayment {
+  payment_id: number;
+  payment_number: string;
+  payment_date: string;
+  supplier_code: string;
+  amount: number;
+  payment_method: string;
+  reference_number: string;
+  status: 'COMPLETED' | 'PENDING' | 'FAILED';
+}
+
+export interface DiscountVoucher {
+  voucher_id: number;
+  voucher_number: string;
+  voucher_date: string;
+  cust_code: string;
+  amount: number;
+  reason: string;
+  status: 'ACTIVE' | 'USED' | 'EXPIRED';
+}
+
+export interface OpeningCashBalance {
+  balance_id: number;
+  balance_date: string;
+  opening_amount: number;
+  closing_amount: number;
+  status: 'OPEN' | 'CLOSED';
+}
+
+export interface LoanTaken {
+  loan_id: number;
+  loan_number: string;
+  loan_date: string;
+  amount: number;
+  interest_rate: number;
+  term_months: number;
+  lender_name: string;
+  status: 'ACTIVE' | 'CLOSED' | 'DEFAULTED';
+}
+
+export interface LoanReturn {
+  return_id: number;
+  loan_id: number;
+  return_date: string;
+  amount: number;
+  payment_method: string;
+  reference_number: string;
+  status: 'COMPLETED' | 'PENDING' | 'FAILED';
+}
+
+export interface ExpenseHead {
+  head_code: string;
+  head_name: string;
+  description: string;
+  is_active: boolean;
+}
+
+export interface SystemBackup {
+  backup_id: number;
+  backup_date: string;
+  backup_type: string;
+  file_path: string;
+  file_size: number;
+  status: string;
 }

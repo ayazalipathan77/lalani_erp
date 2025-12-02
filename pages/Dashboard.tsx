@@ -9,7 +9,9 @@ import { User } from '../types';
 const DashboardHome = lazy(() => import('./dashboard/Home'));
 const Inventory = lazy(() => import('./dashboard/Inventory'));
 const Sales = lazy(() => import('./dashboard/Sales'));
+const SalesReturns = lazy(() => import('./dashboard/SalesReturns'));
 const Finance = lazy(() => import('./dashboard/Finance'));
+const PurchaseInvoices = lazy(() => import('./dashboard/PurchaseInvoices'));
 const Partners = lazy(() => import('./dashboard/Partners'));
 const Users = lazy(() => import('./dashboard/Users'));
 const Reports = lazy(() => import('./dashboard/Reports'));
@@ -174,9 +176,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 </ProtectedRoute>
               } />
 
+              <Route path="/sales-returns" element={
+                <ProtectedRoute user={user} permission="SALES_VIEW">
+                  <SalesReturns />
+                </ProtectedRoute>
+              } />
+
               <Route path="/finance" element={
                 <ProtectedRoute user={user} permission="FINANCE_VIEW">
                   <Finance />
+                </ProtectedRoute>
+              } />
+
+              <Route path="/purchase-invoices" element={
+                <ProtectedRoute user={user} permission="FINANCE_VIEW">
+                  <PurchaseInvoices />
                 </ProtectedRoute>
               } />
 

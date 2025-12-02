@@ -227,3 +227,219 @@ INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, cre
 ('2023-10-05', 'SALES', 'Cash Sale - Walk in', 25000.00, 0.00),
 ('2023-10-08', 'PAYMENT', 'Payment to General Tyre', 0.00, 500000.00)
 ON CONFLICT DO NOTHING;
+
+-- Missing Transaction Tables
+CREATE TABLE IF NOT EXISTS sales_returns (
+    return_id SERIAL PRIMARY KEY,
+    return_number VARCHAR(50) UNIQUE NOT NULL,
+    return_date DATE NOT NULL,
+    inv_id INTEGER REFERENCES sales_invoices(inv_id),
+    cust_code VARCHAR(20) REFERENCES customers(cust_code),
+    total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'COMPLETED',
+    comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS sales_return_items (
+    item_id SERIAL PRIMARY KEY,
+    return_id INTEGER REFERENCES sales_returns(return_id) ON DELETE CASCADE,
+    prod_code VARCHAR(20) REFERENCES products(prod_code),
+    quantity INTEGER NOT NULL,
+    unit_price DECIMAL(12,2) NOT NULL,
+    line_total DECIMAL(12,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS purchase_invoices (
+    purchase_id SERIAL PRIMARY KEY,
+    purchase_number VARCHAR(50) UNIQUE NOT NULL,
+    purchase_date DATE NOT NULL,
+    supplier_code VARCHAR(20) REFERENCES suppliers(supplier_code),
+    total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'RECEIVED',
+    comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS purchase_invoice_items (
+    item_id SERIAL PRIMARY KEY,
+    purchase_id INTEGER REFERENCES purchase_invoices(purchase_id) ON DELETE CASCADE,
+    prod_code VARCHAR(20) REFERENCES products(prod_code),
+    quantity INTEGER NOT NULL,
+    unit_price DECIMAL(12,2) NOT NULL,
+    line_total DECIMAL(12,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS payment_receipts (
+    receipt_id SERIAL PRIMARY KEY,
+    receipt_number VARCHAR(50) UNIQUE NOT NULL,
+    receipt_date DATE NOT NULL,
+    cust_code VARCHAR(20) REFERENCES customers(cust_code),
+    amount DECIMAL(12,2) NOT NULL,
+    payment_method VARCHAR(50),
+    reference_number VARCHAR(100),
+    status VARCHAR(20) DEFAULT 'COMPLETED',
+    comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS supplier_payments (
+    payment_id SERIAL PRIMARY KEY,
+    payment_number VARCHAR(50) UNIQUE NOT NULL,
+    payment_date DATE NOT NULL,
+    supplier_code VARCHAR(20) REFERENCES suppliers(supplier_code),
+    amount DECIMAL(12,2) NOT NULL,
+    payment_method VARCHAR(50),
+    reference_number VARCHAR(100),
+    status VARCHAR(20) DEFAULT 'COMPLETED',
+    comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS discount_vouchers (
+    voucher_id SERIAL PRIMARY KEY,
+    voucher_number VARCHAR(50) UNIQUE NOT NULL,
+    voucher_date DATE NOT NULL,
+    cust_code VARCHAR(20) REFERENCES customers(cust_code),
+    amount DECIMAL(12,2) NOT NULL,
+    reason TEXT,
+    status VARCHAR(20) DEFAULT 'ACTIVE',
+    comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id)
+);
+
+-- Missing Financial Tables
+CREATE TABLE IF NOT EXISTS opening_cash_balance (
+    balance_id SERIAL PRIMARY KEY,
+    balance_date DATE NOT NULL,
+    opening_amount DECIMAL(12,2) NOT NULL,
+    closing_amount DECIMAL(12,2),
+    status VARCHAR(20) DEFAULT 'OPEN',
+    comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS loan_taken (
+    loan_id SERIAL PRIMARY KEY,
+    loan_number VARCHAR(50) UNIQUE NOT NULL,
+    loan_date DATE NOT NULL,
+    amount DECIMAL(12,2) NOT NULL,
+    interest_rate DECIMAL(5,2),
+    term_months INTEGER,
+    lender_name VARCHAR(100),
+    status VARCHAR(20) DEFAULT 'ACTIVE',
+    comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS loan_return (
+    return_id SERIAL PRIMARY KEY,
+    loan_id INTEGER REFERENCES loan_taken(loan_id),
+    return_date DATE NOT NULL,
+    amount DECIMAL(12,2) NOT NULL,
+    payment_method VARCHAR(50),
+    reference_number VARCHAR(100),
+    status VARCHAR(20) DEFAULT 'COMPLETED',
+    comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id)
+);
+
+-- Missing System Tables
+CREATE TABLE IF NOT EXISTS expense_heads (
+    head_code VARCHAR(20) PRIMARY KEY,
+    head_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS system_backups (
+    backup_id SERIAL PRIMARY KEY,
+    backup_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    backup_type VARCHAR(20) NOT NULL,
+    file_path TEXT,
+    file_size BIGINT,
+    status VARCHAR(20) DEFAULT 'COMPLETED',
+    comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
+    created_by INTEGER REFERENCES users(user_id)
+);
+
+-- Add missing fields to existing tables
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS gstin VARCHAR(15);
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS pan_number VARCHAR(10);
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS tax_registration VARCHAR(50);
+
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS route_code VARCHAR(20);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS tax_number VARCHAR(50);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS credit_terms_days INTEGER DEFAULT 30;
+
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS tax_number VARCHAR(50);
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS payment_terms_days INTEGER DEFAULT 30;
+
+ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,2) DEFAULT 5.00;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS hsn_code VARCHAR(20);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_price DECIMAL(12,2);
+
+ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS shipping_address TEXT;
+ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS shipping_charges DECIMAL(12,2) DEFAULT 0;
+
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS head_code VARCHAR(20) REFERENCES expense_heads(head_code);
+
+-- Add indexes for new tables
+CREATE INDEX IF NOT EXISTS idx_sales_returns_number ON sales_returns(return_number);
+CREATE INDEX IF NOT EXISTS idx_sales_returns_date ON sales_returns(return_date);
+CREATE INDEX IF NOT EXISTS idx_sales_returns_customer ON sales_returns(cust_code);
+CREATE INDEX IF NOT EXISTS idx_sales_return_items_return ON sales_return_items(return_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_invoices_number ON purchase_invoices(purchase_number);
+CREATE INDEX IF NOT EXISTS idx_purchase_invoices_date ON purchase_invoices(purchase_date);
+CREATE INDEX IF NOT EXISTS idx_purchase_invoices_supplier ON purchase_invoices(supplier_code);
+CREATE INDEX IF NOT EXISTS idx_purchase_invoice_items_purchase ON purchase_invoice_items(purchase_id);
+CREATE INDEX IF NOT EXISTS idx_payment_receipts_number ON payment_receipts(receipt_number);
+CREATE INDEX IF NOT EXISTS idx_payment_receipts_date ON payment_receipts(receipt_date);
+CREATE INDEX IF NOT EXISTS idx_payment_receipts_customer ON payment_receipts(cust_code);
+CREATE INDEX IF NOT EXISTS idx_supplier_payments_number ON supplier_payments(payment_number);
+CREATE INDEX IF NOT EXISTS idx_supplier_payments_date ON supplier_payments(payment_date);
+CREATE INDEX IF NOT EXISTS idx_supplier_payments_supplier ON supplier_payments(supplier_code);
+CREATE INDEX IF NOT EXISTS idx_discount_vouchers_number ON discount_vouchers(voucher_number);
+CREATE INDEX IF NOT EXISTS idx_discount_vouchers_date ON discount_vouchers(voucher_date);
+CREATE INDEX IF NOT EXISTS idx_discount_vouchers_customer ON discount_vouchers(cust_code);
+CREATE INDEX IF NOT EXISTS idx_opening_cash_balance_date ON opening_cash_balance(balance_date);
+CREATE INDEX IF NOT EXISTS idx_loan_taken_number ON loan_taken(loan_number);
+CREATE INDEX IF NOT EXISTS idx_loan_taken_date ON loan_taken(loan_date);
+CREATE INDEX IF NOT EXISTS idx_loan_return_loan ON loan_return(loan_id);
+CREATE INDEX IF NOT EXISTS idx_loan_return_date ON loan_return(return_date);
+CREATE INDEX IF NOT EXISTS idx_expense_heads_code ON expense_heads(head_code);
+CREATE INDEX IF NOT EXISTS idx_system_backups_date ON system_backups(backup_date);
+
+-- Insert sample data for new tables
+INSERT INTO expense_heads (head_code, head_name, description) VALUES
+('FUEL', 'Fuel Expenses', 'Vehicle and equipment fuel costs'),
+('UTIL', 'Utilities', 'Electricity, water, and gas bills'),
+('RENT', 'Rent', 'Office and warehouse rental expenses'),
+('MAINT', 'Maintenance', 'Equipment repair and maintenance'),
+('MISC', 'Miscellaneous', 'Other unclassified expenses'),
+('SALARY', 'Salaries', 'Employee salary payments'),
+('MARKETING', 'Marketing', 'Advertising and promotional expenses'),
+('TRAVEL', 'Travel', 'Business travel and accommodation'),
+('OFFICE', 'Office Supplies', 'Stationery and office equipment'),
+('TAX', 'Tax Payments', 'Government tax payments')
+ON CONFLICT (head_code) DO NOTHING;
+
+-- Update existing expenses to use new head codes
+UPDATE expenses SET head_code = 'FUEL' WHERE head_code = 'FUEL' OR remarks LIKE '%Fuel%';
+UPDATE expenses SET head_code = 'UTIL' WHERE head_code = 'UTIL' OR remarks LIKE '%Electricity%' OR remarks LIKE '%Utility%';
+UPDATE expenses SET head_code = 'MAINT' WHERE head_code = 'MAINT' OR remarks LIKE '%Repair%';
+UPDATE expenses SET head_code = 'MISC' WHERE head_code = 'MISC' OR head_code = 'ENT';
