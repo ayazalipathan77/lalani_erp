@@ -9,6 +9,8 @@ interface LoadingContextType {
 
 const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
 
+export { LoadingContext };
+
 export const useLoading = () => {
     const context = useContext(LoadingContext);
     if (context === undefined) {

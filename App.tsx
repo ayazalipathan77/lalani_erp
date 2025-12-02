@@ -6,7 +6,6 @@ import { User } from './types';
 import { api } from './services/api';
 import { initPWA } from './src/utils/pwa';
 import { LoadingProvider, useLoading } from './components/LoadingContext';
-import FullScreenLoader from './components/FullScreenLoader';
 
 const AppContent: React.FC = () => {
   // Auth state now holds the User object or null
@@ -17,13 +16,24 @@ const AppContent: React.FC = () => {
     const checkAuth = async () => {
       showLoader("Initializing...");
       const token = localStorage.getItem('authToken');
-      if (token) {
-        try {
-          const result = await api.auth.verify(token);
-          if (result.valid) {
-            // Fetch user details if needed, but for now assume token contains userId
-            // Since verify returns userId and username, but we need full user object
-            // For simplicity, store user in localStorage too, or fetch from API
+
+      // Add timeout and error handling for the authentication check
+      const authCheckTimeout = setTimeout(() => {
+        console.warn('Authentication check timed out after 5 seconds');
+        hideLoader();
+      }, 5000);
+
+      try {
+        if (token) {
+          // Use Promise.race to add timeout to the API call
+          const authCheckPromise = api.auth.verify(token);
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Authentication timeout')), 5000)
+          );
+
+          const result = await Promise.race([authCheckPromise, timeoutPromise]) as { valid: boolean; userId?: number; username?: string };
+
+          if (result && result.valid) {
             const userStr = localStorage.getItem('currentUser');
             if (userStr) {
               setCurrentUser(JSON.parse(userStr));
@@ -32,12 +42,15 @@ const AppContent: React.FC = () => {
             localStorage.removeItem('authToken');
             localStorage.removeItem('currentUser');
           }
-        } catch (err) {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('currentUser');
         }
+      } catch (err) {
+        console.error('Authentication check failed:', err);
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('currentUser');
+      } finally {
+        clearTimeout(authCheckTimeout);
+        hideLoader();
       }
-      hideLoader();
     };
 
     // Initialize PWA features
@@ -86,16 +99,19 @@ const AppContent: React.FC = () => {
         </Routes>
       </Router>
 
-      {/* Global Fullscreen Loader */}
-      <FullScreenLoader isVisible={isLoading} message={loadingMessage} />
+      {/* Global Fullscreen Loader removed as requested */}
     </>
   );
 };
 
+import { NotificationProvider } from './components/NotificationContext';
+
 const App: React.FC = () => {
   return (
     <LoadingProvider>
-      <AppContent />
+      <NotificationProvider>
+        <AppContent />
+      </NotificationProvider>
     </LoadingProvider>
   );
 };

@@ -6,6 +6,7 @@ import { api } from '../../services/api';
 import { User } from '../../types';
 import MobileTable from '../../components/MobileTable';
 import Pagination from '../../components/Pagination';
+import { useNotification } from '../../components/NotificationContext';
 
 const Users: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -13,6 +14,9 @@ const Users: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Notification hook
+  const { showNotification } = useNotification();
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -87,17 +91,19 @@ const Users: React.FC = () => {
     try {
       if (editingId) {
         await api.users.update(editingId, formData);
+        showNotification("User updated successfully!", "success");
       } else {
         if (!formData.password) {
-          alert("Password is required for new users");
+          showNotification("Password is required for new users", "error");
           return;
         }
         await api.users.create(formData as User);
+        showNotification("User created successfully!", "success");
       }
       handleCloseModal();
       fetchData();
     } catch (error: any) {
-      alert(error.message);
+      showNotification(error.message, "error");
     }
   };
 

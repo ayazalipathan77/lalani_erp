@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft, Edit2 } from 'lucide-react';
 import { useLoading } from '../../components/LoadingContext';
+import { useNotification } from '../../components/NotificationContext';
 import { api } from '../../services/api';
 import { SalesInvoiceItem, SalesInvoice, Product, Customer } from '../../types';
 import { formatTableDate } from '../../src/utils/dateUtils';
@@ -14,6 +15,7 @@ const Sales: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const { showLoader, hideLoader } = useLoading();
+    const { showNotification } = useNotification();
 
     // Create Invoice State
     const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -60,7 +62,7 @@ const Sales: React.FC = () => {
 
         // Check Stock
         if (product.current_stock < qty) {
-            alert(`Insufficient stock! Available: ${product.current_stock}`);
+            showNotification(`Insufficient stock! Available: ${product.current_stock}`, "error");
             return;
         }
 
@@ -95,7 +97,7 @@ const Sales: React.FC = () => {
                     inv_date: invoiceDate,
                     status: paymentStatus
                 });
-                alert("Invoice Updated Successfully!");
+                showNotification("Invoice Updated Successfully!", "success");
             } else {
                 await api.invoices.create({
                     cust_code: selectedCustomer,
@@ -103,7 +105,7 @@ const Sales: React.FC = () => {
                     date: invoiceDate,
                     status: paymentStatus
                 });
-                alert("Invoice Created Successfully!");
+                showNotification("Invoice Created Successfully!", "success");
             }
 
             // Reset
@@ -114,6 +116,7 @@ const Sales: React.FC = () => {
             await fetchData(); // Refresh list
         } catch (error) {
             console.error("Failed to save invoice", error);
+            showNotification("Failed to save invoice. Please try again.", "error");
         } finally {
             hideLoader();
         }
