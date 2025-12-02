@@ -767,11 +767,16 @@ app.post('/api/invoices', async (req, res) => {
         let totalTaxAmount = 0;
         for (const item of items) {
             const productResult = await client.query(
-                'SELECT p.*, tr.tax_rate FROM products p JOIN tax_rates tr ON p.tax_code = tr.tax_code WHERE p.prod_code = $1 AND p.comp_code = $2',
+                'SELECT p.*, tr.tax_rate FROM products p LEFT JOIN tax_rates tr ON p.tax_code = tr.tax_code WHERE p.prod_code = $1 AND p.comp_code = $2',
                 [item.prod_code, companyCode]
             );
             const product = productResult.rows[0];
-            const itemTax = item.line_total * (product.tax_rate / 100);
+            if (!product) {
+                throw new Error(`Product ${item.prod_code} not found`);
+            }
+            // Use tax_rate from JOIN or fallback to product's tax_rate field or default 5%
+            const taxRate = product.tax_rate || product.tax_rate || 5.00;
+            const itemTax = item.line_total * (taxRate / 100);
             totalTaxAmount += itemTax;
         }
 
@@ -892,11 +897,16 @@ app.put('/api/invoices/:id', async (req, res) => {
         let totalTaxAmount = 0;
         for (const item of items) {
             const productResult = await client.query(
-                'SELECT p.*, tr.tax_rate FROM products p JOIN tax_rates tr ON p.tax_code = tr.tax_code WHERE p.prod_code = $1',
+                'SELECT p.*, tr.tax_rate FROM products p LEFT JOIN tax_rates tr ON p.tax_code = tr.tax_code WHERE p.prod_code = $1',
                 [item.prod_code]
             );
             const product = productResult.rows[0];
-            const itemTax = item.line_total * (product.tax_rate / 100);
+            if (!product) {
+                throw new Error(`Product ${item.prod_code} not found`);
+            }
+            // Use tax_rate from JOIN or fallback to product's tax_rate field or default 5%
+            const taxRate = product.tax_rate || product.tax_rate || 5.00;
+            const itemTax = item.line_total * (taxRate / 100);
             totalTaxAmount += itemTax;
         }
 

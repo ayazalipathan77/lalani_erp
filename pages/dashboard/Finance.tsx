@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Wallet, TrendingUp, TrendingDown, Plus, FileText, X, CheckCircle, Edit2 } from 'lucide-react';
 import { useLoading } from '../../components/LoadingContext';
 import { api } from '../../services/api';
-import { CashTransaction, Expense, Customer, Supplier } from '../../types';
+import { CashTransaction, Expense, Customer, Supplier, ExpenseHead } from '../../types';
 import { formatTableDate } from '../../src/utils/dateUtils';
 import MobileTable from '../../components/MobileTable';
 
