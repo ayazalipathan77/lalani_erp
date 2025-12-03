@@ -266,10 +266,10 @@ const Inventory: React.FC = () => {
               )
             },
             {
-              key: 'current_stock',
+              key: 'stock_status',
               label: 'Status',
               render: (value, item) => (
-                value <= item.min_stock_level ? (
+                item.current_stock <= item.min_stock_level ? (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                     Low Stock
                   </span>

@@ -202,7 +202,9 @@ export const api = {
           }
         };
       }
-      const res = await fetch(`/api/users?page=${page}&limit=${limit}`);
+      const res = await fetch(`/api/users?page=${page}&limit=${limit}`, {
+        headers: getAuthHeaders()
+      });
       return res.json();
     },
     create: async (user: Omit<User, 'user_id'>): Promise<User> => {
@@ -218,7 +220,7 @@ export const api = {
       }
       const res = await fetch('/api/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(user)
       });
       if (!res.ok) throw new Error('Failed to create user');
@@ -237,7 +239,7 @@ export const api = {
       }
       const res = await fetch(`/api/users/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(data)
       });
       return res.json();
@@ -368,7 +370,7 @@ export const api = {
       }
       const res = await fetch(`/api/customers/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(data)
       });
       return res.json();
@@ -411,7 +413,7 @@ export const api = {
       }
       const res = await fetch('/api/suppliers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(supplier)
       });
       return res.json();
@@ -428,7 +430,7 @@ export const api = {
       }
       const res = await fetch(`/api/suppliers/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(data)
       });
       return res.json();
@@ -461,7 +463,9 @@ export const api = {
           }
         };
       }
-      const res = await fetch(`/api/invoices?page=${page}&limit=${limit}`);
+      const res = await fetch(`/api/invoices?page=${page}&limit=${limit}`, {
+        headers: getAuthHeaders()
+      });
       return res.json();
     },
     create: async (invoiceData: {
@@ -495,7 +499,7 @@ export const api = {
 
       const res = await fetch('/api/invoices', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(invoiceData)
       });
       if (!res.ok) throw new Error("Failed to create invoice");
@@ -515,7 +519,7 @@ export const api = {
 
       const res = await fetch(`/api/invoices/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(invoiceData)
       });
       if (!res.ok) throw new Error("Failed to update invoice");

@@ -18,15 +18,18 @@ import {
   Calculator
 } from 'lucide-react';
 import { User } from '../types';
+import CompanySelector from './CompanySelector';
 
 interface SidebarProps {
   user: User;
   onLogout: () => void;
+  selectedCompany: string;
+  onCompanyChange: (companyCode: string) => void;
   isMobileOpen?: boolean;
   onMobileClose?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isMobileOpen = false, onMobileClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, selectedCompany, onCompanyChange, isMobileOpen = false, onMobileClose }) => {
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => {
       if (isMobileOpen && onMobileClose) {
@@ -141,6 +144,14 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isMobileOpen = false,
             <X className="w-5 h-5" />
           </button>
         </div>
+      </div>
+
+      {/* Company Selector */}
+      <div className="px-6 py-4 border-b border-slate-800">
+        <CompanySelector
+          selectedCompany={selectedCompany}
+          onCompanyChange={onCompanyChange}
+        />
       </div>
 
       <nav className="flex-1 py-6 px-3 space-y-1">

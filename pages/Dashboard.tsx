@@ -63,6 +63,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [selectedCompany, setSelectedCompany] = useState<string>(
     localStorage.getItem('selectedCompany') || 'CMP01'
   );
+
+  const handleCompanyChange = (companyCode: string) => {
+    setSelectedCompany(companyCode);
+    localStorage.setItem('selectedCompany', companyCode);
+  };
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -89,6 +94,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       <Sidebar
         user={user}
         onLogout={onLogout}
+        selectedCompany={selectedCompany}
+        onCompanyChange={handleCompanyChange}
         isMobileOpen={isMobileSidebarOpen}
         onMobileClose={() => setIsMobileSidebarOpen(false)}
       />
@@ -120,7 +127,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           <div className="flex items-center space-x-6">
             <CompanySelector
               selectedCompany={selectedCompany}
-              onCompanyChange={setSelectedCompany}
+              onCompanyChange={handleCompanyChange}
             />
 
             <button className="relative text-slate-400 hover:text-slate-600 transition-colors">

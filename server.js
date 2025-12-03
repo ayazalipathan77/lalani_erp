@@ -686,10 +686,11 @@ app.get('/api/suppliers', async (req, res) => {
 
 app.post('/api/suppliers', async (req, res) => {
     const { supplier_code, supplier_name, city, phone, contact_person, outstanding_balance } = req.body;
+    const companyCode = getCompanyContext(req);
     try {
         const result = await pool.query(
             'INSERT INTO suppliers (supplier_code, supplier_name, city, phone, contact_person, outstanding_balance, comp_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-            [supplier_code, supplier_name, city, phone, contact_person, outstanding_balance, 'CMP01', req.user?.id]
+            [supplier_code, supplier_name, city, phone, contact_person, outstanding_balance, companyCode, req.user?.id]
         );
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -775,7 +776,7 @@ app.post('/api/invoices', async (req, res) => {
                 throw new Error(`Product ${item.prod_code} not found`);
             }
             // Use tax_rate from JOIN or fallback to product's tax_rate field or default 5%
-            const taxRate = product.tax_rate || product.tax_rate || 5.00;
+            const taxRate = product.tax_rate || 5.00;
             const itemTax = item.line_total * (taxRate / 100);
             totalTaxAmount += itemTax;
         }
@@ -815,7 +816,7 @@ app.post('/api/invoices', async (req, res) => {
             await client.query(
                 `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [date, 'SALES', `Cash Sale ${inv_number}`, total_amount, 0, 'CMP01', req.user?.id]
+                [date, 'SALES', `Cash Sale ${inv_number}`, total_amount, 0, companyCode, req.user?.id]
             );
         }
 
@@ -905,7 +906,7 @@ app.put('/api/invoices/:id', async (req, res) => {
                 throw new Error(`Product ${item.prod_code} not found`);
             }
             // Use tax_rate from JOIN or fallback to product's tax_rate field or default 5%
-            const taxRate = product.tax_rate || product.tax_rate || 5.00;
+            const taxRate = product.tax_rate || 5.00;
             const itemTax = item.line_total * (taxRate / 100);
             totalTaxAmount += itemTax;
         }
@@ -950,7 +951,7 @@ app.put('/api/invoices/:id', async (req, res) => {
             await client.query(
                 `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [inv_date, 'SALES', `Cash Sale ${oldInv.inv_number}`, total_amount, 0, 'CMP01', req.user?.id]
+                [inv_date, 'SALES', `Cash Sale ${oldInv.inv_number}`, total_amount, 0, companyCode, req.user?.id]
             );
         }
 
@@ -1024,18 +1025,19 @@ app.get('/api/finance/expenses', async (req, res) => {
 
 app.post('/api/finance/expenses', async (req, res) => {
     const { head_code, amount, remarks, expense_date } = req.body;
+    const companyCode = getCompanyContext(req);
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
         const expRes = await client.query(
             `INSERT INTO expenses (head_code, amount, remarks, expense_date, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [head_code, amount, remarks, expense_date, 'CMP01', req.user?.id]
+            [head_code, amount, remarks, expense_date, companyCode, req.user?.id]
         );
         await client.query(
             `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [expense_date, 'EXPENSE', `EXP: ${head_code} - ${remarks}`, 0, amount, 'CMP01', req.user?.id]
+            [expense_date, 'EXPENSE', `EXP: ${head_code} - ${remarks}`, 0, amount, companyCode, req.user?.id]
         );
         await client.query('COMMIT');
         res.json(expRes.rows[0]);
@@ -1049,6 +1051,7 @@ app.post('/api/finance/expenses', async (req, res) => {
 
 app.post('/api/finance/payment', async (req, res) => {
     const { type, party_code, amount, date, remarks } = req.body;
+    const companyCode = getCompanyContext(req);
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -1058,7 +1061,7 @@ app.post('/api/finance/payment', async (req, res) => {
         const transRes = await client.query(
             `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-            [date, type, `${type}: ${party_code} - ${remarks}`, debit, credit, 'CMP01', req.user?.id]
+            [date, type, `${type}: ${party_code} - ${remarks}`, debit, credit, companyCode, req.user?.id]
         );
 
         if (type === 'RECEIPT') {
@@ -1125,7 +1128,7 @@ app.put('/api/finance/expenses/:id', async (req, res) => {
         await client.query(
             `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [expense_date, 'EXPENSE', `EXP: ${head_code} - ${remarks}`, 0, amount, 'CMP01', req.user?.id]
+            [expense_date, 'EXPENSE', `EXP: ${head_code} - ${remarks}`, 0, amount, companyCode, req.user?.id]
         );
 
         await client.query('COMMIT');
@@ -1391,10 +1394,11 @@ app.post('/api/sales-returns', async (req, res) => {
         const returnNumber = `RTN-${Date.now()}`;
 
         // Create sales return
+        const companyCode = getCompanyContext(req);
         const returnResult = await client.query(
             `INSERT INTO sales_returns (return_number, return_date, inv_id, cust_code, total_amount, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-            [returnNumber, return_date, inv_id, invoice.cust_code, totalAmount, 'CMP01', req.user?.id]
+            [returnNumber, return_date, inv_id, invoice.cust_code, totalAmount, companyCode, req.user?.id]
         );
 
         const returnId = returnResult.rows[0].return_id;
@@ -1477,6 +1481,7 @@ app.get('/api/purchase-invoices', async (req, res) => {
 
 app.post('/api/purchase-invoices', async (req, res) => {
     const { supplier_code, items, purchase_date } = req.body;
+    const companyCode = getCompanyContext(req);
     const client = await pool.connect();
 
     try {
@@ -1489,7 +1494,7 @@ app.post('/api/purchase-invoices', async (req, res) => {
         const purchaseResult = await client.query(
             `INSERT INTO purchase_invoices (purchase_number, purchase_date, supplier_code, total_amount, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [purchaseNumber, purchase_date, supplier_code, totalAmount, 'CMP01', req.user?.id]
+            [purchaseNumber, purchase_date, supplier_code, totalAmount, companyCode, req.user?.id]
         );
 
         const purchaseId = purchaseResult.rows[0].purchase_id;
@@ -1553,6 +1558,7 @@ app.get('/api/payment-receipts', async (req, res) => {
 
 app.post('/api/payment-receipts', async (req, res) => {
     const { cust_code, amount, payment_method, reference_number, receipt_date } = req.body;
+    const companyCode = getCompanyContext(req);
     const client = await pool.connect();
 
     try {
@@ -1563,7 +1569,7 @@ app.post('/api/payment-receipts', async (req, res) => {
         const result = await client.query(
             `INSERT INTO payment_receipts (receipt_number, receipt_date, cust_code, amount, payment_method, reference_number, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-            [receiptNumber, receipt_date, cust_code, amount, payment_method, reference_number, 'CMP01', req.user?.id]
+            [receiptNumber, receipt_date, cust_code, amount, payment_method, reference_number, companyCode, req.user?.id]
         );
 
         // Update customer balance
@@ -1576,7 +1582,7 @@ app.post('/api/payment-receipts', async (req, res) => {
         await client.query(
             `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [receipt_date, 'RECEIPT', `Payment receipt ${receiptNumber}`, amount, 0, 'CMP01', req.user?.id]
+            [receipt_date, 'RECEIPT', `Payment receipt ${receiptNumber}`, amount, 0, companyCode, req.user?.id]
         );
 
         await client.query('COMMIT');
@@ -1617,6 +1623,7 @@ app.get('/api/supplier-payments', async (req, res) => {
 
 app.post('/api/supplier-payments', async (req, res) => {
     const { supplier_code, amount, payment_method, reference_number, payment_date } = req.body;
+    const companyCode = getCompanyContext(req);
     const client = await pool.connect();
 
     try {
@@ -1627,7 +1634,7 @@ app.post('/api/supplier-payments', async (req, res) => {
         const result = await client.query(
             `INSERT INTO supplier_payments (payment_number, payment_date, supplier_code, amount, payment_method, reference_number, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-            [paymentNumber, payment_date, supplier_code, amount, payment_method, reference_number, 'CMP01', req.user?.id]
+            [paymentNumber, payment_date, supplier_code, amount, payment_method, reference_number, companyCode, req.user?.id]
         );
 
         // Update supplier balance
@@ -1640,7 +1647,7 @@ app.post('/api/supplier-payments', async (req, res) => {
         await client.query(
             `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [payment_date, 'PAYMENT', `Supplier payment ${paymentNumber}`, 0, amount, 'CMP01', req.user?.id]
+            [payment_date, 'PAYMENT', `Supplier payment ${paymentNumber}`, 0, amount, companyCode, req.user?.id]
         );
 
         await client.query('COMMIT');
@@ -1681,6 +1688,7 @@ app.get('/api/discount-vouchers', async (req, res) => {
 
 app.post('/api/discount-vouchers', async (req, res) => {
     const { cust_code, amount, reason, voucher_date } = req.body;
+    const companyCode = getCompanyContext(req);
 
     try {
         const voucherNumber = `VOU-${Date.now()}`;
@@ -1688,7 +1696,7 @@ app.post('/api/discount-vouchers', async (req, res) => {
         const result = await pool.query(
             `INSERT INTO discount_vouchers (voucher_number, voucher_date, cust_code, amount, reason, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-            [voucherNumber, voucher_date, cust_code, amount, reason, 'CMP01', req.user?.id]
+            [voucherNumber, voucher_date, cust_code, amount, reason, companyCode, req.user?.id]
         );
 
         res.json(result.rows[0]);
@@ -1715,18 +1723,19 @@ app.get('/api/finance/opening-balance', async (req, res) => {
 
 app.post('/api/finance/opening-balance', async (req, res) => {
     const { balance_date, opening_amount, closing_amount } = req.body;
+    const companyCode = getCompanyContext(req);
 
     try {
         // Close any existing open balance
         await pool.query(
-            'UPDATE opening_cash_balance SET status = $1 WHERE status = $2',
-            ['CLOSED', 'OPEN']
+            'UPDATE opening_cash_balance SET status = $1 WHERE status = $2 AND comp_code = $3',
+            ['CLOSED', 'OPEN', companyCode]
         );
 
         const result = await pool.query(
             `INSERT INTO opening_cash_balance (balance_date, opening_amount, closing_amount, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [balance_date, opening_amount, closing_amount || opening_amount, 'CMP01', req.user?.id]
+            [balance_date, opening_amount, closing_amount || opening_amount, companyCode, req.user?.id]
         );
 
         res.json(result.rows[0]);
@@ -1763,19 +1772,20 @@ app.get('/api/finance/loans', async (req, res) => {
 
 app.post('/api/finance/loans', async (req, res) => {
     const { loan_number, loan_date, amount, interest_rate, term_months, lender_name } = req.body;
+    const companyCode = getCompanyContext(req);
 
     try {
         const result = await pool.query(
             `INSERT INTO loan_taken (loan_number, loan_date, amount, interest_rate, term_months, lender_name, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-            [loan_number, loan_date, amount, interest_rate, term_months, lender_name, 'CMP01', req.user?.id]
+            [loan_number, loan_date, amount, interest_rate, term_months, lender_name, companyCode, req.user?.id]
         );
 
         // Add to cash balance as incoming money
         await pool.query(
             `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [loan_date, 'RECEIPT', `Loan from ${lender_name}`, amount, 0, 'CMP01', req.user?.id]
+            [loan_date, 'RECEIPT', `Loan from ${lender_name}`, amount, 0, companyCode, req.user?.id]
         );
 
         res.json(result.rows[0]);
@@ -1804,6 +1814,7 @@ app.get('/api/finance/loans/:loanId/returns', async (req, res) => {
 
 app.post('/api/finance/loan-returns', async (req, res) => {
     const { loan_id, return_date, amount, payment_method, reference_number } = req.body;
+    const companyCode = getCompanyContext(req);
     const client = await pool.connect();
 
     try {
@@ -1812,14 +1823,14 @@ app.post('/api/finance/loan-returns', async (req, res) => {
         const result = await client.query(
             `INSERT INTO loan_return (loan_id, return_date, amount, payment_method, reference_number, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-            [loan_id, return_date, amount, payment_method, reference_number, 'CMP01', req.user?.id]
+            [loan_id, return_date, amount, payment_method, reference_number, companyCode, req.user?.id]
         );
 
         // Add to cash balance as outgoing money
         await client.query(
             `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [return_date, 'PAYMENT', `Loan return payment`, 0, amount, 'CMP01', req.user?.id]
+            [return_date, 'PAYMENT', `Loan return payment`, 0, amount, companyCode, req.user?.id]
         );
 
         await client.query('COMMIT');
@@ -1849,12 +1860,13 @@ app.get('/api/finance/expense-heads', async (req, res) => {
 
 app.post('/api/finance/expense-heads', async (req, res) => {
     const { head_code, head_name, description } = req.body;
+    const companyCode = getCompanyContext(req);
 
     try {
         const result = await pool.query(
             `INSERT INTO expense_heads (head_code, head_name, description, comp_code)
              VALUES ($1, $2, $3, $4) RETURNING *`,
-            [head_code, head_name, description, 'CMP01']
+            [head_code, head_name, description, companyCode]
         );
 
         res.json(result.rows[0]);
@@ -1898,12 +1910,13 @@ app.get('/api/finance/tax-rates/:code', async (req, res) => {
 
 app.post('/api/finance/tax-rates', async (req, res) => {
     const { tax_code, tax_name, tax_rate, tax_type, description } = req.body;
+    const companyCode = getCompanyContext(req);
 
     try {
         const result = await pool.query(
             `INSERT INTO tax_rates (tax_code, tax_name, tax_rate, tax_type, description, comp_code)
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [tax_code, tax_name, tax_rate, tax_type || 'GST', description, 'CMP01']
+            [tax_code, tax_name, tax_rate, tax_type || 'GST', description, companyCode]
         );
 
         res.json(result.rows[0]);
@@ -2075,12 +2088,13 @@ app.get('/api/system/backups', async (req, res) => {
 
 app.post('/api/system/backups', async (req, res) => {
     const { backup_type, file_path, file_size } = req.body;
+    const companyCode = getCompanyContext(req);
 
     try {
         const result = await pool.query(
             `INSERT INTO system_backups (backup_type, file_path, file_size, comp_code, created_by)
              VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [backup_type, file_path, file_size, 'CMP01', req.user?.id]
+            [backup_type, file_path, file_size, companyCode, req.user?.id]
         );
 
         res.json(result.rows[0]);
