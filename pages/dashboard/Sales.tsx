@@ -421,7 +421,12 @@ const Sales: React.FC = () => {
                     {/* Sidebar Invoice Details */}
                     <div className="space-y-6">
                         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 lg:p-6">
-                            <h2 className="text-lg font-bold text-slate-900 mb-4">Invoice Details</h2>
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-lg font-bold text-slate-900">Invoice Details</h2>
+                                <button onClick={() => setView('list')} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
+                                    <ChevronLeft className="w-4 h-4 mr-1" /> Back to List
+                                </button>
+                            </div>
 
                             <div className="space-y-4">
                                 <div>

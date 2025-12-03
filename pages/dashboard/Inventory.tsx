@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Filter, AlertTriangle, Edit2, Trash2, X } from 'lucide-react';
 import { api } from '../../services/api';
-import { Product, Category } from '../../types';
+import { Product, Category, TaxRate } from '../../types';
 import MobileTable from '../../components/MobileTable';
 import Pagination from '../../components/Pagination';
 
 const Inventory: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
   const [pagination, setPagination] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,19 +25,23 @@ const Inventory: React.FC = () => {
     category_code: '',
     unit_price: 0,
     current_stock: 0,
-    min_stock_level: 0
+    min_stock_level: 0,
+    tax_code: '',
+    tax_rate: 0
   });
 
   const fetchData = async (page: number = currentPage) => {
     setIsLoading(true);
     try {
-      const [prodsResponse, cats] = await Promise.all([
+      const [prodsResponse, cats, taxRatesData] = await Promise.all([
         api.products.getAll(page, 8),
-        api.categories.getAll()
+        api.categories.getAll(),
+        api.taxRates.getAll()
       ]);
       setProducts(Array.isArray(prodsResponse.data) ? prodsResponse.data : []);
       setPagination(prodsResponse.pagination);
       setCategories(Array.isArray(cats) ? cats : []);
+      setTaxRates(Array.isArray(taxRatesData) ? taxRatesData : []);
     } catch (error) {
       console.error("Failed to fetch inventory", error);
     } finally {
@@ -60,7 +65,9 @@ const Inventory: React.FC = () => {
         category_code: categories[0]?.category_code || '',
         unit_price: 0,
         current_stock: 0,
-        min_stock_level: 10
+        min_stock_level: 10,
+        tax_code: taxRates[0]?.tax_code || '',
+        tax_rate: taxRates[0]?.tax_rate || 0
       });
     }
     setIsModalOpen(true);
@@ -330,6 +337,27 @@ const Inventory: React.FC = () => {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Tax Rate</label>
+                <select
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-brand-500 focus:border-brand-500"
+                  value={formData.tax_code}
+                  onChange={e => {
+                    const selectedTax = taxRates.find(t => t.tax_code === e.target.value);
+                    setFormData({
+                      ...formData,
+                      tax_code: e.target.value,
+                      tax_rate: selectedTax ? selectedTax.tax_rate : 0
+                    });
+                  }}
+                >
+                  <option value="">Select Tax Rate</option>
+                  {taxRates.map(t => (
+                    <option key={t.tax_id} value={t.tax_code}>{t.tax_name} ({t.tax_rate}%)</option>
+                  ))}
+                </select>
               </div>
 
               <div>
