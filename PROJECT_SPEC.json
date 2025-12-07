@@ -1,0 +1,286 @@
+{
+    "project": {
+        "name": "Lalani Traders ERP System",
+        "domain": "Tire trading and distribution",
+        "status": "Production-ready with planned expansions"
+    },
+    "tech": {
+        "frontend": {
+            "framework": "React 18.3.1 + TypeScript",
+            "build": "Vite 5.2.11",
+            "styling": "Tailwind CSS 3.4.3",
+            "routing": "React Router DOM 6.23.0",
+            "charts": "Recharts 2.12.7",
+            "icons": "Lucide React 0.378.0",
+            "pwa": "Service worker"
+        },
+        "backend": {
+            "runtime": "Node.js + Express.js 4.19.2",
+            "db": "PostgreSQL",
+            "auth": "JWT + WebAuthn",
+            "security": "CORS, validation, parameterized queries"
+        },
+        "dev": {
+            "types": "Full TypeScript",
+            "hot_reload": "Vite HMR",
+            "testing": "Planned unit/integration"
+        }
+    },
+    "arch": {
+        "structure": {
+            "components": [
+                "Sidebar",
+                "MobileTable",
+                "Pagination",
+                "LoadingContext"
+            ],
+            "pages": [
+                "DashboardHome",
+                "Users",
+                "Companies",
+                "Sales",
+                "Finance",
+                "Inventory",
+                "Reports"
+            ],
+            "services": [
+                "API layer",
+                "Mock data"
+            ],
+            "server": [
+                "Express.js",
+                "RESTful APIs"
+            ],
+            "db": [
+                "Schema.sql",
+                "Migrations"
+            ]
+        },
+        "auth": {
+            "jwt": "24h expiration",
+            "webauthn": "Biometric support",
+            "roles": [
+                "ADMIN",
+                "USER"
+            ],
+            "perms": [
+                "INVENTORY_VIEW",
+                "SALES_MANAGE",
+                "FINANCE_VIEW",
+                "PARTNERS_MANAGE",
+                "USERS_VIEW",
+                "REPORTS_VIEW"
+            ]
+        },
+        "db_schema": {
+            "core": [
+                "companies",
+                "users",
+                "categories",
+                "products",
+                "customers",
+                "suppliers",
+                "sales_invoices",
+                "sales_invoice_items",
+                "cash_balance",
+                "expenses"
+            ],
+            "extended": [
+                "sales_returns",
+                "purchase_invoices",
+                "payment_receipts",
+                "supplier_payments",
+                "discount_vouchers",
+                "loan_taken",
+                "loan_return",
+                "tax_rates",
+                "expense_heads",
+                "system_backups"
+            ],
+            "relationships": "Multi-tenant with company isolation, audit trails, foreign keys"
+        }
+    },
+    "features": {
+        "dashboard": [
+            "KPI cards",
+            "Sales trends charts",
+            "Category performance",
+            "Top products",
+            "Recent invoices"
+        ],
+        "inventory": [
+            "Product CRUD",
+            "Stock tracking",
+            "Category management",
+            "Tax integration",
+            "Search/filter"
+        ],
+        "sales": [
+            "Invoice creation",
+            "Multi-item support",
+            "Tax calculation",
+            "Stock updates",
+            "Customer balance"
+        ],
+        "finance": [
+            "Cash flow tracking",
+            "Expense management",
+            "Payment processing",
+            "Balance calculation",
+            "Transaction history"
+        ],
+        "partners": [
+            "Customer management",
+            "Supplier tracking",
+            "Credit limits",
+            "Outstanding balances",
+            "Tax info"
+        ],
+        "users": [
+            "Role-based access",
+            "Permission matrix",
+            "Biometric auth",
+            "User lifecycle",
+            "Audit trails"
+        ],
+        "reports": [
+            "Sales analytics",
+            "Financial reports",
+            "Inventory reports",
+            "Customer reports",
+            "Export capabilities"
+        ]
+    },
+    "api": {
+        "auth": [
+            "/api/auth/login",
+            "/api/auth/verify",
+            "/api/auth/webauthn/*"
+        ],
+        "core": [
+            "/api/users",
+            "/api/products",
+            "/api/customers",
+            "/api/suppliers",
+            "/api/categories",
+            "/api/invoices"
+        ],
+        "finance": [
+            "/api/finance/transactions",
+            "/api/finance/expenses",
+            "/api/finance/payment"
+        ],
+        "analytics": [
+            "/api/analytics/dashboard-metrics",
+            "/api/analytics/sales-trends"
+        ],
+        "extended": [
+            "/api/sales-returns",
+            "/api/purchase-invoices",
+            "/api/payment-receipts",
+            "/api/supplier-payments",
+            "/api/finance/loans",
+            "/api/finance/tax-rates"
+        ],
+        "patterns": {
+            "response": "{ data: [], pagination: { page, limit, total, totalPages } }",
+            "error": "{ message: 'Error description' }",
+            "pagination": "8 items per page default"
+        }
+    },
+    "components": {
+        "layout": {
+            "Sidebar": "Permission-based navigation with mobile swipe",
+            "MobileTable": "Card-based mobile data display",
+            "Pagination": "Standard pagination with ellipsis",
+            "LoadingContext": "Global loading state management"
+        },
+        "pages": {
+            "DashboardHome": "Analytics with charts and KPIs",
+            "Users": "User management with permission matrix",
+            "Companies": "Multi-company with tax info",
+            "Sales": "Invoice creation and management",
+            "Finance": "Transaction and expense tracking",
+            "Inventory": "Product catalog management",
+            "Reports": "Analytics and reporting interface"
+        },
+        "reusable": [
+            "Modal forms",
+            "Data tables",
+            "Form controls",
+            "Notification system"
+        ]
+    },
+    "future": {
+        "phase3": [
+            "Sales returns",
+            "Purchase invoices",
+            "Payment management",
+            "Financial enhancements",
+            "System backups"
+        ],
+        "phase4_7": [
+            "Notification system",
+            "Global search",
+            "Multi-company support",
+            "Advanced analytics",
+            "Mobile apps",
+            "Integration APIs"
+        ]
+    },
+    "business_logic": {
+        "sales": [
+            "Invoice creation → Tax calc → Stock update → Customer balance → Payment processing"
+        ],
+        "purchase": [
+            "Purchase order → Stock increase → Supplier balance → Payment recording"
+        ],
+        "finance": [
+            "Expense tracking → Cash flow impact → Payment processing → Balance calculation → Audit trails"
+        ]
+    },
+    "mobile": {
+        "responsive": "Tailwind breakpoints (sm/md/lg/xl)",
+        "components": "MobileTable for card layouts",
+        "touch": "Swipe gestures, touch-friendly buttons",
+        "charts": "Adaptive sizing and layouts"
+    },
+    "performance": {
+        "db": [
+            "Strategic indexing",
+            "Connection pooling",
+            "Query optimization"
+        ],
+        "api": [
+            "Pagination",
+            "Caching",
+            "Error handling"
+        ],
+        "frontend": [
+            "Code splitting",
+            "Tree shaking",
+            "Lazy loading"
+        ]
+    },
+    "security": {
+        "auth": [
+            "JWT + WebAuthn",
+            "Role-based permissions"
+        ],
+        "validation": [
+            "Server-side validation",
+            "SQL injection prevention"
+        ],
+        "audit": [
+            "User action tracking",
+            "Session management"
+        ]
+    },
+    "deployment": {
+        "local": "PostgreSQL + Node.js + npm scripts",
+        "docker": "Containerized database",
+        "build": "Vite optimized production builds",
+        "env": "Separate dev/prod configs",
+        "pwa": "Offline capabilities"
+    }
+}
