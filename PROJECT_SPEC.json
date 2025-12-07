@@ -106,7 +106,8 @@
             "Sales trends charts",
             "Category performance",
             "Top products",
-            "Recent invoices"
+            "Recent invoices",
+            "Advanced analytics"
         ],
         "inventory": [
             "Product CRUD",
@@ -120,14 +121,20 @@
             "Multi-item support",
             "Tax calculation",
             "Stock updates",
-            "Customer balance"
+            "Customer balance",
+            "Sales returns"
         ],
         "finance": [
             "Cash flow tracking",
             "Expense management",
             "Payment processing",
             "Balance calculation",
-            "Transaction history"
+            "Transaction history",
+            "Purchase invoices",
+            "Payment receipts",
+            "Supplier payments",
+            "Tax rates management",
+            "Expense heads"
         ],
         "partners": [
             "Customer management",
@@ -149,6 +156,22 @@
             "Inventory reports",
             "Customer reports",
             "Export capabilities"
+        ],
+        "companies": [
+            "Multi-company support",
+            "Company management",
+            "Tax configuration"
+        ],
+        "mobile": [
+            "Responsive design",
+            "PWA capabilities",
+            "Touch optimization"
+        ],
+        "api": [
+            "RESTful endpoints",
+            "Integration APIs",
+            "Authentication",
+            "Pagination"
         ]
     },
     "api": {
@@ -213,19 +236,12 @@
     },
     "future": {
         "phase3": [
-            "Sales returns",
-            "Purchase invoices",
-            "Payment management",
-            "Financial enhancements",
+            "Loan management",
             "System backups"
         ],
         "phase4_7": [
             "Notification system",
-            "Global search",
-            "Multi-company support",
-            "Advanced analytics",
-            "Mobile apps",
-            "Integration APIs"
+            "Global search"
         ]
     },
     "business_logic": {

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useSwipeable } from 'react-swipeable';
 import {
@@ -15,21 +15,23 @@ import {
   Undo2,
   Receipt,
   Building2,
-  Calculator
+  Calculator,
+  ChevronDown,
+  ChevronRight,
+  Settings
 } from 'lucide-react';
 import { User } from '../types';
-import CompanySelector from './CompanySelector';
 
 interface SidebarProps {
   user: User;
   onLogout: () => void;
-  selectedCompany: string;
-  onCompanyChange: (companyCode: string) => void;
   isMobileOpen?: boolean;
   onMobileClose?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, selectedCompany, onCompanyChange, isMobileOpen = false, onMobileClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isMobileOpen = false, onMobileClose }) => {
+  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set(['invoices', 'finance', 'management']));
+
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => {
       if (isMobileOpen && onMobileClose) {
@@ -39,6 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, selectedCompany, onCo
     preventScrollOnSwipe: true,
     trackMouse: false
   });
+
   // Helper to check permissions
   const hasPermission = (permission: string) => {
     // Admins implicitly have access, but we'll respect the array if present
@@ -47,13 +50,24 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, selectedCompany, onCo
     return user.permissions?.includes(permission);
   };
 
+  const toggleMenu = (menuId: string) => {
+    setExpandedMenus(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(menuId)) {
+        newSet.delete(menuId);
+      } else {
+        newSet.add(menuId);
+      }
+      return newSet;
+    });
+  };
+
   const navItems = [
     {
       to: '/dashboard',
       icon: LayoutDashboard,
       label: 'Dashboard',
       exact: true,
-      // Dashboard always visible
       visible: true
     },
     {
@@ -63,58 +77,82 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, selectedCompany, onCo
       visible: hasPermission('INVENTORY_VIEW')
     },
     {
-      to: '/dashboard/sales',
+      id: 'invoices',
       icon: ShoppingCart,
-      label: 'Sales & Invoices',
-      visible: hasPermission('SALES_VIEW')
+      label: 'Invoices',
+      visible: hasPermission('SALES_VIEW'),
+      children: [
+        {
+          to: '/dashboard/sales',
+          icon: ShoppingCart,
+          label: 'Sales Invoices',
+          visible: hasPermission('SALES_VIEW')
+        },
+        {
+          to: '/dashboard/sales-returns',
+          icon: Undo2,
+          label: 'Sales Returns',
+          visible: hasPermission('SALES_VIEW')
+        },
+        {
+          to: '/dashboard/purchase-invoices',
+          icon: Receipt,
+          label: 'Purchase Invoices',
+          visible: hasPermission('FINANCE_VIEW')
+        }
+      ]
     },
     {
-      to: '/dashboard/sales-returns',
-      icon: Undo2,
-      label: 'Sales Returns',
-      visible: hasPermission('SALES_VIEW')
-    },
-    {
-      to: '/dashboard/finance',
+      id: 'finance',
       icon: Wallet,
       label: 'Finance',
-      visible: hasPermission('FINANCE_VIEW')
+      visible: hasPermission('FINANCE_VIEW'),
+      children: [
+        {
+          to: '/dashboard/finance',
+          icon: Wallet,
+          label: 'Transactions',
+          visible: hasPermission('FINANCE_VIEW')
+        },
+        {
+          to: '/dashboard/tax-rates',
+          icon: Calculator,
+          label: 'Tax Rates',
+          visible: hasPermission('FINANCE_VIEW')
+        }
+      ]
     },
     {
-      to: '/dashboard/tax-rates',
-      icon: Calculator,
-      label: 'Tax Rates',
-      visible: hasPermission('FINANCE_VIEW')
-    },
-    {
-      to: '/dashboard/purchase-invoices',
-      icon: Receipt,
-      label: 'Purchase Invoices',
-      visible: hasPermission('FINANCE_VIEW')
-    },
-    {
-      to: '/dashboard/partners',
-      icon: Users,
-      label: 'Customers & Vendors',
-      visible: hasPermission('PARTNERS_VIEW')
+      id: 'management',
+      icon: Settings,
+      label: 'Management',
+      visible: true,
+      children: [
+        {
+          to: '/dashboard/users',
+          icon: UserCog,
+          label: 'Users',
+          visible: hasPermission('USERS_VIEW') || user.role === 'ADMIN'
+        },
+        {
+          to: '/dashboard/companies',
+          icon: Building2,
+          label: 'Company',
+          visible: user.role === 'ADMIN'
+        },
+        {
+          to: '/dashboard/partners',
+          icon: Users,
+          label: 'Customers & Vendors',
+          visible: hasPermission('PARTNERS_VIEW')
+        }
+      ]
     },
     {
       to: '/dashboard/reports',
       icon: FileBarChart,
       label: 'Reports & Analytics',
       visible: hasPermission('REPORTS_VIEW') || user.role === 'ADMIN'
-    },
-    {
-      to: '/dashboard/users',
-      icon: UserCog,
-      label: 'User Management',
-      visible: hasPermission('USERS_VIEW') || user.role === 'ADMIN' // Fallback for pure admin role check if needed
-    },
-    {
-      to: '/dashboard/companies',
-      icon: Building2,
-      label: 'Company Management',
-      visible: user.role === 'ADMIN' // Only admins can manage companies
     }
   ];
 
@@ -146,31 +184,67 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, selectedCompany, onCo
         </div>
       </div>
 
-      {/* Company Selector */}
-      <div className="px-6 py-4 border-b border-slate-800">
-        <CompanySelector
-          selectedCompany={selectedCompany}
-          onCompanyChange={onCompanyChange}
-        />
-      </div>
 
       <nav className="flex-1 py-6 px-3 space-y-1">
-        {navItems.filter(item => item.visible).map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.exact}
-            className={({ isActive }) =>
-              `flex items-center px-4 py-3 rounded-lg transition-all duration-200 group ${isActive
-                ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/50'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-              }`
-            }
-          >
-            <item.icon className="w-5 h-5 mr-3" />
-            <span className="font-medium">{item.label}</span>
-          </NavLink>
-        ))}
+        {navItems.filter(item => item.visible).map((item) => {
+          if (item.children) {
+            // Parent menu item with children
+            const isExpanded = expandedMenus.has(item.id);
+            return (
+              <div key={item.id}>
+                <button
+                  onClick={() => toggleMenu(item.id)}
+                  className="flex items-center w-full px-4 py-3 rounded-lg transition-all duration-200 group text-slate-400 hover:bg-slate-800 hover:text-white"
+                >
+                  <item.icon className="w-5 h-5 mr-3" />
+                  <span className="font-medium flex-1 text-left">{item.label}</span>
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
+                </button>
+                {isExpanded && (
+                  <div className="ml-4 mt-1 space-y-1">
+                    {item.children.filter(child => child.visible).map((child) => (
+                      <NavLink
+                        key={child.to}
+                        to={child.to}
+                        className={({ isActive }) =>
+                          `flex items-center px-4 py-2 rounded-lg transition-all duration-200 group text-sm ${isActive
+                            ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/50'
+                            : 'text-slate-500 hover:bg-slate-800 hover:text-white'
+                          }`
+                        }
+                      >
+                        <child.icon className="w-4 h-4 mr-3" />
+                        <span className="font-medium">{child.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          } else {
+            // Regular menu item
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.exact}
+                className={({ isActive }) =>
+                  `flex items-center px-4 py-3 rounded-lg transition-all duration-200 group ${isActive
+                    ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/50'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  }`
+                }
+              >
+                <item.icon className="w-5 h-5 mr-3" />
+                <span className="font-medium">{item.label}</span>
+              </NavLink>
+            );
+          }
+        })}
       </nav>
 
       <div className="p-4 border-t border-slate-800">
