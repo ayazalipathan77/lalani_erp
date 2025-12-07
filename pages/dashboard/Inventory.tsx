@@ -4,8 +4,10 @@ import { api } from '../../services/api';
 import { Product, Category, TaxRate } from '../../types';
 import MobileTable from '../../components/MobileTable';
 import Pagination from '../../components/Pagination';
+import { useCompany } from '../../components/CompanyContext';
 
 const Inventory: React.FC = () => {
+  const { selectedCompany } = useCompany();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
@@ -51,7 +53,7 @@ const Inventory: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedCompany]); // Refetch when company changes
 
   const handleOpenModal = (product?: Product) => {
     if (product) {

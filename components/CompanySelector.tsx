@@ -1,32 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Building2, ChevronDown } from 'lucide-react';
-import { api } from '../services/api';
-import { Company } from '../types';
+import { useCompany } from './CompanyContext';
 
-interface CompanySelectorProps {
-    selectedCompany: string;
-    onCompanyChange: (companyCode: string) => void;
-}
-
-const CompanySelector: React.FC<CompanySelectorProps> = ({ selectedCompany, onCompanyChange }) => {
-    const [companies, setCompanies] = useState<Company[]>([]);
+const CompanySelector: React.FC = () => {
+    const { selectedCompany, companies, setSelectedCompany, isLoading } = useCompany();
     const [isOpen, setIsOpen] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchCompanies = async () => {
-            try {
-                const companyList = await api.companies.getAll();
-                setCompanies(companyList);
-            } catch (error) {
-                console.error('Failed to fetch companies:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchCompanies();
-    }, []);
 
     const selectedCompanyData = companies.find(c => c.comp_code === selectedCompany);
 
@@ -64,7 +42,7 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({ selectedCompany, onCo
                                 <button
                                     key={company.comp_code}
                                     onClick={() => {
-                                        onCompanyChange(company.comp_code);
+                                        setSelectedCompany(company.comp_code);
                                         setIsOpen(false);
                                     }}
                                     className={`w-full px-4 py-2 text-left hover:bg-slate-50 transition-colors ${company.comp_code === selectedCompany ? 'bg-brand-50 text-brand-700' : 'text-slate-700'

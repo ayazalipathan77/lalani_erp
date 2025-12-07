@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, MapPin, Phone, Building2, User, Edit2, Trash2, X } from 'lucide-react';
 import { api } from '../../services/api';
 import { Customer, Supplier } from '../../types';
+import { useCompany } from '../../components/CompanyContext';
 
 const Partners: React.FC = () => {
+  const { selectedCompany } = useCompany();
   const [activeTab, setActiveTab] = useState<'customers' | 'suppliers'>('customers');
   const [searchTerm, setSearchTerm] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -35,7 +37,7 @@ const Partners: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedCompany]); // Refetch when company changes
 
   const handleOpenModal = (data?: any) => {
     setEditingId(data ? (activeTab === 'customers' ? data.cust_id : data.supplier_id) : null);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useCompany } from '../../components/CompanyContext';
 import {
   BarChart,
   Bar,
@@ -24,6 +25,7 @@ import MobileTable from '../../components/MobileTable';
 
 const DashboardHome: React.FC = () => {
   const navigate = useNavigate();
+  const { selectedCompany } = useCompany();
 
   // State for analytics data
   const [analyticsData, setAnalyticsData] = useState<any>(null);
@@ -48,7 +50,7 @@ const DashboardHome: React.FC = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [selectedCompany]); // Refetch when company changes
 
   // Use analytics data for metrics
   const totalRevenue = analyticsData?.totalRevenue || 0;

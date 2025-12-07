@@ -6,6 +6,7 @@ import { User } from './types';
 import { api } from './services/api';
 import { initPWA } from './src/utils/pwa';
 import { LoadingProvider, useLoading } from './components/LoadingContext';
+import { CompanyProvider } from './components/CompanyContext';
 
 const AppContent: React.FC = () => {
   // Auth state now holds the User object or null
@@ -110,7 +111,9 @@ const App: React.FC = () => {
   return (
     <LoadingProvider>
       <NotificationProvider>
-        <AppContent />
+        <CompanyProvider>
+          <AppContent />
+        </CompanyProvider>
       </NotificationProvider>
     </LoadingProvider>
   );

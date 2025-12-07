@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { useLoading } from '../../components/LoadingContext';
 import { useNotification } from '../../components/NotificationContext';
+import { useCompany } from '../../components/CompanyContext';
 import { api } from '../../services/api';
 import { ExpenseHead } from '../../types';
 import MobileTable from '../../components/MobileTable';
 
 const ExpenseHeads: React.FC = () => {
+    const { selectedCompany } = useCompany();
     const [expenseHeads, setExpenseHeads] = useState<ExpenseHead[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { showLoader, hideLoader } = useLoading();
@@ -38,7 +40,7 @@ const ExpenseHeads: React.FC = () => {
 
     useEffect(() => {
         fetchExpenseHeads();
-    }, []);
+    }, [selectedCompany]); // Refetch when company changes
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();

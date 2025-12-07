@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Calculator, Plus, Edit2, Trash2, X, CheckCircle } from 'lucide-react';
 import { useLoading } from '../../components/LoadingContext';
+import { useCompany } from '../../components/CompanyContext';
 import { api } from '../../services/api';
 import { TaxRate } from '../../types';
 import MobileTable from '../../components/MobileTable';
 
 const TaxRates: React.FC = () => {
+    const { selectedCompany } = useCompany();
     const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { showLoader, hideLoader } = useLoading();
@@ -39,7 +41,7 @@ const TaxRates: React.FC = () => {
 
     useEffect(() => {
         fetchTaxRates();
-    }, []);
+    }, [selectedCompany]); // Refetch when company changes
 
     const handleCreateTax = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -2,12 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, TrendingUp, TrendingDown, Plus, FileText, X, CheckCircle, Edit2 } from 'lucide-react';
 import { useLoading } from '../../components/LoadingContext';
+import { useCompany } from '../../components/CompanyContext';
 import { api } from '../../services/api';
 import { CashTransaction, Expense, Customer, Supplier, ExpenseHead } from '../../types';
 import { formatTableDate } from '../../src/utils/dateUtils';
 import MobileTable from '../../components/MobileTable';
 
 const Finance: React.FC = () => {
+    const { selectedCompany } = useCompany();
     const [activeTab, setActiveTab] = useState<'overview' | 'expenses' | 'payments'>('overview');
     const [transactions, setTransactions] = useState<CashTransaction[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -55,7 +57,7 @@ const Finance: React.FC = () => {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [selectedCompany]); // Refetch when company changes
 
     const handleCreateExpense = async (e: React.FormEvent) => {
         e.preventDefault();
