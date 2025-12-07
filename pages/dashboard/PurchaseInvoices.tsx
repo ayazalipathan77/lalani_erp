@@ -90,8 +90,12 @@ const PurchaseInvoices: React.FC = () => {
             showLoader(editingInvoice ? 'Updating invoice...' : 'Creating invoice...');
 
             if (editingInvoice) {
-                // Update logic would go here
-                showNotification("Purchase invoice update not yet implemented", "warning");
+                await api.purchaseInvoices.update(editingInvoice.purchase_id, {
+                    supplier_code: selectedSupplier,
+                    items: cartItems,
+                    purchase_date: invoiceDate
+                });
+                showNotification("Purchase Invoice Updated Successfully!", "success");
             } else {
                 await api.purchaseInvoices.create({
                     supplier_code: selectedSupplier,

@@ -1,302 +1,862 @@
 {
     "project": {
         "name": "Lalani Traders ERP System",
-        "domain": "Tire trading and distribution",
-        "status": "Production-ready with planned expansions"
+        "version": "1.0.0",
+        "description": "A comprehensive Enterprise Resource Planning (ERP) system built for tire trading businesses. Features inventory management, sales invoicing, finance tracking, customer/supplier management, and user administration.",
+        "business_domain": "Tire Trading Business",
+        "architecture": "Full-stack web application"
     },
-    "tech": {
+    "technology_stack": {
         "frontend": {
-            "framework": "React 18.3.1 + TypeScript",
-            "build": "Vite 5.2.11",
+            "framework": "React 18.3.1 with TypeScript",
+            "build_tool": "Vite 5.2.11",
             "styling": "Tailwind CSS 3.4.3",
             "routing": "React Router DOM 6.23.0",
             "charts": "Recharts 2.12.7",
             "icons": "Lucide React 0.378.0",
-            "pwa": "Service worker"
+            "pwa": "Service Worker implementation"
         },
         "backend": {
-            "runtime": "Node.js + Express.js 4.19.2",
-            "db": "PostgreSQL",
-            "auth": "JWT + WebAuthn",
-            "security": "CORS, validation, parameterized queries"
+            "runtime": "Node.js with Express.js 4.19.2",
+            "database": "PostgreSQL with connection pooling",
+            "authentication": "JWT tokens with WebAuthn biometric support",
+            "security": "CORS, input validation, SQL injection prevention"
         },
-        "dev": {
-            "types": "Full TypeScript",
+        "development": {
+            "type_safety": "Full TypeScript implementation",
+            "code_quality": "Modern ES6+ modules",
             "hot_reload": "Vite HMR",
-            "testing": "Planned unit/integration"
+            "testing": "Not yet implemented"
         }
     },
-    "arch": {
-        "structure": {
-            "components": [
-                "Sidebar",
-                "MobileTable",
-                "Pagination",
-                "LoadingContext"
+    "database_schema": {
+        "overview": "PostgreSQL database with proper normalization, foreign key constraints, and comprehensive audit trails",
+        "main_tables": {
+            "companies": {
+                "purpose": "Multi-tenant architecture with company-based data isolation",
+                "key_fields": [
+                    "comp_code",
+                    "comp_name",
+                    "address",
+                    "phone",
+                    "email",
+                    "gstin",
+                    "pan_number",
+                    "tax_registration"
+                ]
+            },
+            "users": {
+                "purpose": "Authentication and authorization with advanced permission system",
+                "key_fields": [
+                    "user_id",
+                    "username",
+                    "password",
+                    "full_name",
+                    "role",
+                    "permissions",
+                    "default_company"
+                ],
+                "features": [
+                    "WebAuthn biometric credentials",
+                    "Role-based access (ADMIN/USER)",
+                    "Granular permissions array"
+                ]
+            },
+            "categories": {
+                "purpose": "Product classification system",
+                "key_fields": [
+                    "category_id",
+                    "category_code",
+                    "category_name",
+                    "description"
+                ]
+            },
+            "products": {
+                "purpose": "Inventory management with stock tracking",
+                "key_fields": [
+                    "prod_id",
+                    "prod_code",
+                    "prod_name",
+                    "category_code",
+                    "unit_price",
+                    "current_stock",
+                    "min_stock_level",
+                    "tax_code",
+                    "hsn_code",
+                    "purchase_price"
+                ]
+            },
+            "customers": {
+                "purpose": "Customer management with credit control",
+                "key_fields": [
+                    "cust_id",
+                    "cust_code",
+                    "cust_name",
+                    "city",
+                    "phone",
+                    "credit_limit",
+                    "outstanding_balance",
+                    "route_code",
+                    "tax_number",
+                    "credit_terms_days"
+                ]
+            },
+            "suppliers": {
+                "purpose": "Supplier management with outstanding balance tracking",
+                "key_fields": [
+                    "supplier_id",
+                    "supplier_code",
+                    "supplier_name",
+                    "contact_person",
+                    "city",
+                    "phone",
+                    "outstanding_balance",
+                    "tax_number",
+                    "payment_terms_days"
+                ]
+            },
+            "sales_invoices": {
+                "purpose": "Sales transaction recording with automatic stock updates",
+                "key_fields": [
+                    "inv_id",
+                    "inv_number",
+                    "inv_date",
+                    "cust_code",
+                    "total_amount",
+                    "balance_due",
+                    "tax_amount",
+                    "discount_amount",
+                    "shipping_address",
+                    "shipping_charges"
+                ]
+            },
+            "sales_invoice_items": {
+                "purpose": "Line items for sales invoices",
+                "key_fields": [
+                    "item_id",
+                    "inv_id",
+                    "prod_code",
+                    "quantity",
+                    "unit_price",
+                    "line_total"
+                ]
+            },
+            "cash_balance": {
+                "purpose": "Financial transaction ledger with debit/credit tracking",
+                "key_fields": [
+                    "trans_id",
+                    "trans_date",
+                    "trans_type",
+                    "description",
+                    "debit_amount",
+                    "credit_amount"
+                ]
+            },
+            "expenses": {
+                "purpose": "Expense tracking with categorization",
+                "key_fields": [
+                    "expense_id",
+                    "head_code",
+                    "amount",
+                    "remarks",
+                    "expense_date"
+                ]
+            }
+        },
+        "extended_tables": {
+            "sales_returns": {
+                "purpose": "Customer return processing with stock restoration",
+                "key_fields": [
+                    "return_id",
+                    "return_number",
+                    "return_date",
+                    "inv_id",
+                    "cust_code",
+                    "total_amount",
+                    "status"
+                ]
+            },
+            "sales_return_items": {
+                "purpose": "Items in sales returns",
+                "key_fields": [
+                    "item_id",
+                    "return_id",
+                    "prod_code",
+                    "quantity",
+                    "unit_price",
+                    "line_total"
+                ]
+            },
+            "purchase_invoices": {
+                "purpose": "Purchase transaction recording with automatic stock increases",
+                "key_fields": [
+                    "purchase_id",
+                    "purchase_number",
+                    "purchase_date",
+                    "supplier_code",
+                    "total_amount",
+                    "status"
+                ]
+            },
+            "purchase_invoice_items": {
+                "purpose": "Line items for purchase invoices",
+                "key_fields": [
+                    "item_id",
+                    "purchase_id",
+                    "prod_code",
+                    "quantity",
+                    "unit_price",
+                    "line_total"
+                ]
+            },
+            "payment_receipts": {
+                "purpose": "Customer payment recording",
+                "key_fields": [
+                    "receipt_id",
+                    "receipt_number",
+                    "receipt_date",
+                    "cust_code",
+                    "amount",
+                    "payment_method",
+                    "reference_number",
+                    "status"
+                ]
+            },
+            "supplier_payments": {
+                "purpose": "Supplier payment recording",
+                "key_fields": [
+                    "payment_id",
+                    "payment_number",
+                    "payment_date",
+                    "supplier_code",
+                    "amount",
+                    "payment_method",
+                    "reference_number",
+                    "status"
+                ]
+            },
+            "discount_vouchers": {
+                "purpose": "Customer discount management",
+                "key_fields": [
+                    "voucher_id",
+                    "voucher_number",
+                    "voucher_date",
+                    "cust_code",
+                    "amount",
+                    "reason",
+                    "status"
+                ]
+            },
+            "opening_cash_balance": {
+                "purpose": "Daily cash balance management",
+                "key_fields": [
+                    "balance_id",
+                    "balance_date",
+                    "opening_amount",
+                    "closing_amount",
+                    "status"
+                ]
+            },
+            "loan_taken": {
+                "purpose": "Loan management with interest tracking",
+                "key_fields": [
+                    "loan_id",
+                    "loan_number",
+                    "loan_date",
+                    "amount",
+                    "interest_rate",
+                    "term_months",
+                    "lender_name",
+                    "status"
+                ]
+            },
+            "loan_return": {
+                "purpose": "Loan repayment tracking",
+                "key_fields": [
+                    "return_id",
+                    "loan_id",
+                    "return_date",
+                    "amount",
+                    "payment_method",
+                    "reference_number",
+                    "status"
+                ]
+            },
+            "expense_heads": {
+                "purpose": "Expense categorization",
+                "key_fields": [
+                    "head_code",
+                    "head_name",
+                    "description",
+                    "is_active"
+                ]
+            },
+            "tax_rates": {
+                "purpose": "Tax configuration management",
+                "key_fields": [
+                    "tax_id",
+                    "tax_code",
+                    "tax_name",
+                    "tax_rate",
+                    "tax_type",
+                    "description",
+                    "is_active"
+                ]
+            },
+            "system_backups": {
+                "purpose": "Backup tracking and management",
+                "key_fields": [
+                    "backup_id",
+                    "backup_date",
+                    "backup_type",
+                    "file_path",
+                    "file_size",
+                    "status"
+                ]
+            },
+            "user_webauthn_credentials": {
+                "purpose": "Biometric authentication storage",
+                "key_fields": [
+                    "credential_id",
+                    "user_id",
+                    "public_key",
+                    "counter",
+                    "created_at",
+                    "last_used",
+                    "device_info"
+                ]
+            },
+            "notifications": {
+                "purpose": "User notification system (planned)",
+                "key_fields": [
+                    "notification_id",
+                    "user_id",
+                    "title",
+                    "message",
+                    "type",
+                    "is_read",
+                    "created_at",
+                    "related_entity_type",
+                    "related_entity_id",
+                    "action_url"
+                ]
+            }
+        },
+        "indexes": {
+            "performance_indexes": [
+                "idx_users_username",
+                "idx_users_active",
+                "idx_webauthn_user_id",
+                "idx_products_code",
+                "idx_products_category",
+                "idx_customers_code",
+                "idx_suppliers_code",
+                "idx_invoices_number",
+                "idx_invoices_date",
+                "idx_invoices_customer",
+                "idx_invoice_items_inv",
+                "idx_cash_balance_date",
+                "idx_expenses_date"
             ],
-            "pages": [
-                "DashboardHome",
-                "Users",
-                "Companies",
-                "Sales",
-                "Finance",
-                "Inventory",
-                "Reports"
-            ],
-            "services": [
-                "API layer",
-                "Mock data"
-            ],
-            "server": [
-                "Express.js",
-                "RESTful APIs"
-            ],
-            "db": [
-                "Schema.sql",
-                "Migrations"
+            "extended_indexes": [
+                "idx_sales_returns_number",
+                "idx_sales_returns_date",
+                "idx_sales_returns_customer",
+                "idx_sales_return_items_return",
+                "idx_purchase_invoices_number",
+                "idx_purchase_invoices_date",
+                "idx_purchase_invoices_supplier",
+                "idx_purchase_invoice_items_purchase",
+                "idx_payment_receipts_number",
+                "idx_payment_receipts_date",
+                "idx_payment_receipts_customer",
+                "idx_supplier_payments_number",
+                "idx_supplier_payments_date",
+                "idx_supplier_payments_supplier",
+                "idx_discount_vouchers_number",
+                "idx_discount_vouchers_date",
+                "idx_discount_vouchers_customer",
+                "idx_opening_cash_balance_date",
+                "idx_loan_taken_number",
+                "idx_loan_taken_date",
+                "idx_loan_return_loan",
+                "idx_loan_return_date",
+                "idx_expense_heads_code",
+                "idx_tax_rates_code",
+                "idx_system_backups_date"
             ]
         },
-        "auth": {
-            "jwt": "24h expiration",
-            "webauthn": "Biometric support",
-            "roles": [
-                "ADMIN",
-                "USER"
+        "sample_data": {
+            "companies": [
+                {
+                    "comp_code": "CMP01",
+                    "comp_name": "Lalani Traders",
+                    "city": "Karachi, Pakistan"
+                }
             ],
-            "perms": [
-                "INVENTORY_VIEW",
-                "SALES_MANAGE",
-                "FINANCE_VIEW",
-                "PARTNERS_MANAGE",
-                "USERS_VIEW",
-                "REPORTS_VIEW"
+            "categories": [
+                {
+                    "category_code": "TRUCK",
+                    "category_name": "Truck Tires"
+                },
+                {
+                    "category_code": "CAR",
+                    "category_name": "Passenger Car"
+                },
+                {
+                    "category_code": "SUV",
+                    "category_name": "SUV & 4x4"
+                },
+                {
+                    "category_code": "TUBE",
+                    "category_name": "Inner Tubes"
+                },
+                {
+                    "category_code": "AGRI",
+                    "category_name": "Agricultural"
+                }
+            ],
+            "users": [
+                {
+                    "username": "admin",
+                    "full_name": "System Administrator",
+                    "role": "ADMIN",
+                    "permissions": [
+                        "INVENTORY_VIEW",
+                        "INVENTORY_MANAGE",
+                        "SALES_VIEW",
+                        "SALES_MANAGE",
+                        "FINANCE_VIEW",
+                        "FINANCE_MANAGE",
+                        "PARTNERS_VIEW",
+                        "PARTNERS_MANAGE",
+                        "USERS_VIEW",
+                        "USERS_MANAGE",
+                        "REPORTS_VIEW"
+                    ]
+                },
+                {
+                    "username": "user",
+                    "full_name": "Sales Agent",
+                    "role": "USER",
+                    "permissions": [
+                        "INVENTORY_VIEW",
+                        "SALES_VIEW",
+                        "SALES_MANAGE",
+                        "PARTNERS_VIEW"
+                    ]
+                }
+            ],
+            "tax_rates": [
+                {
+                    "tax_code": "GST5",
+                    "tax_name": "GST 5%",
+                    "tax_rate": 5.00,
+                    "tax_type": "GST"
+                },
+                {
+                    "tax_code": "GST12",
+                    "tax_name": "GST 12%",
+                    "tax_rate": 12.00,
+                    "tax_type": "GST"
+                },
+                {
+                    "tax_code": "GST18",
+                    "tax_name": "GST 18%",
+                    "tax_rate": 18.00,
+                    "tax_type": "GST"
+                },
+                {
+                    "tax_code": "GST0",
+                    "tax_name": "GST Exempt",
+                    "tax_rate": 0.00,
+                    "tax_type": "GST"
+                }
             ]
-        },
-        "db_schema": {
-            "core": [
-                "companies",
-                "users",
-                "categories",
-                "products",
-                "customers",
-                "suppliers",
-                "sales_invoices",
-                "sales_invoice_items",
-                "cash_balance",
-                "expenses"
-            ],
-            "extended": [
-                "sales_returns",
-                "purchase_invoices",
-                "payment_receipts",
-                "supplier_payments",
-                "discount_vouchers",
-                "loan_taken",
-                "loan_return",
-                "tax_rates",
-                "expense_heads",
-                "system_backups"
-            ],
-            "relationships": "Multi-tenant with company isolation, audit trails, foreign keys"
         }
     },
-    "features": {
-        "dashboard": [
-            "KPI cards",
-            "Sales trends charts",
-            "Category performance",
-            "Top products",
-            "Recent invoices",
-            "Advanced analytics"
-        ],
-        "inventory": [
-            "Product CRUD",
-            "Stock tracking",
-            "Category management",
-            "Tax integration",
-            "Search/filter"
-        ],
-        "sales": [
-            "Invoice creation",
-            "Multi-item support",
-            "Tax calculation",
-            "Stock updates",
-            "Customer balance",
-            "Sales returns"
-        ],
-        "finance": [
-            "Cash flow tracking",
-            "Expense management",
-            "Payment processing",
-            "Balance calculation",
-            "Transaction history",
-            "Purchase invoices",
-            "Payment receipts",
-            "Supplier payments",
-            "Tax rates management",
-            "Expense heads"
-        ],
-        "partners": [
-            "Customer management",
-            "Supplier tracking",
-            "Credit limits",
-            "Outstanding balances",
-            "Tax info"
-        ],
-        "users": [
-            "Role-based access",
-            "Permission matrix",
-            "Biometric auth",
-            "User lifecycle",
-            "Audit trails"
-        ],
-        "reports": [
-            "Sales analytics",
-            "Financial reports",
-            "Inventory reports",
-            "Customer reports",
-            "Export capabilities"
-        ],
-        "companies": [
-            "Multi-company support",
-            "Company management",
-            "Tax configuration"
-        ],
-        "mobile": [
-            "Responsive design",
-            "PWA capabilities",
-            "Touch optimization"
-        ],
-        "api": [
-            "RESTful endpoints",
-            "Integration APIs",
-            "Authentication",
-            "Pagination"
-        ]
-    },
-    "api": {
-        "auth": [
-            "/api/auth/login",
-            "/api/auth/verify",
-            "/api/auth/webauthn/*"
-        ],
-        "core": [
-            "/api/users",
-            "/api/products",
-            "/api/customers",
-            "/api/suppliers",
-            "/api/categories",
-            "/api/invoices"
-        ],
-        "finance": [
-            "/api/finance/transactions",
-            "/api/finance/expenses",
-            "/api/finance/payment"
-        ],
-        "analytics": [
-            "/api/analytics/dashboard-metrics",
-            "/api/analytics/sales-trends"
-        ],
-        "extended": [
-            "/api/sales-returns",
-            "/api/purchase-invoices",
-            "/api/payment-receipts",
-            "/api/supplier-payments",
-            "/api/finance/loans",
-            "/api/finance/tax-rates"
-        ],
-        "patterns": {
-            "response": "{ data: [], pagination: { page, limit, total, totalPages } }",
-            "error": "{ message: 'Error description' }",
-            "pagination": "8 items per page default"
+    "api_endpoints": {
+        "authentication": {
+            "POST /api/auth/login": "User login with username/password",
+            "POST /api/auth/verify": "Verify JWT token",
+            "POST /api/auth/webauthn/register-start": "Start WebAuthn registration",
+            "POST /api/auth/webauthn/register-finish": "Complete WebAuthn registration",
+            "POST /api/auth/webauthn/login-start": "Start WebAuthn authentication",
+            "POST /api/auth/webauthn/login-finish": "Complete WebAuthn authentication",
+            "GET /api/auth/webauthn/credentials": "Get user's WebAuthn credentials",
+            "DELETE /api/auth/webauthn/credentials/:id": "Delete WebAuthn credential"
+        },
+        "users": {
+            "GET /api/users": "Get paginated users list",
+            "POST /api/users": "Create new user",
+            "PUT /api/users/:id": "Update user",
+            "DELETE /api/users/:id": "Delete user"
+        },
+        "inventory": {
+            "GET /api/products": "Get paginated products list",
+            "POST /api/products": "Create new product",
+            "PUT /api/products/:id": "Update product",
+            "DELETE /api/products/:id": "Delete product",
+            "GET /api/categories": "Get all categories"
+        },
+        "sales": {
+            "GET /api/invoices": "Get paginated sales invoices",
+            "POST /api/invoices": "Create sales invoice",
+            "GET /api/invoices/:id": "Get invoice details",
+            "PUT /api/invoices/:id": "Update invoice",
+            "DELETE /api/invoices/:id": "Delete invoice",
+            "GET /api/sales-returns": "Get paginated sales returns",
+            "POST /api/sales-returns": "Create sales return"
+        },
+        "customers_suppliers": {
+            "GET /api/customers": "Get paginated customers",
+            "POST /api/customers": "Create customer",
+            "PUT /api/customers/:id": "Update customer",
+            "DELETE /api/customers/:id": "Delete customer",
+            "GET /api/suppliers": "Get paginated suppliers"
+        },
+        "finance": {
+            "GET /api/finance/transactions": "Get cash balance transactions",
+            "GET /api/finance/opening-balance": "Get opening cash balance",
+            "POST /api/finance/opening-balance": "Set opening cash balance",
+            "GET /api/finance/loans": "Get loans",
+            "POST /api/finance/loans": "Create loan",
+            "GET /api/finance/loans/:loanId/returns": "Get loan returns",
+            "POST /api/finance/loan-returns": "Create loan return",
+            "GET /api/finance/expense-heads": "Get expense heads",
+            "POST /api/finance/expense-heads": "Create expense head",
+            "GET /api/finance/tax-rates": "Get tax rates",
+            "POST /api/finance/tax-rates": "Create tax rate",
+            "PUT /api/finance/tax-rates/:code": "Update tax rate",
+            "DELETE /api/finance/tax-rates/:code": "Delete tax rate",
+            "GET /api/payment-receipts": "Get payment receipts",
+            "POST /api/payment-receipts": "Create payment receipt",
+            "GET /api/supplier-payments": "Get supplier payments",
+            "POST /api/supplier-payments": "Create supplier payment",
+            "GET /api/discount-vouchers": "Get discount vouchers",
+            "POST /api/discount-vouchers": "Create discount voucher"
+        },
+        "companies": {
+            "GET /api/companies": "Get all companies",
+            "GET /api/companies/:code": "Get company details",
+            "POST /api/companies": "Create company",
+            "PUT /api/companies/:code": "Update company",
+            "DELETE /api/companies/:code": "Delete company"
+        },
+        "system": {
+            "GET /api/system/backups": "Get system backups",
+            "POST /api/system/backups": "Create system backup"
         }
-    },
-    "components": {
-        "layout": {
-            "Sidebar": "Permission-based navigation with mobile swipe",
-            "MobileTable": "Card-based mobile data display",
-            "Pagination": "Standard pagination with ellipsis",
-            "LoadingContext": "Global loading state management"
-        },
-        "pages": {
-            "DashboardHome": "Analytics with charts and KPIs",
-            "Users": "User management with permission matrix",
-            "Companies": "Multi-company with tax info",
-            "Sales": "Invoice creation and management",
-            "Finance": "Transaction and expense tracking",
-            "Inventory": "Product catalog management",
-            "Reports": "Analytics and reporting interface"
-        },
-        "reusable": [
-            "Modal forms",
-            "Data tables",
-            "Form controls",
-            "Notification system"
-        ]
-    },
-    "future": {
-        "phase3": [
-            "Loan management",
-            "System backups"
-        ],
-        "phase4_7": [
-            "Notification system",
-            "Global search"
-        ]
     },
     "business_logic": {
-        "sales": [
-            "Invoice creation → Tax calc → Stock update → Customer balance → Payment processing"
+        "inventory_management": {
+            "stock_tracking": "Real-time inventory levels with minimum stock alerts",
+            "sales_integration": "Automatic stock deduction on sales invoice creation",
+            "purchase_integration": "Automatic stock increase on purchase invoice creation",
+            "return_integration": "Stock restoration on sales returns"
+        },
+        "sales_process": {
+            "invoice_creation": "Multi-item invoices with automatic tax calculation (5%)",
+            "customer_credit": "Credit limit enforcement and outstanding balance tracking",
+            "payment_tracking": "Balance due management with payment receipts",
+            "return_processing": "Sales return creation with stock restoration and balance adjustments"
+        },
+        "financial_management": {
+            "cash_flow_tracking": "Comprehensive transaction ledger (sales, purchases, expenses, receipts, payments)",
+            "expense_categorization": "Expense heads for organized expense tracking",
+            "supplier_payments": "Outstanding balance management with payment tracking",
+            "loan_management": "Loan tracking with interest calculations and repayment recording"
+        },
+        "user_permissions": {
+            "role_based_access": "ADMIN and USER roles with granular permissions",
+            "available_permissions": [
+                "INVENTORY_VIEW",
+                "INVENTORY_MANAGE",
+                "SALES_VIEW",
+                "SALES_MANAGE",
+                "FINANCE_VIEW",
+                "FINANCE_MANAGE",
+                "PARTNERS_VIEW",
+                "PARTNERS_MANAGE",
+                "USERS_VIEW",
+                "USERS_MANAGE",
+                "REPORTS_VIEW"
+            ],
+            "company_isolation": "Data filtering based on user's default company"
+        },
+        "tax_system": {
+            "gst_calculation": "Configurable GST rates with automatic calculation",
+            "tax_codes": "GST5 (5%), GST12 (12%), GST18 (18%), GST0 (Exempt)",
+            "product_tax_assignment": "Tax rates assigned per product",
+            "invoice_taxation": "Automatic tax calculation on sales invoices"
+        }
+    },
+    "frontend_architecture": {
+        "component_structure": {
+            "layout_components": [
+                "Sidebar",
+                "MobileTable",
+                "Pagination"
+            ],
+            "page_components": [
+                "Dashboard",
+                "Inventory",
+                "Sales",
+                "Finance",
+                "Users",
+                "Reports",
+                "Companies"
+            ],
+            "feature_components": [
+                "SalesReturns",
+                "TaxRates",
+                "Partners"
+            ],
+            "utility_components": [
+                "LoadingContext",
+                "NotificationContext",
+                "FullScreenLoader"
+            ]
+        },
+        "routing_structure": {
+            "/": "Landing page (redirects to dashboard if authenticated)",
+            "/dashboard": "Main dashboard with analytics",
+            "/dashboard/inventory": "Product management",
+            "/dashboard/sales": "Sales invoices and returns",
+            "/dashboard/finance": "Financial management",
+            "/dashboard/partners": "Customers and suppliers",
+            "/dashboard/users": "User management",
+            "/dashboard/reports": "Analytics and reporting",
+            "/dashboard/companies": "Company management",
+            "/dashboard/tax-rates": "Tax configuration"
+        },
+        "state_management": {
+            "local_state": "React hooks for component-level state",
+            "api_integration": "Centralized service layer (api.ts)",
+            "authentication": "Persistent auth state with localStorage",
+            "global_context": "Loading and notification contexts"
+        },
+        "mobile_responsiveness": {
+            "mobile_table_component": "Card-based layout for small screens",
+            "responsive_breakpoints": "Tailwind responsive classes (sm, md, lg)",
+            "touch_optimization": "Swipe gestures and touch-friendly buttons"
+        }
+    },
+    "security_features": {
+        "authentication": {
+            "jwt_tokens": "Secure token-based authentication with 24h expiration",
+            "webauthn_biometrics": "Fingerprint/face recognition support",
+            "password_security": "Hashed password storage (in production)",
+            "session_management": "Secure token validation and cleanup"
+        },
+        "authorization": {
+            "role_based_access": "ADMIN/USER roles with permission arrays",
+            "api_middleware": "Token verification on protected routes",
+            "company_isolation": "Data access limited to user's company",
+            "audit_trails": "Created/updated by tracking on all entities"
+        },
+        "data_protection": {
+            "input_validation": "Server-side validation on all endpoints",
+            "sql_injection_prevention": "Parameterized queries",
+            "cors_configuration": "Cross-origin request control",
+            "error_handling": "Secure error responses without data leakage"
+        }
+    },
+    "planned_features": {
+        "notification_system": {
+            "status": "Planned",
+            "priority": "High",
+            "description": "Real-time alerts for business events (low stock, overdue invoices, large transactions)",
+            "database_table": "notifications",
+            "implementation_phases": [
+                "Database",
+                "Backend API",
+                "Frontend Components",
+                "Real-time Updates"
+            ]
+        },
+        "global_search": {
+            "status": "Planned",
+            "priority": "Medium",
+            "description": "Search across all ERP data (products, customers, invoices, suppliers)",
+            "search_entities": [
+                "Products",
+                "Customers",
+                "Invoices",
+                "Suppliers",
+                "Users"
+            ],
+            "search_fields": {
+                "products": [
+                    "prod_code",
+                    "prod_name",
+                    "category_name"
+                ],
+                "customers": [
+                    "cust_code",
+                    "cust_name",
+                    "city",
+                    "phone"
+                ],
+                "invoices": [
+                    "inv_number",
+                    "cust_name"
+                ],
+                "suppliers": [
+                    "supplier_code",
+                    "supplier_name",
+                    "city",
+                    "phone"
+                ],
+                "users": [
+                    "username",
+                    "full_name"
+                ]
+            }
+        }
+    },
+    "development_guidelines": {
+        "code_standards": {
+            "typescript": "Strict typing with comprehensive interfaces",
+            "react_patterns": "Functional components with hooks",
+            "naming_conventions": "camelCase for variables/functions, PascalCase for components",
+            "error_handling": "Try-catch blocks with user-friendly notifications"
+        },
+        "database_standards": {
+            "constraints": "Foreign key constraints and referential integrity",
+            "indexing": "Strategic indexes on frequently queried fields",
+            "audit_fields": "created_at, updated_at, created_by, updated_by on all tables",
+            "data_types": "Appropriate PostgreSQL data types with precision"
+        },
+        "api_design": {
+            "restful_endpoints": "Consistent REST API patterns",
+            "response_format": "Standardized JSON responses with pagination",
+            "error_codes": "HTTP status codes with descriptive messages",
+            "validation": "Input validation with detailed error messages"
+        },
+        "ui_ux_patterns": {
+            "design_system": "Consistent Tailwind CSS styling",
+            "mobile_first": "Responsive design with mobile optimization",
+            "loading_states": "Proper loading indicators and error states",
+            "user_feedback": "Toast notifications for actions and errors"
+        }
+    },
+    "deployment_configuration": {
+        "environment_variables": {
+            "DATABASE_URL": "PostgreSQL connection string",
+            "JWT_SECRET": "JWT signing secret",
+            "WEBAUTHN_RP_ID": "WebAuthn relying party ID (domain)",
+            "WEBAUTHN_ORIGIN": "WebAuthn origin URL",
+            "NODE_ENV": "Environment (development/production)",
+            "PORT": "Server port (default: 5000)"
+        },
+        "build_commands": {
+            "development": "npm run dev (Vite dev server)",
+            "production_build": "npm run build (TypeScript compilation + Vite build)",
+            "server_start": "npm start (Production server)",
+            "database_setup": "npm run db:setup (Initialize database and sample data)"
+        },
+        "docker_support": {
+            "available": true,
+            "commands": {
+                "start_postgres": "npm run db:up",
+                "stop_postgres": "npm run db:down",
+                "reset_database": "npm run db:reset"
+            }
+        }
+    },
+    "current_implementation_status": {
+        "completed_features": [
+            "User authentication with WebAuthn biometrics",
+            "Multi-tenant company architecture",
+            "Complete inventory management",
+            "Sales invoicing with automatic stock updates",
+            "Customer and supplier management",
+            "Financial transaction tracking",
+            "Expense management with categorization",
+            "User role and permission system",
+            "Dashboard analytics and reporting",
+            "Mobile-responsive design",
+            "Sales returns processing",
+            "Purchase invoice management",
+            "Payment receipts and supplier payments",
+            "Discount voucher system",
+            "Loan management",
+            "Tax rate configuration",
+            "System backup tracking"
         ],
-        "purchase": [
-            "Purchase order → Stock increase → Supplier balance → Payment recording"
+        "recently_added": [
+            "Sales returns view functionality with detailed return information",
+            "Comprehensive return summary with financial calculations",
+            "Original invoice comparison in returns",
+            "Cash balance transaction tracking for returns"
         ],
-        "finance": [
-            "Expense tracking → Cash flow impact → Payment processing → Balance calculation → Audit trails"
+        "planned_improvements": [
+            "Notification system implementation",
+            "Global search functionality",
+            "Enhanced error monitoring",
+            "Unit and integration testing",
+            "API documentation with Swagger",
+            "Performance monitoring",
+            "Advanced analytics and reporting"
         ]
     },
-    "mobile": {
-        "responsive": "Tailwind breakpoints (sm/md/lg/xl)",
-        "components": "MobileTable for card layouts",
-        "touch": "Swipe gestures, touch-friendly buttons",
-        "charts": "Adaptive sizing and layouts"
+    "business_rules": {
+        "inventory_rules": {
+            "stock_updates": "Sales decrease stock, purchases increase stock, returns restore stock",
+            "minimum_stock_alerts": "Warnings when current_stock <= min_stock_level",
+            "negative_stock_prevention": "Validation prevents selling more than available stock"
+        },
+        "sales_rules": {
+            "tax_calculation": "5% GST applied to all sales (configurable per product)",
+            "credit_limit_enforcement": "Sales blocked if customer exceeds credit limit",
+            "invoice_numbering": "Automatic invoice numbering (INV-{timestamp})",
+            "balance_tracking": "Outstanding balance updated on sales and payments"
+        },
+        "financial_rules": {
+            "cash_balance_tracking": "All financial transactions recorded in cash_balance table",
+            "double_entry_accounting": "Debit/credit system for accurate financial tracking",
+            "supplier_balance_management": "Outstanding balances updated on purchases and payments",
+            "expense_categorization": "All expenses linked to expense heads"
+        },
+        "return_rules": {
+            "return_quantity_limits": "Cannot return more than originally purchased",
+            "stock_restoration": "Returned items automatically added back to inventory",
+            "balance_adjustments": "Customer outstanding balance adjusted on returns",
+            "tax_refund_calculation": "Tax refunded based on return amount"
+        }
     },
-    "performance": {
-        "db": [
-            "Strategic indexing",
-            "Connection pooling",
-            "Query optimization"
+    "data_flows": {
+        "sales_invoice_creation": [
+            "Validate customer credit limit",
+            "Check product stock availability",
+            "Calculate taxes (5% GST)",
+            "Create sales_invoice record",
+            "Create sales_invoice_items records",
+            "Decrease product current_stock",
+            "Update customer outstanding_balance",
+            "Create cash_balance transaction (SALES type)"
         ],
-        "api": [
-            "Pagination",
-            "Caching",
-            "Error handling"
+        "sales_return_processing": [
+            "Validate return quantity against original invoice",
+            "Create sales_returns record",
+            "Create sales_return_items records",
+            "Increase product current_stock (stock restoration)",
+            "Update customer outstanding_balance (decrease)",
+            "Create cash_balance transaction (RECEIPT type for refund)"
         ],
-        "frontend": [
-            "Code splitting",
-            "Tree shaking",
-            "Lazy loading"
+        "payment_receipt_processing": [
+            "Validate payment amount",
+            "Create payment_receipts record",
+            "Update customer outstanding_balance (decrease)",
+            "Create cash_balance transaction (RECEIPT type)"
+        ],
+        "purchase_invoice_processing": [
+            "Create purchase_invoices record",
+            "Create purchase_invoice_items records",
+            "Increase product current_stock",
+            "Update supplier outstanding_balance (increase)",
+            "Create cash_balance transaction (PURCHASE type)"
         ]
-    },
-    "security": {
-        "auth": [
-            "JWT + WebAuthn",
-            "Role-based permissions"
-        ],
-        "validation": [
-            "Server-side validation",
-            "SQL injection prevention"
-        ],
-        "audit": [
-            "User action tracking",
-            "Session management"
-        ]
-    },
-    "deployment": {
-        "local": "PostgreSQL + Node.js + npm scripts",
-        "docker": "Containerized database",
-        "build": "Vite optimized production builds",
-        "env": "Separate dev/prod configs",
-        "pwa": "Offline capabilities"
     }
 }

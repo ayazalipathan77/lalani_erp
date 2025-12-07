@@ -3,12 +3,17 @@ const CACHE_NAME = 'lalani-erp-v1';
 const STATIC_CACHE = 'lalani-erp-static-v1';
 const DYNAMIC_CACHE = 'lalani-erp-dynamic-v1';
 
+// Listen for skip waiting message from client
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
+
 // Assets to cache immediately
 const STATIC_ASSETS = [
     '/',
-    '/index.html',
-    '/manifest.json',
-    '/favicon.ico'
+    '/manifest.json'
 ];
 
 // Install event - cache static assets
@@ -21,7 +26,8 @@ self.addEventListener('install', (event) => {
                 return cache.addAll(STATIC_ASSETS);
             })
             .catch((error) => {
-                console.error('Service Worker: Failed to cache static assets', error);
+                console.warn('Service Worker: Some static assets failed to cache (this is normal for dev)', error);
+                // Don't fail installation if caching fails
             })
     );
     self.skipWaiting();
@@ -56,24 +62,9 @@ self.addEventListener('fetch', (event) => {
     // Skip cross-origin requests
     if (url.origin !== location.origin) return;
 
-    // Handle API requests differently
+    // Handle API requests differently - don't cache them to ensure fresh data
     if (url.pathname.startsWith('/api/')) {
-        event.respondWith(
-            caches.open(DYNAMIC_CACHE).then((cache) => {
-                return fetch(request)
-                    .then((response) => {
-                        // Cache successful API responses
-                        if (response.status === 200) {
-                            cache.put(request, response.clone());
-                        }
-                        return response;
-                    })
-                    .catch(() => {
-                        // Return cached version if available
-                        return cache.match(request);
-                    });
-            })
-        );
+        // Skip service worker caching for API requests to ensure real-time data
         return;
     }
 

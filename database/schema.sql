@@ -240,7 +240,9 @@ CREATE TABLE IF NOT EXISTS sales_returns (
     status VARCHAR(20) DEFAULT 'COMPLETED',
     comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by INTEGER REFERENCES users(user_id)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id),
+    updated_by INTEGER REFERENCES users(user_id)
 );
 
 CREATE TABLE IF NOT EXISTS sales_return_items (
@@ -262,7 +264,9 @@ CREATE TABLE IF NOT EXISTS purchase_invoices (
     status VARCHAR(20) DEFAULT 'RECEIVED',
     comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by INTEGER REFERENCES users(user_id)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id),
+    updated_by INTEGER REFERENCES users(user_id)
 );
 
 CREATE TABLE IF NOT EXISTS purchase_invoice_items (
@@ -413,6 +417,9 @@ ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS shipping_address TEXT;
 ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS shipping_charges DECIMAL(12,2) DEFAULT 0;
 
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS head_code VARCHAR(20) REFERENCES expense_heads(head_code);
+
+ALTER TABLE sales_returns ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE sales_returns ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(user_id);
 
 -- Set default tax rate for existing products
 UPDATE products SET tax_code = 'GST5' WHERE tax_code IS NULL;

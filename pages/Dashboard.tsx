@@ -13,6 +13,7 @@ const Sales = lazy(() => import('./dashboard/Sales'));
 const SalesReturns = lazy(() => import('./dashboard/SalesReturns'));
 const Finance = lazy(() => import('./dashboard/Finance'));
 const PurchaseInvoices = lazy(() => import('./dashboard/PurchaseInvoices'));
+const ExpenseHeads = lazy(() => import('./dashboard/ExpenseHeads'));
 const Partners = lazy(() => import('./dashboard/Partners'));
 const Users = lazy(() => import('./dashboard/Users'));
 const Companies = lazy(() => import('./dashboard/Companies'));
@@ -94,8 +95,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       <Sidebar
         user={user}
         onLogout={onLogout}
-        selectedCompany={selectedCompany}
-        onCompanyChange={handleCompanyChange}
         isMobileOpen={isMobileSidebarOpen}
         onMobileClose={() => setIsMobileSidebarOpen(false)}
       />
@@ -215,6 +214,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <Route path="/purchase-invoices" element={
                 <ProtectedRoute user={user} permission="FINANCE_VIEW">
                   <PurchaseInvoices />
+                </ProtectedRoute>
+              } />
+
+              <Route path="/expense-heads" element={
+                <ProtectedRoute user={user} permission="FINANCE_VIEW">
+                  <ExpenseHeads />
                 </ProtectedRoute>
               } />
 

@@ -8,7 +8,7 @@ import { formatTableDate } from '../../src/utils/dateUtils';
 import MobileTable from '../../components/MobileTable';
 
 const SalesReturns: React.FC = () => {
-    const [view, setView] = useState<'list' | 'create'>('list');
+    const [view, setView] = useState<'list' | 'create' | 'view'>('list');
     const [returns, setReturns] = useState<SalesReturn[]>([]);
     const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
@@ -17,6 +17,11 @@ const SalesReturns: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const { showLoader, hideLoader } = useLoading();
     const { showNotification } = useNotification();
+
+    // View return state
+    const [viewingReturn, setViewingReturn] = useState<SalesReturn | null>(null);
+    const [originalInvoice, setOriginalInvoice] = useState<SalesInvoice | null>(null);
+    const [returnTransactions, setReturnTransactions] = useState<any[]>([]);
 
     // Create Return State
     const [selectedInvoice, setSelectedInvoice] = useState('');
@@ -116,8 +121,12 @@ const SalesReturns: React.FC = () => {
             }
 
             if (editingReturn) {
-                // Update logic would go here
-                showNotification("Return update not yet implemented", "warning");
+                await api.salesReturns.update(editingReturn.return_id, {
+                    inv_id: invoice.inv_id,
+                    items: returnItems,
+                    return_date: returnDate
+                });
+                showNotification("Return Updated Successfully!", "success");
             } else {
                 await api.salesReturns.create({
                     inv_id: invoice.inv_id,
@@ -150,6 +159,34 @@ const SalesReturns: React.FC = () => {
         setReturnDate(returnItem.return_date.split('T')[0]);
         setReturnItems(returnItem.items || []);
         setView('create');
+    };
+
+    const handleViewReturn = async (returnItem: SalesReturn) => {
+        setViewingReturn(returnItem);
+        setIsLoading(true);
+
+        try {
+            // Find the original invoice
+            const invoice = invoices.find(inv => inv.inv_id === returnItem.inv_id);
+            setOriginalInvoice(invoice || null);
+
+            // Fetch cash transactions related to this return
+            const transactionsResponse = await api.finance.getTransactions(1, 100);
+            const returnTransactions = transactionsResponse.data.filter((trans: any) =>
+                trans.description.includes('Return') ||
+                trans.description.includes('RTN-') ||
+                trans.description.includes(returnItem.return_number)
+            );
+            setReturnTransactions(returnTransactions);
+
+        } catch (error) {
+            console.error('Error fetching return details:', error);
+            showNotification('Error loading return details', 'error');
+        } finally {
+            setIsLoading(false);
+        }
+
+        setView('view');
     };
 
     // Helper function to get customer name from code
@@ -241,12 +278,22 @@ const SalesReturns: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                onClick={() => handleEditReturn(ret)}
-                                                className="text-slate-400 hover:text-brand-600 transition-colors"
-                                            >
-                                                <Edit2 className="w-4 h-4" />
-                                            </button>
+                                            <div className="flex items-center justify-end space-x-2">
+                                                <button
+                                                    onClick={() => handleViewReturn(ret)}
+                                                    className="text-slate-400 hover:text-blue-600 transition-colors"
+                                                    title="View Return"
+                                                >
+                                                    <FileText className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleEditReturn(ret)}
+                                                    className="text-slate-400 hover:text-brand-600 transition-colors"
+                                                    title="Edit Return"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -288,7 +335,7 @@ const SalesReturns: React.FC = () => {
                                 label: 'Status',
                                 render: (value) => (
                                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
-                              ${value === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                               ${value === 'COMPLETED' ? 'bg-green-100 text-green-800' :
                                             value === 'PENDING' ? 'bg-blue-100 text-blue-800' :
                                                 'bg-red-100 text-red-800'}`}>
                                         {value}
@@ -298,7 +345,7 @@ const SalesReturns: React.FC = () => {
                         ]}
                     />
                 </div>
-            ) : (
+            ) : view === 'create' ? (
                 /* CREATE RETURN VIEW */
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 overflow-hidden">
                     <div className="lg:col-span-2 space-y-6">
@@ -482,7 +529,157 @@ const SalesReturns: React.FC = () => {
                         </div>
                     </div>
                 </div>
-            )}
+            ) : view === 'view' && viewingReturn ? (
+                /* VIEW RETURN DETAILS */
+                <div className="space-y-6">
+                    {/* Header */}
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 lg:p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 className="text-2xl font-bold text-slate-900">Return {viewingReturn.return_number}</h2>
+                                <p className="text-slate-500">Return details and related information</p>
+                            </div>
+                            <button onClick={() => setView('list')} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
+                                <ChevronLeft className="w-4 h-4 mr-1" /> Back to List
+                            </button>
+                        </div>
+
+                        {/* Return Summary */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                            <div className="bg-slate-50 rounded-lg p-4">
+                                <h3 className="text-sm font-medium text-slate-500 mb-2">Return Details</h3>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-slate-600">Date:</span>
+                                        <span className="text-sm font-medium">{formatTableDate(viewingReturn.return_date)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-slate-600">Invoice:</span>
+                                        <span className="text-sm font-medium text-brand-600">{getInvoiceNumber(viewingReturn.inv_id)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-slate-600">Customer:</span>
+                                        <span className="text-sm font-medium">{getCustomerName(viewingReturn.cust_code)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-slate-600">Status:</span>
+                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                                            ${viewingReturn.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                                                viewingReturn.status === 'PENDING' ? 'bg-blue-100 text-blue-800' :
+                                                    'bg-red-100 text-red-800'}`}>
+                                            {viewingReturn.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-50 rounded-lg p-4">
+                                <h3 className="text-sm font-medium text-slate-500 mb-2">Financial Summary</h3>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-slate-600">Return Amount:</span>
+                                        <span className="text-sm font-medium">PKR {viewingReturn.total_amount.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-slate-600">Tax Refund:</span>
+                                        <span className="text-sm font-medium">PKR {(viewingReturn.total_amount * 0.05).toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-slate-600">Net Refund:</span>
+                                        <span className="text-sm font-medium">PKR {(viewingReturn.total_amount * 0.95).toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-50 rounded-lg p-4">
+                                <h3 className="text-sm font-medium text-slate-500 mb-2">Original Invoice</h3>
+                                <div className="space-y-2">
+                                    {originalInvoice && (
+                                        <>
+                                            <div className="flex justify-between">
+                                                <span className="text-sm text-slate-600">Invoice Total:</span>
+                                                <span className="text-sm font-medium">PKR {originalInvoice.total_amount.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-sm text-slate-600">Return %:</span>
+                                                <span className="text-sm font-medium">
+                                                    {((viewingReturn.total_amount / originalInvoice.total_amount) * 100).toFixed(1)}%
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-sm text-slate-600">Cash Transactions:</span>
+                                                <span className="text-sm font-medium">{returnTransactions.length}</span>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Return Items */}
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 lg:p-6">
+                        <h3 className="text-lg font-bold text-slate-900 mb-4">Returned Items</h3>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-slate-200">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Product</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Qty</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Price</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200 bg-white">
+                                    {viewingReturn.items?.map((item, idx) => (
+                                        <tr key={idx}>
+                                            <td className="px-4 py-3 text-sm text-slate-900">{item.prod_name}</td>
+                                            <td className="px-4 py-3 text-sm text-slate-900 text-right">{item.quantity}</td>
+                                            <td className="px-4 py-3 text-sm text-slate-500 text-right">PKR {item.unit_price.toLocaleString()}</td>
+                                            <td className="px-4 py-3 text-sm font-medium text-slate-900 text-right">PKR {item.line_total.toLocaleString()}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Cash Balance Summary */}
+                    {returnTransactions.length > 0 && (
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 lg:p-6">
+                            <h3 className="text-lg font-bold text-slate-900 mb-4">Cash Balance Summary (Return Refunds)</h3>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-slate-200">
+                                    <thead className="bg-slate-50">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Type</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Description</th>
+                                            <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Debit</th>
+                                            <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Credit</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200 bg-white">
+                                        {returnTransactions.map((trans) => (
+                                            <tr key={trans.trans_id}>
+                                                <td className="px-4 py-3 text-sm text-slate-500">{formatTableDate(trans.trans_date)}</td>
+                                                <td className="px-4 py-3 text-sm text-slate-900">{trans.trans_type}</td>
+                                                <td className="px-4 py-3 text-sm text-slate-900">{trans.description}</td>
+                                                <td className="px-4 py-3 text-sm text-right font-medium text-green-600">
+                                                    {trans.debit_amount > 0 ? `PKR ${trans.debit_amount.toLocaleString()}` : '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-right font-medium text-red-600">
+                                                    {trans.credit_amount > 0 ? `PKR ${trans.credit_amount.toLocaleString()}` : '-'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : null}
         </div>
     );
 };

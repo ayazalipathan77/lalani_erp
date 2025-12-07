@@ -714,6 +714,22 @@ export const api = {
         body: JSON.stringify(returnData)
       });
       return res.json();
+    },
+    update: async (id: number, returnData: {
+      inv_id: number;
+      items: SalesReturnItem[];
+      return_date: string;
+    }): Promise<SalesReturn> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {} as SalesReturn;
+      }
+      const res = await fetch(`/api/sales-returns/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(returnData)
+      });
+      return res.json();
     }
   },
 
@@ -740,6 +756,24 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(purchaseData)
       });
+      return res.json();
+    },
+    update: async (id: number, purchaseData: {
+      supplier_code: string;
+      items: PurchaseInvoiceItem[];
+      purchase_date: string;
+      status?: 'RECEIVED' | 'PENDING' | 'CANCELLED';
+    }): Promise<PurchaseInvoice> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {} as PurchaseInvoice;
+      }
+      const res = await fetch(`/api/purchase-invoices/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(purchaseData)
+      });
+      if (!res.ok) throw new Error("Failed to update purchase invoice");
       return res.json();
     }
   },
@@ -978,6 +1012,37 @@ export const api = {
         body: JSON.stringify(headData)
       });
       return res.json();
+    },
+    update: async (code: string, headData: {
+      head_name: string;
+      description: string;
+    }): Promise<ExpenseHead> => {
+      if (USE_MOCK) {
+        await delay(500);
+        return {
+          head_code: code,
+          head_name: headData.head_name,
+          description: headData.description,
+          is_active: true
+        };
+      }
+      const res = await fetch(`/api/finance/expense-heads/${code}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(headData)
+      });
+      if (!res.ok) throw new Error("Failed to update expense head");
+      return res.json();
+    },
+    delete: async (code: string): Promise<void> => {
+      if (USE_MOCK) {
+        await delay(300);
+        return;
+      }
+      const res = await fetch(`/api/finance/expense-heads/${code}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error("Failed to delete expense head");
     }
   },
 

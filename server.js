@@ -1441,6 +1441,116 @@ app.post('/api/sales-returns', async (req, res) => {
     }
 });
 
+// Update Sales Return
+app.put('/api/sales-returns/:id', async (req, res) => {
+    const { id } = req.params;
+    const { inv_id, items, return_date } = req.body;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // Get original return
+        const originalReturn = await client.query(
+            'SELECT * FROM sales_returns WHERE return_id = $1',
+            [id]
+        );
+
+        if (originalReturn.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Sales return not found' });
+        }
+
+        const oldReturn = originalReturn.rows[0];
+
+        // Get original return items
+        const originalItems = await client.query(
+            'SELECT * FROM sales_return_items WHERE return_id = $1',
+            [id]
+        );
+
+        // Reverse stock changes for original items
+        for (const item of originalItems.rows) {
+            await client.query(
+                `UPDATE products SET current_stock = current_stock - $1 WHERE prod_code = $2`,
+                [item.quantity, item.prod_code]
+            );
+        }
+
+        // Reverse customer balance adjustment
+        await client.query(
+            `UPDATE customers SET outstanding_balance = outstanding_balance + $1 WHERE cust_code = $2`,
+            [oldReturn.total_amount, oldReturn.cust_code]
+        );
+
+        // Reverse invoice balance adjustment
+        await client.query(
+            `UPDATE sales_invoices SET balance_due = balance_due + $1 WHERE inv_id = $2`,
+            [oldReturn.total_amount, oldReturn.inv_id]
+        );
+
+        // Get new invoice details
+        const invResult = await client.query(
+            'SELECT * FROM sales_invoices WHERE inv_id = $1',
+            [inv_id]
+        );
+
+        if (invResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Invoice not found' });
+        }
+
+        const invoice = invResult.rows[0];
+        const totalAmount = items.reduce((acc, item) => acc + Number(item.line_total), 0);
+
+        // Update sales return
+        const updateResult = await client.query(
+            `UPDATE sales_returns SET inv_id=$1, cust_code=$2, total_amount=$3, return_date=$4, updated_by=$5
+             WHERE return_id=$6 RETURNING *`,
+            [inv_id, invoice.cust_code, totalAmount, return_date, req.user?.id, id]
+        );
+
+        // Delete old return items
+        await client.query('DELETE FROM sales_return_items WHERE return_id = $1', [id]);
+
+        // Add new return items and restore stock
+        for (const item of items) {
+            await client.query(
+                `INSERT INTO sales_return_items (return_id, prod_code, quantity, unit_price, line_total)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [id, item.prod_code, item.quantity, item.unit_price, item.line_total]
+            );
+
+            // Restore stock
+            await client.query(
+                `UPDATE products SET current_stock = current_stock + $1 WHERE prod_code = $2`,
+                [item.quantity, item.prod_code]
+            );
+        }
+
+        // Update customer balance (reduce outstanding)
+        await client.query(
+            `UPDATE customers SET outstanding_balance = outstanding_balance - $1 WHERE cust_code = $2`,
+            [totalAmount, invoice.cust_code]
+        );
+
+        // Update invoice balance
+        await client.query(
+            `UPDATE sales_invoices SET balance_due = balance_due - $1 WHERE inv_id = $2`,
+            [totalAmount, inv_id]
+        );
+
+        await client.query('COMMIT');
+        res.json(updateResult.rows[0]);
+    } catch (e) {
+        await client.query('ROLLBACK');
+        logger.error('Sales return update error', e, { returnId: id, userId: req.user?.id });
+        res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
 // Purchase Invoices
 app.get('/api/purchase-invoices', async (req, res) => {
     try {
@@ -1525,6 +1635,106 @@ app.post('/api/purchase-invoices', async (req, res) => {
     } catch (e) {
         await client.query('ROLLBACK');
         logger.error('Purchase invoice creation error', e, { userId: req.user?.id, supplierCode: supplier_code });
+        res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// Update Purchase Invoice
+app.put('/api/purchase-invoices/:id', async (req, res) => {
+    const { id } = req.params;
+    const { supplier_code, items, purchase_date, status } = req.body;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // Get original purchase invoice
+        const originalInv = await client.query(
+            'SELECT * FROM purchase_invoices WHERE purchase_id = $1',
+            [id]
+        );
+
+        if (originalInv.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Purchase invoice not found' });
+        }
+
+        const oldInv = originalInv.rows[0];
+
+        // Get original purchase invoice items
+        const originalItems = await client.query(
+            'SELECT * FROM purchase_invoice_items WHERE purchase_id = $1',
+            [id]
+        );
+
+        // Reverse stock changes for original items
+        for (const item of originalItems.rows) {
+            await client.query(
+                `UPDATE products SET current_stock = current_stock - $1 WHERE prod_code = $2`,
+                [item.quantity, item.prod_code]
+            );
+        }
+
+        // Reverse supplier balance if it was different
+        if (oldInv.supplier_code !== supplier_code) {
+            await client.query(
+                `UPDATE suppliers SET outstanding_balance = outstanding_balance - $1 WHERE supplier_code = $2`,
+                [oldInv.total_amount, oldInv.supplier_code]
+            );
+        }
+
+        // Calculate new totals
+        const totalAmount = items.reduce((acc, item) => acc + Number(item.line_total), 0);
+
+        // Update purchase invoice header
+        const updateRes = await client.query(
+            `UPDATE purchase_invoices SET purchase_date=$1, supplier_code=$2, total_amount=$3, status=$4, updated_by=$5
+             WHERE purchase_id=$6 RETURNING *`,
+            [purchase_date, supplier_code, totalAmount, status || 'PENDING', req.user?.id, id]
+        );
+
+        // Delete old purchase invoice items
+        await client.query('DELETE FROM purchase_invoice_items WHERE purchase_id = $1', [id]);
+
+        // Insert new purchase items and increase stock
+        for (const item of items) {
+            await client.query(
+                `INSERT INTO purchase_invoice_items (purchase_id, prod_code, quantity, unit_price, line_total)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [id, item.prod_code, item.quantity, item.unit_price, item.line_total]
+            );
+
+            // Increase stock
+            await client.query(
+                `UPDATE products SET current_stock = current_stock + $1 WHERE prod_code = $2`,
+                [item.quantity, item.prod_code]
+            );
+        }
+
+        // Update supplier balance for new invoice
+        if (oldInv.supplier_code !== supplier_code) {
+            await client.query(
+                `UPDATE suppliers SET outstanding_balance = outstanding_balance + $1 WHERE supplier_code = $2`,
+                [totalAmount, supplier_code]
+            );
+        } else {
+            // Update balance for same supplier (amount change)
+            const balanceDiff = totalAmount - oldInv.total_amount;
+            if (balanceDiff !== 0) {
+                await client.query(
+                    `UPDATE suppliers SET outstanding_balance = outstanding_balance + $1 WHERE supplier_code = $2`,
+                    [balanceDiff, supplier_code]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json(updateRes.rows[0]);
+    } catch (e) {
+        await client.query('ROLLBACK');
+        logger.error('Purchase invoice update error', e, { purchaseId: id, userId: req.user?.id });
         res.status(500).json({ error: e.message });
     } finally {
         client.release();
@@ -1872,6 +2082,45 @@ app.post('/api/finance/expense-heads', async (req, res) => {
         res.json(result.rows[0]);
     } catch (err) {
         logger.error('Expense head creation error', err, { userId: req.user?.id });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/finance/expense-heads/:code', async (req, res) => {
+    const { head_name, description } = req.body;
+
+    try {
+        const result = await pool.query(
+            `UPDATE expense_heads SET head_name=$1, description=$2, updated_at=CURRENT_TIMESTAMP
+             WHERE head_code=$3 RETURNING *`,
+            [head_name, description, req.params.code]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Expense head not found' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        logger.error('Expense head update error', err, { userId: req.user?.id, headCode: req.params.code });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/finance/expense-heads/:code', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'UPDATE expense_heads SET is_active = false WHERE head_code = $1',
+            [req.params.code]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: 'Expense head not found' });
+        }
+
+        res.json({ message: 'Expense head deactivated successfully' });
+    } catch (err) {
+        logger.error('Expense head deletion error', err, { userId: req.user?.id, headCode: req.params.code });
         res.status(500).json({ error: err.message });
     }
 });

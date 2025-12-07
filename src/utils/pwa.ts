@@ -1,5 +1,7 @@
 // PWA utilities for Lalani ERP
 
+let updateRegistration: ServiceWorkerRegistration | null = null;
+
 // Register service worker
 export const registerServiceWorker = async (): Promise<void> => {
     if ('serviceWorker' in navigator) {
@@ -14,6 +16,7 @@ export const registerServiceWorker = async (): Promise<void> => {
             registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
                 if (newWorker) {
+                    updateRegistration = registration;
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                             // New version available
@@ -21,6 +24,12 @@ export const registerServiceWorker = async (): Promise<void> => {
                         }
                     });
                 }
+            });
+
+            // Listen for controller change (when new SW takes over)
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                console.log('Service Worker updated, reloading page...');
+                window.location.reload();
             });
 
         } catch (error) {
@@ -50,7 +59,11 @@ const showUpdateNotification = (): void => {
     document.body.appendChild(updateBanner);
 
     document.getElementById('update-refresh')?.addEventListener('click', () => {
-        window.location.reload();
+        // Tell the waiting service worker to skip waiting and activate
+        if (updateRegistration && updateRegistration.waiting) {
+            updateRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+        updateBanner.remove();
     });
 
     document.getElementById('update-dismiss')?.addEventListener('click', () => {
