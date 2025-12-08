@@ -212,6 +212,20 @@ INSERT INTO users (username, password, full_name, role, is_active, permissions) 
  ARRAY['INVENTORY_VIEW', 'SALES_VIEW', 'SALES_MANAGE', 'PARTNERS_VIEW'])
 ON CONFLICT (username) DO NOTHING;
 
+-- Insert expense heads first (required for expenses table foreign key)
+INSERT INTO expense_heads (head_code, head_name, description) VALUES
+('FUEL', 'Fuel Expenses', 'Vehicle and equipment fuel costs'),
+('UTIL', 'Utilities', 'Electricity, water, and gas bills'),
+('RENT', 'Rent', 'Office and warehouse rental expenses'),
+('MAINT', 'Maintenance', 'Equipment repair and maintenance'),
+('MISC', 'Miscellaneous', 'Other unclassified expenses'),
+('SALARY', 'Salaries', 'Employee salary payments'),
+('MARKETING', 'Marketing', 'Advertising and promotional expenses'),
+('TRAVEL', 'Travel', 'Business travel and accommodation'),
+('OFFICE', 'Office Supplies', 'Stationery and office equipment'),
+('TAX', 'Tax Payments', 'Government tax payments')
+ON CONFLICT (head_code) DO NOTHING;
+
 -- Sample expenses
 INSERT INTO expenses (head_code, amount, remarks, expense_date) VALUES
 ('FUEL', 5000.00, 'Delivery Van Fuel', '2023-10-01'),
@@ -418,6 +432,10 @@ ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS shipping_charges DECIMAL(12,
 
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS head_code VARCHAR(20) REFERENCES expense_heads(head_code);
 
+ALTER TABLE payment_receipts ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(user_id);
+ALTER TABLE supplier_payments ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(user_id);
+ALTER TABLE supplier_payments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
 ALTER TABLE sales_returns ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE sales_returns ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(user_id);
 
@@ -452,18 +470,6 @@ CREATE INDEX IF NOT EXISTS idx_tax_rates_code ON tax_rates(tax_code);
 CREATE INDEX IF NOT EXISTS idx_system_backups_date ON system_backups(backup_date);
 
 -- Insert sample data for new tables
-INSERT INTO expense_heads (head_code, head_name, description) VALUES
-('FUEL', 'Fuel Expenses', 'Vehicle and equipment fuel costs'),
-('UTIL', 'Utilities', 'Electricity, water, and gas bills'),
-('RENT', 'Rent', 'Office and warehouse rental expenses'),
-('MAINT', 'Maintenance', 'Equipment repair and maintenance'),
-('MISC', 'Miscellaneous', 'Other unclassified expenses'),
-('SALARY', 'Salaries', 'Employee salary payments'),
-('MARKETING', 'Marketing', 'Advertising and promotional expenses'),
-('TRAVEL', 'Travel', 'Business travel and accommodation'),
-('OFFICE', 'Office Supplies', 'Stationery and office equipment'),
-('TAX', 'Tax Payments', 'Government tax payments')
-ON CONFLICT (head_code) DO NOTHING;
 
 -- Insert default tax rates
 INSERT INTO tax_rates (tax_code, tax_name, tax_rate, tax_type, description) VALUES

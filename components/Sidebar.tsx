@@ -18,7 +18,9 @@ import {
   Calculator,
   ChevronDown,
   ChevronRight,
-  Settings
+  Settings,
+  FileText,
+  TrendingDown
 } from 'lucide-react';
 import { User } from '../types';
 
@@ -109,9 +111,27 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isMobileOpen = false,
       visible: hasPermission('FINANCE_VIEW'),
       children: [
         {
-          to: '/dashboard/finance',
+          to: '/dashboard/voucher-search',
+          icon: FileText,
+          label: 'Voucher Search',
+          visible: hasPermission('FINANCE_VIEW')
+        },
+        {
+          to: '/dashboard/expenses',
+          icon: TrendingDown,
+          label: 'Expenses',
+          visible: hasPermission('FINANCE_VIEW')
+        },
+        {
+          to: '/dashboard/payments',
           icon: Wallet,
-          label: 'Transactions',
+          label: 'Payments',
+          visible: hasPermission('FINANCE_VIEW')
+        },
+        {
+          to: '/dashboard/receipts',
+          icon: Receipt,
+          label: 'Receipts',
           visible: hasPermission('FINANCE_VIEW')
         },
         {

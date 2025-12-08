@@ -4,29 +4,23 @@ import { Wallet, TrendingUp, TrendingDown, Plus, FileText, X, CheckCircle, Edit2
 import { useLoading } from '../../components/LoadingContext';
 import { useCompany } from '../../components/CompanyContext';
 import { api } from '../../services/api';
-import { CashTransaction, Expense, Customer, Supplier, ExpenseHead } from '../../types';
+import { CashTransaction, Customer, Supplier } from '../../types';
 import { formatTableDate } from '../../src/utils/dateUtils';
 import MobileTable from '../../components/MobileTable';
 
 const Finance: React.FC = () => {
     const { selectedCompany } = useCompany();
-    const [activeTab, setActiveTab] = useState<'overview' | 'expenses' | 'payments'>('overview');
     const [transactions, setTransactions] = useState<CashTransaction[]>([]);
-    const [expenses, setExpenses] = useState<Expense[]>([]);
-    const [expenseHeads, setExpenseHeads] = useState<ExpenseHead[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { showLoader, hideLoader } = useLoading();
 
     // Modals
-    const [showExpenseModal, setShowExpenseModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
 
     // Edit state
-    const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
     const [editingTransaction, setEditingTransaction] = useState<CashTransaction | null>(null);
 
     // Form Data
-    const [expenseForm, setExpenseForm] = useState({ head_code: '', amount: 0, remarks: '', expense_date: new Date().toISOString().split('T')[0] });
     const [paymentForm, setPaymentForm] = useState({ type: 'RECEIPT', party_code: '', amount: 0, date: new Date().toISOString().split('T')[0], remarks: '' });
 
     // Lookup Data
@@ -36,16 +30,12 @@ const Finance: React.FC = () => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [transResponse, expsResponse, headsResponse, custsResponse, suppsResponse] = await Promise.all([
-                api.finance.getTransactions(1, 8), // Get first 8 transactions
-                api.finance.getExpenses(1, 8), // Get first 8 expenses
-                api.finance.getExpenseHeads(), // Get all expense heads
+            const [transResponse, custsResponse, suppsResponse] = await Promise.all([
+                api.finance.getTransactions(1, 50), // Get transactions
                 api.customers.getAll(1, 100), // Get all customers for dropdown
                 api.suppliers.getAll(1, 100) // Get all suppliers for dropdown
             ]);
             setTransactions(transResponse.data);
-            setExpenses(expsResponse.data);
-            setExpenseHeads(headsResponse);
             setCustomers(custsResponse.data);
             setSuppliers(suppsResponse.data);
         } catch (e) {
@@ -59,25 +49,6 @@ const Finance: React.FC = () => {
         fetchData();
     }, [selectedCompany]); // Refetch when company changes
 
-    const handleCreateExpense = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            showLoader(editingExpense ? 'Updating expense...' : 'Creating expense...');
-            if (editingExpense) {
-                await api.finance.updateExpense(editingExpense.expense_id, expenseForm);
-            } else {
-                await api.finance.addExpense(expenseForm);
-            }
-            setShowExpenseModal(false);
-            setEditingExpense(null);
-            setExpenseForm({ head_code: '', amount: 0, remarks: '', expense_date: new Date().toISOString().split('T')[0] });
-            await fetchData();
-        } catch (error) {
-            console.error(error);
-        } finally {
-            hideLoader();
-        }
-    };
 
     const handleProcessPayment = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -105,16 +76,6 @@ const Finance: React.FC = () => {
         }
     };
 
-    const handleEditExpense = (expense: Expense) => {
-        setEditingExpense(expense);
-        setExpenseForm({
-            head_code: expense.head_code,
-            amount: expense.amount,
-            remarks: expense.remarks,
-            expense_date: expense.expense_date.split('T')[0]
-        });
-        setShowExpenseModal(true);
-    };
 
     const handleEditTransaction = (transaction: CashTransaction) => {
         setEditingTransaction(transaction);
@@ -169,13 +130,6 @@ const Finance: React.FC = () => {
                 </div>
                 <div className="flex space-x-2">
                     <button
-                        onClick={() => setShowExpenseModal(true)}
-                        className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg flex items-center hover:bg-slate-50 transition-colors shadow-sm"
-                    >
-                        <TrendingDown className="w-4 h-4 mr-2 text-red-500" />
-                        Record Expense
-                    </button>
-                    <button
                         onClick={() => setShowPaymentModal(true)}
                         className="bg-brand-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-brand-700 transition-colors shadow-sm"
                     >
@@ -185,27 +139,8 @@ const Finance: React.FC = () => {
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="border-b border-slate-200">
-                <nav className="-mb-px flex space-x-8">
-                    {['overview', 'expenses'].map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab as any)}
-                            className={`
-                  whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors
-                  ${activeTab === tab
-                                    ? 'border-brand-600 text-brand-600'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}
-                `}
-                        >
-                            {tab}
-                        </button>
-                    ))}
-                </nav>
-            </div>
-
-            {activeTab === 'overview' && (
+            {/* Overview */}
+            {(
                 <div className="space-y-6">
                     {/* Stats Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 overflow-hidden">
@@ -351,151 +286,8 @@ const Finance: React.FC = () => {
                 </div>
             )}
 
-            {activeTab === 'expenses' && (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="p-6 border-b border-slate-200 flex justify-between items-center">
-                        <h3 className="text-lg font-bold text-slate-900">Expense History</h3>
-                    </div>
-
-                    {/* Desktop Table View */}
-                    <div className="hidden lg:block">
-                        <table className="min-w-full divide-y divide-slate-200">
-                            <thead className="bg-slate-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Head</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Remarks</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Amount</th>
-                                    <th className="relative px-6 py-3">
-                                        <span className="sr-only">Actions</span>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-slate-200">
-                                {expenses.map((exp) => (
-                                    <tr key={exp.expense_id} className="hover:bg-slate-50">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatTableDate(exp.expense_date, false)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{exp.head_code}</td>
-                                        <td className="px-6 py-4 text-sm text-slate-500">{exp.remarks}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-slate-900">
-                                            {(() => {
-                                                const amount = typeof exp.amount === 'string' ? parseFloat(exp.amount) : Number(exp.amount);
-                                                return amount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                                            })()}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                onClick={() => handleEditExpense(exp)}
-                                                className="text-slate-400 hover:text-brand-600 transition-colors"
-                                            >
-                                                <Edit2 className="w-4 h-4" />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Mobile Table View */}
-                    <MobileTable
-                        data={expenses}
-                        columns={[
-                            {
-                                key: 'expense_date',
-                                label: 'Date',
-                                render: (value) => formatTableDate(value, false)
-                            },
-                            {
-                                key: 'head_code',
-                                label: 'Head',
-                                render: (value) => (
-                                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                        {value}
-                                    </span>
-                                )
-                            },
-                            {
-                                key: 'remarks',
-                                label: 'Remarks'
-                            },
-                            {
-                                key: 'amount',
-                                label: 'Amount',
-                                render: (value) => {
-                                    const amount = typeof value === 'string' ? parseFloat(value) : Number(value);
-                                    return `PKR ${amount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                                }
-                            }
-                        ]}
-                    />
-                </div>
-            )}
-
             {/* --- MODALS --- */}
 
-            {/* Expense Modal */}
-            {showExpenseModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-                        <div className="flex justify-between items-center p-6 border-b border-slate-100">
-                            <h3 className="text-xl font-bold text-slate-900">
-                                {editingExpense ? 'Edit Expense' : 'Record Expense'}
-                            </h3>
-                            <button onClick={() => setShowExpenseModal(false)} className="text-slate-400"><X className="w-5 h-5" /></button>
-                        </div>
-                        <form onSubmit={handleCreateExpense} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Expense Head</label>
-                                <select
-                                    required
-                                    className="w-full border border-slate-300 rounded-lg p-2"
-                                    value={expenseForm.head_code}
-                                    onChange={e => setExpenseForm({ ...expenseForm, head_code: e.target.value })}
-                                >
-                                    <option value="">Select Category</option>
-                                    {expenseHeads.map(head => (
-                                        <option key={head.head_code} value={head.head_code}>
-                                            {head.head_name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Amount (PKR)</label>
-                                <input
-                                    type="number" required min="1"
-                                    className="w-full border border-slate-300 rounded-lg p-2"
-                                    value={expenseForm.amount}
-                                    onChange={e => setExpenseForm({ ...expenseForm, amount: Number(e.target.value) })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
-                                <input
-                                    type="date" required
-                                    className="w-full border border-slate-300 rounded-lg p-2"
-                                    value={expenseForm.expense_date}
-                                    onChange={e => setExpenseForm({ ...expenseForm, expense_date: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Remarks</label>
-                                <textarea
-                                    required
-                                    className="w-full border border-slate-300 rounded-lg p-2"
-                                    rows={2}
-                                    value={expenseForm.remarks}
-                                    onChange={e => setExpenseForm({ ...expenseForm, remarks: e.target.value })}
-                                />
-                            </div>
-                            <button type="submit" className="w-full bg-brand-600 text-white py-2 rounded-lg hover:bg-brand-700 mt-2">
-                                Save Expense
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            )}
 
             {/* Payment Modal */}
             {showPaymentModal && (

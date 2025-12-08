@@ -71,4 +71,62 @@ export default (app, pool, logger) => {
             client.release();
         }
     });
+
+    app.put('/api/payment-receipts/:id', async (req, res) => {
+        const { id } = req.params;
+        const { cust_code, amount, payment_method, reference_number, receipt_date } = req.body;
+        const companyCode = getCompanyContext(req);
+        const client = await pool.connect();
+
+        try {
+            await client.query('BEGIN');
+
+            // Get the original receipt to calculate balance adjustment
+            const originalResult = await client.query(
+                'SELECT * FROM payment_receipts WHERE receipt_id = $1 AND comp_code = $2',
+                [id, companyCode]
+            );
+
+            if (originalResult.rows.length === 0) {
+                return res.status(404).json({ error: 'Receipt not found' });
+            }
+
+            const originalReceipt = originalResult.rows[0];
+            const balanceAdjustment = originalReceipt.amount - amount;
+
+            const result = await client.query(
+                `UPDATE payment_receipts SET
+                 cust_code = $1, amount = $2, payment_method = $3, reference_number = $4, receipt_date = $5, updated_by = $6, updated_at = CURRENT_TIMESTAMP
+                 WHERE receipt_id = $7 AND comp_code = $8 RETURNING *`,
+                [cust_code, amount, payment_method, reference_number, receipt_date, req.user?.id, id, companyCode]
+            );
+
+            // Adjust customer balance
+            await client.query(
+                `UPDATE customers SET outstanding_balance = outstanding_balance + $1 WHERE cust_code = $2`,
+                [balanceAdjustment, cust_code]
+            );
+
+            // Update cash balance - delete old and create new
+            await client.query(
+                'DELETE FROM cash_balance WHERE description = $1 AND comp_code = $2',
+                [`Payment receipt ${originalReceipt.receipt_number}`, companyCode]
+            );
+
+            await client.query(
+                `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                [receipt_date, 'RECEIPT', `Payment receipt ${originalReceipt.receipt_number}`, amount, 0, companyCode, req.user?.id]
+            );
+
+            await client.query('COMMIT');
+            res.json(result.rows[0]);
+        } catch (e) {
+            await client.query('ROLLBACK');
+            logger.error('Payment receipt update error', e, { userId: req.user?.id, receiptId: id });
+            res.status(500).json({ error: e.message });
+        } finally {
+            client.release();
+        }
+    });
 };

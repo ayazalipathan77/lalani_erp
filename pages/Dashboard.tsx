@@ -13,6 +13,10 @@ const Inventory = lazy(() => import('./dashboard/Inventory'));
 const Sales = lazy(() => import('./dashboard/Sales'));
 const SalesReturns = lazy(() => import('./dashboard/SalesReturns'));
 const Finance = lazy(() => import('./dashboard/Finance'));
+const VoucherSearch = lazy(() => import('./dashboard/VoucherSearch'));
+const Expenses = lazy(() => import('./dashboard/Expenses'));
+const Payments = lazy(() => import('./dashboard/Payments'));
+const Receipts = lazy(() => import('./dashboard/Receipts'));
 const PurchaseInvoices = lazy(() => import('./dashboard/PurchaseInvoices'));
 const ExpenseHeads = lazy(() => import('./dashboard/ExpenseHeads'));
 const Partners = lazy(() => import('./dashboard/Partners'));
@@ -187,6 +191,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <Route path="/sales-returns" element={
                   <ProtectedRoute user={user} permission="SALES_VIEW">
                     <SalesReturns />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/voucher-search" element={
+                  <ProtectedRoute user={user} permission="FINANCE_VIEW">
+                    <VoucherSearch />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/expenses" element={
+                  <ProtectedRoute user={user} permission="FINANCE_VIEW">
+                    <Expenses />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/payments" element={
+                  <ProtectedRoute user={user} permission="FINANCE_VIEW">
+                    <Payments />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/receipts" element={
+                  <ProtectedRoute user={user} permission="FINANCE_VIEW">
+                    <Receipts />
                   </ProtectedRoute>
                 } />
 
