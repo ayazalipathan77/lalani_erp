@@ -38,7 +38,7 @@ const Inventory: React.FC = () => {
       const [prodsResponse, cats, taxRatesData] = await Promise.all([
         api.products.getAll(page, 8),
         api.categories.getAll(),
-        api.taxRates.getAll()
+        api.finance.getTaxRates()
       ]);
       setProducts(Array.isArray(prodsResponse.data) ? prodsResponse.data : []);
       setPagination(prodsResponse.pagination);

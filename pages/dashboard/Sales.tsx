@@ -43,7 +43,7 @@ const Sales: React.FC = () => {
                 api.invoices.getAll(1, 50), // Get more invoices for sales page
                 api.products.getAll(1, 100), // Get all products for dropdown
                 api.customers.getAll(1, 100), // Get all customers for dropdown
-                api.taxRates.getAll() // Get all tax rates
+                api.finance.getTaxRates() // Get all tax rates
             ]);
             setInvoices(Array.isArray(invsResponse.data) ? invsResponse.data : []);
             setProducts(Array.isArray(prodsResponse.data) ? prodsResponse.data : []);

@@ -93,16 +93,22 @@ const PurchaseInvoices: React.FC = () => {
 
             if (editingInvoice) {
                 await api.purchaseInvoices.update(editingInvoice.purchase_id, {
+                    purchase_number: editingInvoice.purchase_number,
+                    purchase_date: invoiceDate,
                     supplier_code: selectedSupplier,
-                    items: cartItems,
-                    purchase_date: invoiceDate
+                    total_amount: total,
+                    status: editingInvoice.status,
+                    items: cartItems
                 });
                 showNotification("Purchase Invoice Updated Successfully!", "success");
             } else {
                 await api.purchaseInvoices.create({
+                    purchase_number: `PUR-${Date.now()}`,
+                    purchase_date: invoiceDate,
                     supplier_code: selectedSupplier,
-                    items: cartItems,
-                    purchase_date: invoiceDate
+                    total_amount: total,
+                    status: 'PENDING',
+                    items: cartItems
                 });
                 showNotification("Purchase Invoice Created Successfully!", "success");
             }

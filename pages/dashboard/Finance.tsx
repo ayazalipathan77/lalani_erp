@@ -39,7 +39,7 @@ const Finance: React.FC = () => {
             const [transResponse, expsResponse, headsResponse, custsResponse, suppsResponse] = await Promise.all([
                 api.finance.getTransactions(1, 8), // Get first 8 transactions
                 api.finance.getExpenses(1, 8), // Get first 8 expenses
-                api.expenseHeads.getAll(), // Get all expense heads
+                api.finance.getExpenseHeads(), // Get all expense heads
                 api.customers.getAll(1, 100), // Get all customers for dropdown
                 api.suppliers.getAll(1, 100) // Get all suppliers for dropdown
             ]);

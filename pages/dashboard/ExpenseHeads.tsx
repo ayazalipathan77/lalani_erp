@@ -22,13 +22,14 @@ const ExpenseHeads: React.FC = () => {
     const [formData, setFormData] = useState({
         head_code: '',
         head_name: '',
-        description: ''
+        description: '',
+        is_active: true
     });
 
     const fetchExpenseHeads = async () => {
         setIsLoading(true);
         try {
-            const response = await api.expenseHeads.getAll();
+            const response = await api.finance.getExpenseHeads();
             setExpenseHeads(response);
         } catch (error) {
             console.error('Failed to fetch expense heads:', error);
@@ -48,19 +49,19 @@ const ExpenseHeads: React.FC = () => {
             showLoader(editingHead ? 'Updating expense head...' : 'Creating expense head...');
 
             if (editingHead) {
-                await api.expenseHeads.update(editingHead.head_code, {
+                await api.finance.updateExpenseHead(editingHead.head_code, {
                     head_name: formData.head_name,
                     description: formData.description
                 });
                 showNotification('Expense head updated successfully!', 'success');
             } else {
-                await api.expenseHeads.create(formData);
+                await api.finance.addExpenseHead(formData);
                 showNotification('Expense head created successfully!', 'success');
             }
 
             setShowModal(false);
             setEditingHead(null);
-            setFormData({ head_code: '', head_name: '', description: '' });
+            setFormData({ head_code: '', head_name: '', description: '', is_active: true });
             await fetchExpenseHeads();
         } catch (error: any) {
             console.error('Failed to save expense head:', error);
@@ -75,7 +76,8 @@ const ExpenseHeads: React.FC = () => {
         setFormData({
             head_code: head.head_code,
             head_name: head.head_name,
-            description: head.description
+            description: head.description,
+            is_active: head.is_active
         });
         setShowModal(true);
     };
@@ -87,7 +89,7 @@ const ExpenseHeads: React.FC = () => {
 
         try {
             showLoader('Deactivating expense head...');
-            await api.expenseHeads.delete(head.head_code);
+            await api.finance.deleteExpenseHead(head.head_code);
             showNotification('Expense head deactivated successfully!', 'success');
             await fetchExpenseHeads();
         } catch (error: any) {
@@ -104,14 +106,14 @@ const ExpenseHeads: React.FC = () => {
             const newStatus = !head.is_active;
             if (newStatus) {
                 // Reactivating - we need to update the head
-                await api.expenseHeads.update(head.head_code, {
+                await api.finance.updateExpenseHead(head.head_code, {
                     head_name: head.head_name,
                     description: head.description
                 });
                 showNotification('Expense head activated successfully!', 'success');
             } else {
                 // Deactivating - use delete endpoint
-                await api.expenseHeads.delete(head.head_code);
+                await api.finance.deleteExpenseHead(head.head_code);
                 showNotification('Expense head deactivated successfully!', 'success');
             }
             await fetchExpenseHeads();
@@ -124,7 +126,7 @@ const ExpenseHeads: React.FC = () => {
     };
 
     const resetForm = () => {
-        setFormData({ head_code: '', head_name: '', description: '' });
+        setFormData({ head_code: '', head_name: '', description: '', is_active: true });
         setEditingHead(null);
     };
 

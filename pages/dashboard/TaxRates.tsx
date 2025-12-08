@@ -24,13 +24,14 @@ const TaxRates: React.FC = () => {
         tax_name: '',
         tax_rate: 0,
         tax_type: 'GST',
-        description: ''
+        description: '',
+        is_active: true
     });
 
     const fetchTaxRates = async () => {
         setIsLoading(true);
         try {
-            const response = await api.taxRates.getAll();
+            const response = await api.finance.getTaxRates();
             setTaxRates(response);
         } catch (e) {
             console.error(e);
@@ -48,9 +49,9 @@ const TaxRates: React.FC = () => {
         try {
             showLoader(editingTax ? 'Updating tax rate...' : 'Creating tax rate...');
             if (editingTax) {
-                await api.taxRates.update(editingTax.tax_code, taxForm);
+                await api.finance.updateTaxRate(editingTax.tax_code, taxForm);
             } else {
-                await api.taxRates.create(taxForm);
+                await api.finance.addTaxRate(taxForm);
             }
             setShowTaxModal(false);
             setEditingTax(null);
@@ -59,7 +60,8 @@ const TaxRates: React.FC = () => {
                 tax_name: '',
                 tax_rate: 0,
                 tax_type: 'GST',
-                description: ''
+                description: '',
+                is_active: true
             });
             await fetchTaxRates();
         } catch (error) {
@@ -76,7 +78,8 @@ const TaxRates: React.FC = () => {
             tax_name: tax.tax_name,
             tax_rate: tax.tax_rate,
             tax_type: tax.tax_type,
-            description: tax.description || ''
+            description: tax.description || '',
+            is_active: tax.is_active
         });
         setShowTaxModal(true);
     };
@@ -88,7 +91,7 @@ const TaxRates: React.FC = () => {
 
         try {
             showLoader('Deactivating tax rate...');
-            await api.taxRates.delete(tax_code);
+            await api.finance.deleteTaxRate(tax_code);
             await fetchTaxRates();
         } catch (error: any) {
             alert(error.message || 'Failed to deactivate tax rate');
