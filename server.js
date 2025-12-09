@@ -32,6 +32,72 @@ import {
 
 dotenv.config();
 
+// Run database migrations on startup
+async function runMigrations() {
+    console.log('🚀 Running database migrations...');
+
+    if (!process.env.DATABASE_URL) {
+        console.error('❌ DATABASE_URL not found, skipping migrations');
+        return;
+    }
+
+    console.log('📋 DATABASE_URL found, connecting...');
+
+    const { Pool } = pg;
+    const pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+
+    try {
+        // Test connection
+        const client = await pool.connect();
+        console.log('✅ Database connection successful');
+
+        // Check if our key tables exist
+        try {
+            const schemaCheck = await client.query(`
+                SELECT COUNT(*) as count FROM information_schema.tables
+                WHERE table_name IN ('tax_rates', 'purchase_invoices', 'sales_invoices', 'users')
+            `);
+
+            if (schemaCheck.rows[0].count >= 4) {
+                console.log('✅ Database schema appears to be initialized');
+                client.release();
+                await pool.end();
+                return;
+            }
+        } catch (schemaError) {
+            console.log('ℹ️  Could not check schema, database might be empty');
+        }
+
+        console.log('📄 Applying initial database schema...');
+
+        console.log('📄 Applying initial database schema...');
+
+        // Read and execute the migration SQL
+        const migrationPath = path.join(__dirname, 'migrations', 'sqls', '20251209002519-initial-schema-up.sql');
+        const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
+
+        await client.query(migrationSQL);
+        console.log('✅ Database schema applied successfully!');
+
+        client.release();
+        await pool.end();
+
+    } catch (error) {
+        console.error('❌ Migration failed:', error.message);
+        console.error('Stack:', error.stack);
+
+        // Don't exit - let the app start anyway
+        try {
+            await pool.end();
+        } catch (e) {
+            // Ignore pool end errors
+        }
+    }
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -155,6 +221,9 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'dist/index.html'));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`Server is running on port ${PORT}`);
+
+    // Run migrations after server starts
+    await runMigrations();
 });
