@@ -458,8 +458,14 @@ INSERT INTO tax_rates (tax_code, tax_name, tax_rate, tax_type, description) VALU
 ('GST0', 'GST Exempt', 0.00, 'GST', 'GST exempted items')
 ON CONFLICT (tax_code) DO NOTHING;
 
--- Set default tax rate for existing products
-UPDATE products SET tax_code = 'GST5' WHERE tax_code IS NULL;
+-- Set default tax rate for existing products (only if column exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'products' AND column_name = 'tax_code') THEN
+        UPDATE products SET tax_code = 'GST5' WHERE tax_code IS NULL;
+    END IF;
+END $$;
 
 -- Add foreign key constraint to expenses table (only if it doesn't exist)
 DO $$

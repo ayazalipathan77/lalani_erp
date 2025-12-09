@@ -54,24 +54,90 @@ async function runMigrations() {
         const client = await pool.connect();
         console.log('✅ Database connection successful');
 
-        // Check if our key tables exist
-        try {
-            const schemaCheck = await client.query(`
-                SELECT COUNT(*) as count FROM information_schema.tables
-                WHERE table_name IN ('tax_rates', 'purchase_invoices', 'sales_invoices', 'users')
+        // Check for force reset flag
+        const forceReset = process.env.FORCE_DB_RESET === 'true';
+        if (forceReset) {
+            console.log('🔄 FORCE_DB_RESET detected, cleaning all tables...');
+            await client.query(`
+                DROP TABLE IF EXISTS sales_return_items CASCADE;
+                DROP TABLE IF EXISTS sales_returns CASCADE;
+                DROP TABLE IF EXISTS purchase_invoice_items CASCADE;
+                DROP TABLE IF EXISTS purchase_invoices CASCADE;
+                DROP TABLE IF EXISTS sales_invoice_items CASCADE;
+                DROP TABLE IF EXISTS sales_invoices CASCADE;
+                DROP TABLE IF EXISTS payment_receipts CASCADE;
+                DROP TABLE IF EXISTS supplier_payments CASCADE;
+                DROP TABLE IF EXISTS discount_vouchers CASCADE;
+                DROP TABLE IF EXISTS loan_return CASCADE;
+                DROP TABLE IF EXISTS loan_taken CASCADE;
+                DROP TABLE IF EXISTS opening_cash_balance CASCADE;
+                DROP TABLE IF EXISTS cash_balance CASCADE;
+                DROP TABLE IF EXISTS expenses CASCADE;
+                DROP TABLE IF EXISTS expense_heads CASCADE;
+                DROP TABLE IF EXISTS products CASCADE;
+                DROP TABLE IF EXISTS categories CASCADE;
+                DROP TABLE IF EXISTS customers CASCADE;
+                DROP TABLE IF EXISTS suppliers CASCADE;
+                DROP TABLE IF EXISTS user_webauthn_credentials CASCADE;
+                DROP TABLE IF EXISTS users CASCADE;
+                DROP TABLE IF EXISTS tax_rates CASCADE;
+                DROP TABLE IF EXISTS system_backups CASCADE;
+                DROP TABLE IF EXISTS companies CASCADE;
             `);
+            console.log('✅ All tables dropped for clean reset');
+        } else {
+            // Check if our key tables exist and are complete
+            try {
+                const schemaCheck = await client.query(`
+                    SELECT COUNT(*) as count FROM information_schema.tables
+                    WHERE table_name IN ('tax_rates', 'purchase_invoices', 'sales_invoices', 'users', 'products', 'companies')
+                `);
 
-            if (schemaCheck.rows[0].count >= 4) {
-                console.log('✅ Database schema appears to be initialized');
-                client.release();
-                await pool.end();
-                return;
+                if (schemaCheck.rows[0].count >= 6) {
+                    console.log('✅ Database schema appears to be initialized');
+                    client.release();
+                    await pool.end();
+                    return;
+                }
+            } catch (schemaError) {
+                console.log('ℹ️  Could not check schema, database might be empty');
             }
-        } catch (schemaError) {
-            console.log('ℹ️  Could not check schema, database might be empty');
-        }
 
-        console.log('📄 Applying initial database schema...');
+            // If we get here, we need to apply the schema
+            // First, drop all existing tables to ensure clean state
+            console.log('🧹 Cleaning up any partial tables...');
+            try {
+                await client.query(`
+                DROP TABLE IF EXISTS sales_return_items CASCADE;
+                DROP TABLE IF EXISTS sales_returns CASCADE;
+                DROP TABLE IF EXISTS purchase_invoice_items CASCADE;
+                DROP TABLE IF EXISTS purchase_invoices CASCADE;
+                DROP TABLE IF EXISTS sales_invoice_items CASCADE;
+                DROP TABLE IF EXISTS sales_invoices CASCADE;
+                DROP TABLE IF EXISTS payment_receipts CASCADE;
+                DROP TABLE IF EXISTS supplier_payments CASCADE;
+                DROP TABLE IF EXISTS discount_vouchers CASCADE;
+                DROP TABLE IF EXISTS loan_return CASCADE;
+                DROP TABLE IF EXISTS loan_taken CASCADE;
+                DROP TABLE IF EXISTS opening_cash_balance CASCADE;
+                DROP TABLE IF EXISTS cash_balance CASCADE;
+                DROP TABLE IF EXISTS expenses CASCADE;
+                DROP TABLE IF EXISTS expense_heads CASCADE;
+                DROP TABLE IF EXISTS products CASCADE;
+                DROP TABLE IF EXISTS categories CASCADE;
+                DROP TABLE IF EXISTS customers CASCADE;
+                DROP TABLE IF EXISTS suppliers CASCADE;
+                DROP TABLE IF EXISTS user_webauthn_credentials CASCADE;
+                DROP TABLE IF EXISTS users CASCADE;
+                DROP TABLE IF EXISTS tax_rates CASCADE;
+                DROP TABLE IF EXISTS system_backups CASCADE;
+                DROP TABLE IF EXISTS companies CASCADE;
+            `);
+                console.log('✅ Cleaned up partial tables');
+            } catch (cleanupError) {
+                console.log('⚠️  Cleanup encountered issues, proceeding anyway:', cleanupError.message);
+            }
+        }
 
         console.log('📄 Applying initial database schema...');
 
