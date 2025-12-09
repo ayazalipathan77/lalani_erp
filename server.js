@@ -56,6 +56,14 @@ const pool = new pg.Pool({
 app.use(cors());
 app.use(express.json());
 
+// Set proper MIME types for JavaScript modules
+app.use((req, res, next) => {
+    if (req.path.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+    }
+    next();
+});
+
 // WebAuthn configuration
 const WEBAUTHN_RP_NAME = 'Lalani ERP';
 const WEBAUTHN_RP_ID = process.env.WEBAUTHN_RP_ID || 'localhost'; // In production, use your domain
