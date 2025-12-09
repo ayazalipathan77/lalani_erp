@@ -39,41 +39,22 @@ if (process.env.DATABASE_URL) {
 const finalDbConfig = dbUrlConfig || dbConfig;
 
 async function setupDatabase() {
-    console.log('🚀 Starting Lalani ERP Database Setup...\n');
-
-    // First, connect to the default postgres database to create our database
-    const defaultDbConfig = { ...finalDbConfig, database: 'postgres' };
-    const pool = new Pool(defaultDbConfig);
+    console.log('🚀 Starting Lalani ERP Database Migration...\n');
 
     try {
-        console.log('📡 Connecting to PostgreSQL...');
+        // For production/Render, assume database already exists
+        // Just run migrations on the target database
+        console.log('📡 Connecting to database...');
 
-        // Test connection
+        const dbConfig = finalDbConfig;
+        const pool = new Pool(dbConfig);
+
+        // Test connection to the target database
         const client = await pool.connect();
-        console.log('✅ Connected to PostgreSQL successfully!\n');
-
-        // Check if lalani_erp database exists
-        const dbCheck = await client.query(
-            "SELECT datname FROM pg_database WHERE datname = 'lalani_erp'"
-        );
-
-        if (dbCheck.rows.length === 0) {
-            // Create the lalani_erp database if it doesn't exist
-            console.log('🏗️  Creating lalani_erp database...');
-            await client.query(`CREATE DATABASE lalani_erp OWNER "${finalDbConfig.user}"`);
-            console.log('✅ Database lalani_erp created successfully!\n');
-        } else {
-            console.log('ℹ️  Database lalani_erp already exists, proceeding with schema setup...\n');
-        }
+        console.log('✅ Connected to database successfully!\n');
 
         client.release();
-
-        // Now connect to the lalani_erp database (whether newly created or existing)
-        const lalaniDbConfig = { ...finalDbConfig, database: 'lalani_erp' };
-        const lalaniPool = new Pool(lalaniDbConfig);
-
-        const lalaniClient = await lalaniPool.connect();
-        console.log('📡 Connected to lalani_erp database...\n');
+        await pool.end();
 
         // Run database migrations
         console.log('📄 Running database migrations...');
@@ -81,60 +62,64 @@ async function setupDatabase() {
         const { spawn } = await import('child_process');
 
         // Set environment for db-migrate
-        const env = { ...process.env };
+        const env = {
+            ...process.env,
+            NODE_ENV: process.env.NODE_ENV || 'production'
+        };
 
-        // For production, ensure DATABASE_URL is used if available
+        // Ensure DATABASE_URL is available for db-migrate
         if (process.env.DATABASE_URL) {
             env.DATABASE_URL = process.env.DATABASE_URL;
+            console.log('📋 Using DATABASE_URL for migrations');
         }
 
+        console.log('🔧 Executing: db-migrate up');
+
         // Run db-migrate up
-        const migrateProcess = spawn('npx', ['db-migrate', 'up'], {
+        const migrateProcess = spawn('npx', ['db-migrate', 'up', '--config', 'database.json', '--migrations-dir', 'migrations'], {
             cwd: path.join(__dirname, '..'),
             stdio: 'inherit',
             env: env
         });
 
-        await new Promise((resolve, reject) => {
+        const migrationResult = await new Promise((resolve, reject) => {
             migrateProcess.on('close', (code) => {
                 if (code === 0) {
                     console.log('✅ Database migrations completed successfully!');
-                    console.log('📊 All tables, indexes, and sample data created');
-                    resolve();
+                    resolve(true);
                 } else {
+                    console.error(`❌ Migration process exited with code ${code}`);
                     reject(new Error(`Migration failed with exit code ${code}`));
                 }
             });
 
             migrateProcess.on('error', (error) => {
+                console.error('❌ Migration process error:', error);
                 reject(error);
             });
         });
 
-        console.log('\n🎉 Database setup completed successfully!');
-        console.log('📊 Database: lalani_erp');
-        console.log('👤 User: Ready for application use');
-        console.log('🔐 Password: 123 (change in production!)');
-        console.log('\n🚀 You can now start the application with: npm start');
-
-        lalaniClient.release();
-        await lalaniPool.end();
-
-    } catch (error) {
-        console.error('❌ Database setup failed:', error.message);
-
-        if (error.message.includes('already exists')) {
-            console.log('\n💡 Database might already exist. Try running the application directly: npm start');
-        } else {
-            console.log('\n🔧 Troubleshooting:');
-            console.log('1. Make sure PostgreSQL is running');
-            console.log('2. Check your database credentials in .env file');
-            console.log('3. Ensure the postgres user has database creation privileges');
+        if (migrationResult) {
+            console.log('\n🎉 Database migration completed successfully!');
+            console.log('📊 All tables, indexes, and sample data created');
         }
 
+    } catch (error) {
+        console.error('❌ Database migration failed:', error.message);
+        console.error('Stack:', error.stack);
+
+        // Don't exit with error in production - let the app try to start anyway
+        if (process.env.NODE_ENV === 'production') {
+            console.log('⚠️  Continuing with app startup despite migration issues...');
+            return;
+        }
+
+        console.log('\n🔧 Troubleshooting:');
+        console.log('1. Check DATABASE_URL environment variable');
+        console.log('2. Ensure database is accessible');
+        console.log('3. Check database user permissions');
+
         process.exit(1);
-    } finally {
-        await pool.end();
     }
 }
 
