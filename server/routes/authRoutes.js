@@ -22,6 +22,12 @@ export default (app, pool, WEBAUTHN_RP_NAME, WEBAUTHN_RP_ID, WEBAUTHN_ORIGIN) =>
             if (result.rows.length > 0) {
                 const user = result.rows[0];
                 delete user.password;
+
+                // Ensure permissions is an array (handle null/undefined)
+                if (!user.permissions) {
+                    user.permissions = [];
+                }
+
                 const token = jwt.sign({
                     userId: user.user_id,
                     username: user.username,
@@ -315,11 +321,33 @@ export default (app, pool, WEBAUTHN_RP_NAME, WEBAUTHN_RP_ID, WEBAUTHN_ORIGIN) =>
             // Clean up challenge
             delete global.webauthnChallenges[user.user_id];
 
-            // Generate JWT token
-            const token = jwt.sign({ userId: user.user_id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '24h' });
+            // Get full user data including permissions
+            const fullUserResult = await pool.query(
+                'SELECT user_id, username, full_name, role, permissions, default_company FROM users WHERE user_id = $1',
+                [user.user_id]
+            );
 
-            logger.auth('WEBAUTHN_LOGIN_SUCCESS', user.username, user.user_id, clientIP);
-            res.json({ user, token, message: 'Biometric authentication successful' });
+            if (fullUserResult.rows.length === 0) {
+                logger.security('WEBAUTHN_LOGIN_USER_DATA_NOT_FOUND', { username }, clientIP);
+                return res.status(500).json({ message: 'User data retrieval failed' });
+            }
+
+            const fullUser = fullUserResult.rows[0];
+
+            // Ensure permissions is an array
+            if (!fullUser.permissions) {
+                fullUser.permissions = [];
+            }
+
+            // Generate JWT token
+            const token = jwt.sign({
+                userId: fullUser.user_id,
+                username: fullUser.username,
+                selectedCompany: fullUser.default_company || 'CMP01'
+            }, process.env.JWT_SECRET, { expiresIn: '24h' });
+
+            logger.auth('WEBAUTHN_LOGIN_SUCCESS', fullUser.username, fullUser.user_id, clientIP);
+            res.json({ user: fullUser, token, message: 'Biometric authentication successful' });
         } catch (error) {
             logger.error('WebAuthn login finish error', error, { username, ip: clientIP });
             res.status(500).json({ message: 'Failed to complete authentication' });
