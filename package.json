@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "start": "node server.js",
+    "start": "node scripts/setup-db.js && node server.js",
     "server": "node server.js",
     "dev:server": "nodemon server.js",
     "db:setup": "node scripts/setup-db.js",
