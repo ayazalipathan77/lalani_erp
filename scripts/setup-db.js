@@ -75,37 +75,41 @@ async function setupDatabase() {
         const lalaniClient = await lalaniPool.connect();
         console.log('📡 Connected to lalani_erp database...\n');
 
-        // Read and execute the schema
-        console.log('📄 Reading database schema...');
-        const schemaPath = path.join(__dirname, '..', 'database', 'schema.sql');
+        // Run database migrations
+        console.log('📄 Running database migrations...');
 
-        if (!fs.existsSync(schemaPath)) {
-            throw new Error(`Schema file not found at: ${schemaPath}`);
+        const { spawn } = await import('child_process');
+
+        // Set environment for db-migrate
+        const env = { ...process.env };
+
+        // For production, ensure DATABASE_URL is used if available
+        if (process.env.DATABASE_URL) {
+            env.DATABASE_URL = process.env.DATABASE_URL;
         }
 
-        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-        console.log(`📄 Schema file loaded (${schemaSql.length} characters)\n`);
+        // Run db-migrate up
+        const migrateProcess = spawn('npx', ['db-migrate', 'up'], {
+            cwd: path.join(__dirname, '..'),
+            stdio: 'inherit',
+            env: env
+        });
 
-        // Split the schema into individual statements and execute them in order
-        console.log('⚡ Executing database schema...');
+        await new Promise((resolve, reject) => {
+            migrateProcess.on('close', (code) => {
+                if (code === 0) {
+                    console.log('✅ Database migrations completed successfully!');
+                    console.log('📊 All tables, indexes, and sample data created');
+                    resolve();
+                } else {
+                    reject(new Error(`Migration failed with exit code ${code}`));
+                }
+            });
 
-        // Execute the entire schema file at once
-        // PostgreSQL can handle multiple statements, and IF NOT EXISTS will prevent conflicts
-        console.log('⚡ Executing complete database schema...');
-
-        try {
-            await lalaniClient.query(schemaSql);
-            console.log('✅ Complete schema executed successfully!');
-            console.log('📊 All tables, indexes, and sample data created');
-        } catch (error) {
-            console.log('⚠️  Schema execution completed with some warnings (expected for existing tables):');
-            console.log('Error details:', error.message);
-
-            // If the error suggests tables already exist, that's actually good
-            if (error.message.includes('already exists') || error.message.includes('does not exist')) {
-                console.log('💡 This is normal - tables might already exist from previous setup attempts');
-            }
-        }
+            migrateProcess.on('error', (error) => {
+                reject(error);
+            });
+        });
 
         console.log('\n🎉 Database setup completed successfully!');
         console.log('📊 Database: lalani_erp');

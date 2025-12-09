@@ -1,0 +1,2 @@
+-- Test migration to verify the system works
+-- This is just a test comment
