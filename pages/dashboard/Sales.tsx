@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft, Edit2 } from 'lucide-react';
 import { useLoading } from '../../components/LoadingContext';
 import { useNotification } from '../../components/NotificationContext';
@@ -10,6 +11,7 @@ import MobileTable from '../../components/MobileTable';
 
 const Sales: React.FC = () => {
     const { selectedCompany } = useCompany();
+    const { id } = useParams<{ id: string }>();
     const [view, setView] = useState<'list' | 'create' | 'view'>('list');
     const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
@@ -59,6 +61,16 @@ const Sales: React.FC = () => {
     useEffect(() => {
         fetchData();
     }, [selectedCompany]); // Refetch when company changes
+
+    // Handle URL parameter for direct invoice viewing
+    useEffect(() => {
+        if (id && invoices.length > 0) {
+            const invoice = invoices.find(inv => inv.inv_id.toString() === id);
+            if (invoice) {
+                handleViewInvoice(invoice);
+            }
+        }
+    }, [id, invoices]);
 
     // Calculations
     const subtotal = cartItems.reduce((acc, item) => acc + item.line_total, 0);

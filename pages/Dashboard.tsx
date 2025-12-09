@@ -188,7 +188,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   </ProtectedRoute>
                 } />
 
+                <Route path="/sales/:id" element={
+                  <ProtectedRoute user={user} permission="SALES_VIEW">
+                    <Sales />
+                  </ProtectedRoute>
+                } />
+
                 <Route path="/sales-returns" element={
+                  <ProtectedRoute user={user} permission="SALES_VIEW">
+                    <SalesReturns />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/sales-returns/:id" element={
                   <ProtectedRoute user={user} permission="SALES_VIEW">
                     <SalesReturns />
                   </ProtectedRoute>
@@ -233,6 +245,36 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <Route path="/purchase-invoices" element={
                   <ProtectedRoute user={user} permission="FINANCE_VIEW">
                     <PurchaseInvoices />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/purchase-invoices/:id" element={
+                  <ProtectedRoute user={user} permission="FINANCE_VIEW">
+                    <PurchaseInvoices />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/receipts/:id" element={
+                  <ProtectedRoute user={user} permission="FINANCE_VIEW">
+                    <Receipts />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/payments/:id" element={
+                  <ProtectedRoute user={user} permission="FINANCE_VIEW">
+                    <Payments />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/expenses/:id" element={
+                  <ProtectedRoute user={user} permission="FINANCE_VIEW">
+                    <Expenses />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/finance/:id" element={
+                  <ProtectedRoute user={user} permission="FINANCE_VIEW">
+                    <Finance />
                   </ProtectedRoute>
                 } />
 

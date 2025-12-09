@@ -166,7 +166,7 @@ const VoucherSearch: React.FC = () => {
                     type: 'Loan Taken',
                     amount: loan.amount,
                     description: `Loan from ${loan.lender_name}`,
-                    link: `/dashboard/loans/${loan.loan_id}`
+                    link: `/dashboard/finance/${loan.loan_id}` // Note: loans might not have a dedicated page, using finance for now
                 });
             });
 

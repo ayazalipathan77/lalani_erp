@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft, Edit2, Undo2 } from 'lucide-react';
 import { useLoading } from '../../components/LoadingContext';
 import { useNotification } from '../../components/NotificationContext';
@@ -8,6 +9,7 @@ import { formatTableDate } from '../../src/utils/dateUtils';
 import MobileTable from '../../components/MobileTable';
 
 const SalesReturns: React.FC = () => {
+    const { id } = useParams<{ id: string }>();
     const [view, setView] = useState<'list' | 'create' | 'view'>('list');
     const [returns, setReturns] = useState<SalesReturn[]>([]);
     const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
@@ -56,6 +58,16 @@ const SalesReturns: React.FC = () => {
     useEffect(() => {
         fetchData();
     }, []);
+
+    // Handle URL parameter for direct return viewing
+    useEffect(() => {
+        if (id && returns.length > 0) {
+            const returnItem = returns.find(ret => ret.return_id.toString() === id);
+            if (returnItem) {
+                handleViewReturn(returnItem);
+            }
+        }
+    }, [id, returns]);
 
     // Calculations
     const subtotal = returnItems.reduce((acc, item) => acc + item.line_total, 0);
