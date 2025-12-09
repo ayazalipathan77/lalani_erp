@@ -77,9 +77,15 @@ export default (app, pool, logger) => {
                 'expenses', 'cash_balance', 'users'
             ];
 
+            // Column mapping for tables that don't use 'comp_code'
+            const columnMapping = {
+                'users': 'default_company'
+            };
+
             for (const table of dependentTables) {
+                const columnName = columnMapping[table] || 'comp_code';
                 const countResult = await pool.query(
-                    `SELECT COUNT(*) as count FROM ${table} WHERE comp_code = $1`,
+                    `SELECT COUNT(*) as count FROM ${table} WHERE ${columnName} = $1`,
                     [req.params.code]
                 );
 
