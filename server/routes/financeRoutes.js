@@ -138,23 +138,48 @@ export default (app, pool, logger) => {
     app.put('/api/finance/expenses/:id', async (req, res) => {
         const { id } = req.params;
         const { head_code, amount, remarks, expense_date } = req.body;
+        const companyCode = getCompanyContext(req);
         const client = await pool.connect();
 
         try {
             await client.query('BEGIN');
 
+            // Validate input data
+            if (!head_code || !amount || !expense_date) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: 'Head code, amount, and expense date are required' });
+            }
+
+            if (amount <= 0) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: 'Expense amount must be greater than zero' });
+            }
+
+            // Validate expense date (not in future)
+            const expenseDate = new Date(expense_date);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (expenseDate > today) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: 'Expense date cannot be in the future' });
+            }
+
             // Get original expense to reverse the transaction
             const originalExpense = await client.query(
-                'SELECT * FROM expenses WHERE expense_id = $1',
-                [id]
+                'SELECT * FROM expenses WHERE expense_id = $1 AND comp_code = $2',
+                [id, companyCode]
             );
 
             if (originalExpense.rows.length === 0) {
                 await client.query('ROLLBACK');
-                return res.status(404).json({ message: 'Expense not found' });
+                return res.status(404).json({ message: 'Expense not found or access denied' });
             }
 
             const oldExpense = originalExpense.rows[0];
+
+            // Business rule: Check if expense is already reconciled/approved
+            // This would need additional fields in the database, but for now we'll assume all expenses can be edited
 
             // Reverse the old cash transaction
             await client.query(
@@ -162,15 +187,16 @@ export default (app, pool, logger) => {
                  WHERE trans_type = 'EXPENSE'
                  AND description LIKE $1
                  AND trans_date = $2
-                 AND credit_amount = $3`,
-                [`EXP: ${oldExpense.head_code}%`, oldExpense.expense_date, oldExpense.amount]
+                 AND credit_amount = $3
+                 AND comp_code = $4`,
+                [`EXP: ${oldExpense.head_code}%`, oldExpense.expense_date, oldExpense.amount, companyCode]
             );
 
             // Update the expense
             const updateRes = await client.query(
-                `UPDATE expenses SET head_code=$1, amount=$2, remarks=$3, expense_date=$4, updated_by=$5
-                 WHERE expense_id=$6 RETURNING *`,
-                [head_code, amount, remarks, expense_date, req.user?.id, id]
+                `UPDATE expenses SET head_code=$1, amount=$2, remarks=$3, expense_date=$4, updated_by=$5, updated_at=CURRENT_TIMESTAMP
+                 WHERE expense_id=$6 AND comp_code=$7 RETURNING *`,
+                [head_code, amount, remarks, expense_date, req.user?.id, id, companyCode]
             );
 
             // Create new cash transaction

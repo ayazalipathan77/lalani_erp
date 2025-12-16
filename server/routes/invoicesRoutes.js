@@ -134,6 +134,7 @@ export default (app, pool, logger) => {
     app.put('/api/invoices/:id', async (req, res) => {
         const { id } = req.params;
         const { cust_code, items, inv_date, status } = req.body;
+        const companyCode = getCompanyContext(req);
         const client = await pool.connect();
 
         try {
@@ -186,20 +187,54 @@ export default (app, pool, logger) => {
                 );
             }
 
-            // Calculate new totals with dynamic tax rates
+            // Validate and calculate new totals with dynamic tax rates
             const sub_total = items.reduce((acc, item) => acc + Number(item.line_total), 0);
 
-            // Calculate tax based on product tax rates
+            if (sub_total <= 0) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: 'Invoice subtotal must be greater than zero' });
+            }
+
+            // Calculate tax based on product tax rates and validate stock availability
             let totalTaxAmount = 0;
             for (const item of items) {
+                // Validate item data
+                if (!item.prod_code || !item.quantity || !item.unit_price || !item.line_total) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ message: 'All item fields are required: prod_code, quantity, unit_price, line_total' });
+                }
+
+                if (item.quantity <= 0 || item.unit_price < 0 || item.line_total < 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ message: 'Invalid item values: quantity must be positive, prices cannot be negative' });
+                }
+
+                // Validate line total calculation
+                const expectedLineTotal = item.quantity * item.unit_price;
+                if (Math.abs(item.line_total - expectedLineTotal) > 0.01) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ message: `Invalid line total for product ${item.prod_code}` });
+                }
+
                 const productResult = await client.query(
-                    'SELECT p.*, tr.tax_rate FROM products p LEFT JOIN tax_rates tr ON p.tax_code = tr.tax_code WHERE p.prod_code = $1',
-                    [item.prod_code]
+                    'SELECT p.*, tr.tax_rate FROM products p LEFT JOIN tax_rates tr ON p.tax_code = tr.tax_code WHERE p.prod_code = $1 AND p.comp_code = $2',
+                    [item.prod_code, companyCode]
                 );
                 const product = productResult.rows[0];
                 if (!product) {
-                    throw new Error(`Product ${item.prod_code} not found`);
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ message: `Product ${item.prod_code} not found` });
                 }
+
+                // Business rule: Check stock availability for new items
+                const currentStock = product.current_stock + (originalItems.rows.find(orig => orig.prod_code === item.prod_code)?.quantity || 0);
+                if (currentStock < item.quantity) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({
+                        message: `Insufficient stock for product ${item.prod_code}. Available: ${currentStock}, Requested: ${item.quantity}`
+                    });
+                }
+
                 // Use tax_rate from JOIN or fallback to product's tax_rate field or default 5%
                 const taxRate = product.tax_rate || 5.00;
                 const itemTax = item.line_total * (taxRate / 100);
@@ -233,8 +268,29 @@ export default (app, pool, logger) => {
                 );
             }
 
-            // Update customer balance for new invoice
+            // Update customer balance for new invoice with credit limit validation
             if (status === 'PENDING') {
+                // Check customer's credit limit
+                const customerResult = await client.query(
+                    'SELECT outstanding_balance, credit_limit FROM customers WHERE cust_code = $1 AND comp_code = $2',
+                    [cust_code, companyCode]
+                );
+
+                if (customerResult.rows.length === 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ message: 'Customer not found' });
+                }
+
+                const customer = customerResult.rows[0];
+                const newOutstandingBalance = customer.outstanding_balance + total_amount;
+
+                if (customer.credit_limit > 0 && newOutstandingBalance > customer.credit_limit) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({
+                        message: `Invoice amount exceeds customer's credit limit. Current balance: ${customer.outstanding_balance}, Credit limit: ${customer.credit_limit}, New total: ${newOutstandingBalance}`
+                    });
+                }
+
                 await client.query(
                     `UPDATE customers SET outstanding_balance = outstanding_balance + $1 WHERE cust_code = $2`,
                     [total_amount, cust_code]

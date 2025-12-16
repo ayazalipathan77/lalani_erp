@@ -58,11 +58,54 @@ export default (app, pool, logger) => {
     app.put('/api/customers/:id', async (req, res) => {
         const { id } = req.params;
         const { cust_code, cust_name, city, phone, credit_limit } = req.body;
+        const companyCode = getCompanyContext(req);
+
         try {
-            const result = await pool.query(
-                'UPDATE customers SET cust_code=$1, cust_name=$2, city=$3, phone=$4, credit_limit=$5, updated_by=$6 WHERE cust_id=$7 RETURNING *',
-                [cust_code, cust_name, city, phone, credit_limit, req.user?.id, id]
+            // Validate input data
+            if (!cust_code || !cust_name) {
+                return res.status(400).json({ message: 'Customer code and name are required' });
+            }
+
+            if (credit_limit < 0) {
+                return res.status(400).json({ message: 'Credit limit cannot be negative' });
+            }
+
+            // Check if customer exists and belongs to company
+            const existingCustomer = await pool.query(
+                'SELECT * FROM customers WHERE cust_id = $1 AND comp_code = $2',
+                [id, companyCode]
             );
+
+            if (existingCustomer.rows.length === 0) {
+                return res.status(404).json({ message: 'Customer not found or access denied' });
+            }
+
+            const oldCustomer = existingCustomer.rows[0];
+
+            // Business rule: Check if customer has outstanding balance before reducing credit limit
+            if (credit_limit < oldCustomer.outstanding_balance && credit_limit > 0) {
+                return res.status(400).json({
+                    message: `Cannot set credit limit below current outstanding balance. Current balance: ${oldCustomer.outstanding_balance}`
+                });
+            }
+
+            // Business rule: Check for duplicate customer code (excluding current customer)
+            if (cust_code !== oldCustomer.cust_code) {
+                const duplicateCheck = await pool.query(
+                    'SELECT cust_id FROM customers WHERE cust_code = $1 AND comp_code = $2 AND cust_id != $3',
+                    [cust_code, companyCode, id]
+                );
+
+                if (duplicateCheck.rows.length > 0) {
+                    return res.status(400).json({ message: 'Customer code already exists' });
+                }
+            }
+
+            const result = await pool.query(
+                'UPDATE customers SET cust_code=$1, cust_name=$2, city=$3, phone=$4, credit_limit=$5, updated_by=$6 WHERE cust_id=$7 AND comp_code=$8 RETURNING *',
+                [cust_code, cust_name, city, phone, credit_limit, req.user?.id, id, companyCode]
+            );
+
             res.json(result.rows[0]);
         } catch (err) {
             logger.error('Customer update error', err, { userId: req.user?.id, custId: id });
