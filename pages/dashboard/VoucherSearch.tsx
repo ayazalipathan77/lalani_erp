@@ -178,6 +178,7 @@ const VoucherSearch: React.FC = () => {
             // Calculate financial summary from cash transactions
             const debit = cashRes.data.reduce((acc: number, t: CashTransaction) => acc + (t.debit_amount || 0), 0);
             const credit = cashRes.data.reduce((acc: number, t: CashTransaction) => acc + (t.credit_amount || 0), 0);
+            console.log(`Financial summary - Debit: ${debit}, Credit: ${credit}, Balance: ${debit - credit}`);
             setTotalMoneyIn(debit);
             setTotalMoneyOut(credit);
             setCurrentBalance(debit - credit);
@@ -200,15 +201,19 @@ const VoucherSearch: React.FC = () => {
     );
 
     const formatNumber = (num: number): string => {
+        console.log(`formatNumber input: ${num}`);
+        let result: string;
         if (num >= 1000000000) {
-            return `PKR ${(num / 1000000000).toFixed(1)}B`;
+            result = `PKR ${(num / 1000000000).toFixed(1)}B`;
         } else if (num >= 1000000) {
-            return `PKR ${(num / 1000000).toFixed(1)}M`;
+            result = `PKR ${(num / 1000000).toFixed(1)}M`;
         } else if (num >= 1000) {
-            return `PKR ${(num / 1000).toFixed(1)}K`;
+            result = `PKR ${(num / 1000).toFixed(1)}K`;
         } else {
-            return `PKR ${num.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+            result = `PKR ${num.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
         }
+        console.log(`formatNumber output: ${result}`);
+        return result;
     };
 
     return (
