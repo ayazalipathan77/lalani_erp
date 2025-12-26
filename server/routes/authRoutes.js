@@ -31,6 +31,7 @@ export default (app, pool, WEBAUTHN_RP_NAME, WEBAUTHN_RP_ID, WEBAUTHN_ORIGIN) =>
                 const token = jwt.sign({
                     userId: user.user_id,
                     username: user.username,
+                    role: user.role,
                     selectedCompany: user.default_company || 'CMP01'
                 }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
@@ -343,6 +344,7 @@ export default (app, pool, WEBAUTHN_RP_NAME, WEBAUTHN_RP_ID, WEBAUTHN_ORIGIN) =>
             const token = jwt.sign({
                 userId: fullUser.user_id,
                 username: fullUser.username,
+                role: fullUser.role,
                 selectedCompany: fullUser.default_company || 'CMP01'
             }, process.env.JWT_SECRET, { expiresIn: '24h' });
 

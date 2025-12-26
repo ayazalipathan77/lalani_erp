@@ -41,12 +41,12 @@ export default (app, pool, logger) => {
     });
 
     app.post('/api/customers', async (req, res) => {
-        const { cust_code, cust_name, city, phone, credit_limit, outstanding_balance } = req.body;
+        const { cust_code, cust_name, city, phone, credit_limit, outstanding_balance, tax_rate } = req.body;
         const companyCode = getCompanyContext(req);
         try {
             const result = await pool.query(
-                'INSERT INTO customers (cust_code, cust_name, city, phone, credit_limit, outstanding_balance, comp_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-                [cust_code, cust_name, city, phone, credit_limit, outstanding_balance, companyCode, req.user?.id]
+                'INSERT INTO customers (cust_code, cust_name, city, phone, credit_limit, outstanding_balance, tax_rate, comp_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+                [cust_code, cust_name, city, phone, credit_limit, outstanding_balance, tax_rate || 0, companyCode, req.user?.id]
             );
             res.json(result.rows[0]);
         } catch (err) {
@@ -57,7 +57,7 @@ export default (app, pool, logger) => {
 
     app.put('/api/customers/:id', async (req, res) => {
         const { id } = req.params;
-        const { cust_code, cust_name, city, phone, credit_limit } = req.body;
+        const { cust_code, cust_name, city, phone, credit_limit, tax_rate } = req.body;
         const companyCode = getCompanyContext(req);
 
         try {
@@ -102,8 +102,8 @@ export default (app, pool, logger) => {
             }
 
             const result = await pool.query(
-                'UPDATE customers SET cust_code=$1, cust_name=$2, city=$3, phone=$4, credit_limit=$5, updated_by=$6 WHERE cust_id=$7 AND comp_code=$8 RETURNING *',
-                [cust_code, cust_name, city, phone, credit_limit, req.user?.id, id, companyCode]
+                'UPDATE customers SET cust_code=$1, cust_name=$2, city=$3, phone=$4, credit_limit=$5, tax_rate=$6, updated_by=$7 WHERE cust_id=$8 AND comp_code=$9 RETURNING *',
+                [cust_code, cust_name, city, phone, credit_limit, tax_rate || 0, req.user?.id, id, companyCode]
             );
 
             res.json(result.rows[0]);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft, Edit2, ShoppingCart } from 'lucide-react';
+import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft, Edit2, ShoppingCart, Printer } from 'lucide-react';
 import { useLoading } from '../../components/LoadingContext';
 import { useNotification } from '../../components/NotificationContext';
 import { useCompany } from '../../components/CompanyContext';
@@ -312,7 +312,7 @@ const PurchaseInvoices: React.FC = () => {
                                                         const product = products.find(p => p.prod_code === e.target.value);
                                                         setSelectedProduct(e.target.value);
                                                         if (product) {
-                                                            setUnitPrice(product.purchase_price || product.unit_price || 0);
+                                                            setUnitPrice(product.cost_price || 0);
                                                         }
                                                     }}
                                                 >
@@ -498,9 +498,14 @@ const PurchaseInvoices: React.FC = () => {
                                             <h2 className="text-2xl font-bold text-slate-900">Purchase Invoice {viewingInvoice.purchase_number}</h2>
                                             <p className="text-slate-500">Purchase invoice details and items</p>
                                         </div>
-                                        <button onClick={() => setView('list')} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
-                                            <ChevronLeft className="w-4 h-4 mr-1" /> Back to List
-                                        </button>
+                                        <div className="flex items-center space-x-2">
+                                            <button onClick={() => window.print()} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
+                                                <Printer className="w-4 h-4 mr-1" /> Print
+                                            </button>
+                                            <button onClick={() => setView('list')} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
+                                                <ChevronLeft className="w-4 h-4 mr-1" /> Back to List
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {/* Invoice Summary */}

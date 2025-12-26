@@ -13,6 +13,7 @@ import { purchaseInvoices } from './api/modules/purchaseInvoices';
 import { finance } from './api/modules/finance';
 import { paymentReceipts } from './api/modules/paymentReceipts';
 import { supplierPayments } from './api/modules/supplierPayments';
+import { systemBackups } from './api/modules/systemBackups';
 
 export const api = {
   auth,
@@ -28,5 +29,6 @@ export const api = {
   purchaseInvoices,
   finance,
   paymentReceipts,
-  supplierPayments
+  supplierPayments,
+  systemBackups
 };

@@ -24,6 +24,7 @@ const Users = lazy(() => import('./dashboard/Users'));
 const Companies = lazy(() => import('./dashboard/Companies'));
 const TaxRates = lazy(() => import('./dashboard/TaxRates'));
 const Reports = lazy(() => import('./dashboard/Reports'));
+const SystemBackups = lazy(() => import('./dashboard/SystemBackups'));
 
 interface DashboardProps {
   user: User;
@@ -305,6 +306,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <Route path="/companies" element={
                   <ProtectedRoute user={user}>
                     <Companies />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/system-backups" element={
+                  <ProtectedRoute user={user}>
+                    <SystemBackups />
                   </ProtectedRoute>
                 } />
 

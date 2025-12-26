@@ -15,7 +15,9 @@ export const purchaseInvoices = {
                 }
             };
         }
-        const res = await fetch(`/api/purchase-invoices?page=${page}&limit=${limit}`);
+        const res = await fetch(`/api/purchase-invoices?page=${page}&limit=${limit}`, {
+            headers: getAuthHeaders()
+        });
         return res.json();
     },
     create: async (invoice: Omit<PurchaseInvoice, 'purchase_id'>): Promise<PurchaseInvoice> => {
@@ -25,7 +27,7 @@ export const purchaseInvoices = {
         }
         const res = await fetch('/api/purchase-invoices', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(invoice)
         });
         return res.json();
@@ -37,7 +39,7 @@ export const purchaseInvoices = {
         }
         const res = await fetch(`/api/purchase-invoices/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(invoice)
         });
         return res.json();

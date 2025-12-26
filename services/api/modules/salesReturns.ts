@@ -1,5 +1,5 @@
 import { SalesReturn } from '../../../types';
-import { USE_MOCK, delay } from '../utils';
+import { USE_MOCK, delay, getAuthHeaders } from '../utils';
 
 export const salesReturns = {
     getAll: async (page: number = 1, limit: number = 8): Promise<{ data: SalesReturn[], pagination: any }> => {
@@ -7,7 +7,9 @@ export const salesReturns = {
             await delay(300);
             return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
         }
-        const res = await fetch(`/api/sales-returns?page=${page}&limit=${limit}`);
+        const res = await fetch(`/api/sales-returns?page=${page}&limit=${limit}`, {
+            headers: getAuthHeaders()
+        });
         return res.json();
     },
     create: async (returnData: {
@@ -21,7 +23,7 @@ export const salesReturns = {
         }
         const res = await fetch('/api/sales-returns', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(returnData)
         });
         return res.json();
@@ -37,7 +39,7 @@ export const salesReturns = {
         }
         const res = await fetch(`/api/sales-returns/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(returnData)
         });
         return res.json();

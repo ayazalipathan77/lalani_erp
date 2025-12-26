@@ -58,7 +58,8 @@ CREATE TABLE IF NOT EXISTS products (
     prod_code VARCHAR(20) UNIQUE NOT NULL,
     prod_name VARCHAR(200) NOT NULL,
     category_code VARCHAR(20) REFERENCES categories(category_code),
-    unit_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+    cost_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+    selling_price DECIMAL(12,2) NOT NULL DEFAULT 0,
     current_stock INTEGER NOT NULL DEFAULT 0,
     min_stock_level INTEGER NOT NULL DEFAULT 0,
     comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
@@ -180,13 +181,13 @@ INSERT INTO categories (category_code, category_name, description) VALUES
 ON CONFLICT (category_code) DO NOTHING;
 
 -- Sample products
-INSERT INTO products (prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level) VALUES
-('T-1001', 'Radial Truck Tire 295/80R22.5', 'TRUCK', 45000.00, 120, 20),
-('T-1002', 'Sedan Comfort 195/65R15', 'CAR', 12000.00, 450, 50),
-('TB-2001', 'Heavy Duty Tube 10.00-20', 'TUBE', 3500.00, 800, 100),
-('T-1003', 'Off-Road Grip 265/70R17', 'SUV', 32000.00, 45, 10),
-('T-1004', 'Tractor Rear 18.4-30', 'AGRI', 85000.00, 12, 5),
-('T-1005', 'City Runner 175/70R13', 'CAR', 9500.00, 200, 30)
+INSERT INTO products (prod_code, prod_name, category_code, cost_price, selling_price, current_stock, min_stock_level) VALUES
+('T-1001', 'Radial Truck Tire 295/80R22.5', 'TRUCK', 35000.00, 45000.00, 120, 20),
+('T-1002', 'Sedan Comfort 195/65R15', 'CAR', 9000.00, 12000.00, 450, 50),
+('TB-2001', 'Heavy Duty Tube 10.00-20', 'TUBE', 2500.00, 3500.00, 800, 100),
+('T-1003', 'Off-Road Grip 265/70R17', 'SUV', 25000.00, 32000.00, 45, 10),
+('T-1004', 'Tractor Rear 18.4-30', 'AGRI', 70000.00, 85000.00, 12, 5),
+('T-1005', 'City Runner 175/70R13', 'CAR', 7000.00, 9500.00, 200, 30)
 ON CONFLICT (prod_code) DO NOTHING;
 
 -- Sample customers
@@ -416,6 +417,7 @@ ALTER TABLE companies ADD COLUMN IF NOT EXISTS tax_registration VARCHAR(50);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS route_code VARCHAR(20);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS tax_number VARCHAR(50);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS credit_terms_days INTEGER DEFAULT 30;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,2) DEFAULT 0.00;
 
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS tax_number VARCHAR(50);
 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS payment_terms_days INTEGER DEFAULT 30;
@@ -423,7 +425,19 @@ ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS payment_terms_days INTEGER DEFAUL
 ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_code VARCHAR(20) REFERENCES tax_rates(tax_code);
 ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,2) DEFAULT 5.00;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS hsn_code VARCHAR(20);
-ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_price DECIMAL(12,2);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price DECIMAL(12,2);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS selling_price DECIMAL(12,2);
+-- Rename unit_price to selling_price if it exists
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'unit_price') THEN
+        ALTER TABLE products RENAME COLUMN unit_price TO selling_price;
+    END IF;
+END $$;
+-- Copy purchase_price to cost_price if exists
+UPDATE products SET cost_price = purchase_price WHERE cost_price IS NULL AND purchase_price IS NOT NULL;
+-- Drop old purchase_price column if exists
+ALTER TABLE products DROP COLUMN IF EXISTS purchase_price;
 
 ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(12,2) DEFAULT 0;
 ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(12,2) DEFAULT 0;

@@ -32,6 +32,7 @@ export interface Customer {
   route_code?: string;
   tax_number?: string;
   credit_terms_days?: number;
+  tax_rate?: number;
 }
 
 export interface Supplier {
@@ -58,13 +59,13 @@ export interface Product {
   prod_code: string;
   prod_name: string;
   category_code: string;
-  unit_price: number;
+  cost_price: number;
+  selling_price: number;
   current_stock: number;
   min_stock_level: number;
   tax_code?: string;
   tax_rate?: number;
   hsn_code?: string;
-  purchase_price?: number;
 }
 
 export interface SalesInvoice {

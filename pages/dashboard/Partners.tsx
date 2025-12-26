@@ -47,7 +47,7 @@ const Partners: React.FC = () => {
       // Init empty form based on tab
       if (activeTab === 'customers') {
         setFormData({
-          cust_code: '', cust_name: '', city: '', phone: '', credit_limit: 0, outstanding_balance: 0
+          cust_code: '', cust_name: '', city: '', phone: '', credit_limit: 0, outstanding_balance: 0, tax_rate: 0
         });
       } else {
         setFormData({
@@ -291,15 +291,29 @@ const Partners: React.FC = () => {
 
               {/* Specific Fields */}
               {activeTab === 'customers' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Credit Limit</label>
-                  <input
-                    type="number"
-                    className="w-full border border-slate-300 rounded-lg p-2"
-                    value={formData.credit_limit}
-                    onChange={e => setFormData({ ...formData, credit_limit: Number(e.target.value) })}
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Credit Limit</label>
+                    <input
+                      type="number"
+                      className="w-full border border-slate-300 rounded-lg p-2"
+                      value={formData.credit_limit}
+                      onChange={e => setFormData({ ...formData, credit_limit: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Tax Rate (%)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      className="w-full border border-slate-300 rounded-lg p-2"
+                      value={formData.tax_rate || 0}
+                      onChange={e => setFormData({ ...formData, tax_rate: Number(e.target.value) })}
+                    />
+                  </div>
+                </>
               )}
               {activeTab === 'suppliers' && (
                 <div>

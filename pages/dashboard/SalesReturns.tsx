@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft, Edit2, Undo2 } from 'lucide-react';
+import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft, Edit2, Undo2, Printer } from 'lucide-react';
 import { useLoading } from '../../components/LoadingContext';
 import { useNotification } from '../../components/NotificationContext';
 import { api } from '../../services/api';
@@ -551,9 +551,14 @@ const SalesReturns: React.FC = () => {
                                 <h2 className="text-2xl font-bold text-slate-900">Return {viewingReturn.return_number}</h2>
                                 <p className="text-slate-500">Return details and related information</p>
                             </div>
-                            <button onClick={() => setView('list')} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
-                                <ChevronLeft className="w-4 h-4 mr-1" /> Back to List
-                            </button>
+                            <div className="flex items-center space-x-2">
+                                <button onClick={() => window.print()} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
+                                    <Printer className="w-4 h-4 mr-1" /> Print
+                                </button>
+                                <button onClick={() => setView('list')} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
+                                    <ChevronLeft className="w-4 h-4 mr-1" /> Back to List
+                                </button>
+                            </div>
                         </div>
 
                         {/* Return Summary */}

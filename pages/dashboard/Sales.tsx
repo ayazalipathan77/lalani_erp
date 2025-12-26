@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft, Edit2 } from 'lucide-react';
+import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft, Edit2, Printer } from 'lucide-react';
 import { useLoading } from '../../components/LoadingContext';
 import { useNotification } from '../../components/NotificationContext';
 import { useCompany } from '../../components/CompanyContext';
@@ -33,7 +33,9 @@ const Sales: React.FC = () => {
     const [paymentStatus, setPaymentStatus] = useState<'PENDING' | 'PAID'>('PENDING');
     const [cartItems, setCartItems] = useState<SalesInvoiceItem[]>([]);
     const [selectedProduct, setSelectedProduct] = useState('');
+    const [unitPrice, setUnitPrice] = useState(0);
     const [qty, setQty] = useState(1);
+    const [taxType, setTaxType] = useState<'product' | 'customer'>('product');
 
     // Edit state
     const [editingInvoice, setEditingInvoice] = useState<SalesInvoice | null>(null);
@@ -72,29 +74,44 @@ const Sales: React.FC = () => {
         }
     }, [id, invoices]);
 
+    // Refetch customers when switching to create view
+    useEffect(() => {
+        if (view === 'create') {
+            fetchData();
+        }
+    }, [view]);
+
     // Calculations
     const subtotal = cartItems.reduce((acc, item) => acc + item.line_total, 0);
 
-    // Calculate tax dynamically based on product tax rates
+    // Calculate tax based on selected tax type
     const calculateTax = () => {
-        return cartItems.reduce((totalTax, item) => {
-            const product = products.find(p => p.prod_code === item.prod_code);
-            if (product && product.tax_code) {
-                const taxRate = taxRates.find(tr => tr.tax_code === product.tax_code);
-                if (taxRate) {
-                    return totalTax + (item.line_total * (taxRate.tax_rate / 100));
+        const customer = customers.find(c => c.cust_code === selectedCustomer);
+
+        if (taxType === 'customer') {
+            const customerTaxRate = customer?.tax_rate || 0;
+            return subtotal * (customerTaxRate / 100);
+        } else {
+            // Product-based tax calculation (cumulative)
+            return cartItems.reduce((totalTax, item) => {
+                const product = products.find(p => p.prod_code === item.prod_code);
+                if (product && product.tax_code) {
+                    const taxRate = taxRates.find(tr => tr.tax_code === product.tax_code);
+                    if (taxRate) {
+                        return totalTax + (item.line_total * (taxRate.tax_rate / 100));
+                    }
                 }
-            }
-            // Fallback to 5% if tax rate not found
-            return totalTax + (item.line_total * 0.05);
-        }, 0);
+                // Fallback to 5% if tax rate not found
+                return totalTax + (item.line_total * 0.05);
+            }, 0);
+        }
     };
 
     const tax = calculateTax();
     const total = subtotal + tax;
 
     const handleAddItem = () => {
-        if (!selectedProduct || qty <= 0) return;
+        if (!selectedProduct || qty <= 0 || unitPrice <= 0) return;
         const product = products.find(p => p.prod_code === selectedProduct);
         if (!product) return;
 
@@ -108,12 +125,13 @@ const Sales: React.FC = () => {
             prod_code: product.prod_code,
             prod_name: product.prod_name,
             quantity: qty,
-            unit_price: product.unit_price,
-            line_total: product.unit_price * qty
+            unit_price: unitPrice,
+            line_total: unitPrice * qty
         };
 
         setCartItems([...cartItems, newItem]);
         setSelectedProduct('');
+        setUnitPrice(0);
         setQty(1);
     };
 
@@ -149,6 +167,9 @@ const Sales: React.FC = () => {
             // Reset
             setCartItems([]);
             setSelectedCustomer('');
+            setUnitPrice(0);
+            setQty(1);
+            setTaxType('product');
             setEditingInvoice(null);
             setView('list');
             await fetchData(); // Refresh list
@@ -368,12 +389,20 @@ const Sales: React.FC = () => {
                                         </div>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-4">
-                                            <div className="sm:col-span-8">
+                                            <div className="sm:col-span-4">
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Select Product</label>
                                                 <select
                                                     className="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-brand-500 focus:border-brand-500 sm:text-sm p-2.5 border"
                                                     value={selectedProduct}
-                                                    onChange={(e) => setSelectedProduct(e.target.value)}
+                                                    onChange={(e) => {
+                                                        setSelectedProduct(e.target.value);
+                                                        const product = products.find(p => p.prod_code === e.target.value);
+                                                        if (product) {
+                                                            setUnitPrice(product.selling_price);
+                                                        } else {
+                                                            setUnitPrice(0);
+                                                        }
+                                                    }}
                                                 >
                                                     <option value="">-- Choose Product --</option>
                                                     {products.map(p => (
@@ -382,6 +411,17 @@ const Sales: React.FC = () => {
                                                         </option>
                                                     ))}
                                                 </select>
+                                            </div>
+                                            <div className="sm:col-span-2">
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Price</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    className="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-brand-500 focus:border-brand-500 sm:text-sm p-2.5 border"
+                                                    value={unitPrice}
+                                                    onChange={(e) => setUnitPrice(parseFloat(e.target.value) || 0)}
+                                                />
                                             </div>
                                             <div className="sm:col-span-2">
                                                 <label className="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
@@ -393,10 +433,10 @@ const Sales: React.FC = () => {
                                                     onChange={(e) => setQty(parseInt(e.target.value))}
                                                 />
                                             </div>
-                                            <div className="sm:col-span-2 flex items-end">
+                                            <div className="sm:col-span-4 flex items-end">
                                                 <button
                                                     onClick={handleAddItem}
-                                                    disabled={!selectedProduct}
+                                                    disabled={!selectedProduct || unitPrice <= 0}
                                                     className="w-full bg-slate-900 text-white px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors flex items-center justify-center disabled:opacity-50"
                                                 >
                                                     <Plus className="w-4 h-4" />
@@ -532,6 +572,34 @@ const Sales: React.FC = () => {
                                                     <option value="PAID">Cash (Paid)</option>
                                                 </select>
                                             </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">Tax Calculation</label>
+                                                <div className="space-y-2">
+                                                    <label className="flex items-center">
+                                                        <input
+                                                            type="radio"
+                                                            name="taxType"
+                                                            value="product"
+                                                            checked={taxType === 'product'}
+                                                            onChange={(e) => setTaxType(e.target.value as 'product')}
+                                                            className="text-brand-600 focus:ring-brand-500"
+                                                        />
+                                                        <span className="ml-2 text-sm text-slate-700">Product Taxes (Cumulative)</span>
+                                                    </label>
+                                                    <label className="flex items-center">
+                                                        <input
+                                                            type="radio"
+                                                            name="taxType"
+                                                            value="customer"
+                                                            checked={taxType === 'customer'}
+                                                            onChange={(e) => setTaxType(e.target.value as 'customer')}
+                                                            className="text-brand-600 focus:ring-brand-500"
+                                                        />
+                                                        <span className="ml-2 text-sm text-slate-700">Customer Tax Rate</span>
+                                                    </label>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div className="mt-8 border-t border-slate-200 pt-4 space-y-2">
@@ -574,9 +642,14 @@ const Sales: React.FC = () => {
                                             <h2 className="text-2xl font-bold text-slate-900">Invoice {viewingInvoice.inv_number}</h2>
                                             <p className="text-slate-500">Invoice details and related information</p>
                                         </div>
-                                        <button onClick={() => setView('list')} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
-                                            <ChevronLeft className="w-4 h-4 mr-1" /> Back to List
-                                        </button>
+                                        <div className="flex items-center space-x-2">
+                                            <button onClick={() => window.print()} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
+                                                <Printer className="w-4 h-4 mr-1" /> Print
+                                            </button>
+                                            <button onClick={() => setView('list')} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
+                                                <ChevronLeft className="w-4 h-4 mr-1" /> Back to List
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {/* Invoice Summary */}

@@ -54,7 +54,7 @@ const VoucherSearch: React.FC = () => {
                 loansRes
             ] = await Promise.all([
                 api.invoices.getAll(1, 1000), // Large limit to get all
-                Promise.resolve({ data: [] }), // salesReturns - placeholder
+                api.salesReturns.getAll(1, 1000),
                 api.purchaseInvoices.getAll(1, 1000),
                 api.paymentReceipts.getAll(1, 1000),
                 api.supplierPayments.getAll(1, 1000),

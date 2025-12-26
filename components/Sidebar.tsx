@@ -20,7 +20,8 @@ import {
   ChevronRight,
   Settings,
   FileText,
-  TrendingDown
+  TrendingDown,
+  Database
 } from 'lucide-react';
 import { User } from '../types';
 
@@ -171,6 +172,12 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isMobileOpen = false,
           icon: Users,
           label: 'Customers & Vendors',
           visible: hasPermission('PARTNERS_VIEW')
+        },
+        {
+          to: '/dashboard/system-backups',
+          icon: Database,
+          label: 'System Backups',
+          visible: user.role === 'ADMIN'
         }
       ]
     },

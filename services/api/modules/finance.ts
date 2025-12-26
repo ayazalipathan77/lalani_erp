@@ -15,7 +15,9 @@ export const finance = {
                 }
             };
         }
-        const res = await fetch(`/api/finance/transactions?page=${page}&limit=${limit}`);
+        const res = await fetch(`/api/finance/transactions?page=${page}&limit=${limit}`, {
+            headers: getAuthHeaders()
+        });
         return res.json();
     },
     getExpenses: async (page: number = 1, limit: number = 8): Promise<{ data: Expense[], pagination: any }> => {
@@ -31,7 +33,9 @@ export const finance = {
                 }
             };
         }
-        const res = await fetch(`/api/finance/expenses?page=${page}&limit=${limit}`);
+        const res = await fetch(`/api/finance/expenses?page=${page}&limit=${limit}`, {
+            headers: getAuthHeaders()
+        });
         return res.json();
     },
     addExpense: async (expense: Omit<Expense, 'expense_id'>): Promise<Expense> => {
@@ -41,7 +45,7 @@ export const finance = {
         }
         const res = await fetch('/api/finance/expenses', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(expense)
         });
         return res.json();
@@ -53,7 +57,7 @@ export const finance = {
         }
         const res = await fetch(`/api/finance/expenses/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(expense)
         });
         return res.json();
@@ -71,7 +75,7 @@ export const finance = {
         }
         const res = await fetch('/api/finance/payment', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(data)
         });
         return res.json();
@@ -89,7 +93,7 @@ export const finance = {
         }
         const res = await fetch(`/api/finance/transactions/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(data)
         });
         return res.json();
@@ -100,7 +104,9 @@ export const finance = {
             await delay(300);
             return [];
         }
-        const res = await fetch('/api/finance/expense-heads');
+        const res = await fetch('/api/finance/expense-heads', {
+            headers: getAuthHeaders()
+        });
         return res.json();
     },
     addExpenseHead: async (head: Omit<ExpenseHead, 'head_id'>): Promise<ExpenseHead> => {
@@ -110,7 +116,7 @@ export const finance = {
         }
         const res = await fetch('/api/finance/expense-heads', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(head)
         });
         return res.json();
@@ -122,7 +128,7 @@ export const finance = {
         }
         const res = await fetch(`/api/finance/expense-heads/${code}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(head)
         });
         return res.json();
@@ -133,7 +139,8 @@ export const finance = {
             return { message: 'Deleted' };
         }
         const res = await fetch(`/api/finance/expense-heads/${code}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getAuthHeaders()
         });
         return res.json();
     },
@@ -143,7 +150,9 @@ export const finance = {
             await delay(300);
             return [];
         }
-        const res = await fetch('/api/finance/tax-rates');
+        const res = await fetch('/api/finance/tax-rates', {
+            headers: getAuthHeaders()
+        });
         return res.json();
     },
     getTaxRate: async (code: string): Promise<TaxRate> => {
@@ -151,7 +160,9 @@ export const finance = {
             await delay(300);
             return {} as TaxRate;
         }
-        const res = await fetch(`/api/finance/tax-rates/${code}`);
+        const res = await fetch(`/api/finance/tax-rates/${code}`, {
+            headers: getAuthHeaders()
+        });
         return res.json();
     },
     addTaxRate: async (taxRate: Omit<TaxRate, 'tax_id'>): Promise<TaxRate> => {
@@ -161,7 +172,7 @@ export const finance = {
         }
         const res = await fetch('/api/finance/tax-rates', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(taxRate)
         });
         return res.json();
@@ -173,7 +184,7 @@ export const finance = {
         }
         const res = await fetch(`/api/finance/tax-rates/${code}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(taxRate)
         });
         return res.json();
@@ -184,7 +195,8 @@ export const finance = {
             return { message: 'Deleted' };
         }
         const res = await fetch(`/api/finance/tax-rates/${code}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getAuthHeaders()
         });
         return res.json();
     },
@@ -194,7 +206,9 @@ export const finance = {
             await delay(300);
             return null;
         }
-        const res = await fetch('/api/finance/opening-balance');
+        const res = await fetch('/api/finance/opening-balance', {
+            headers: getAuthHeaders()
+        });
         return res.json();
     },
     setOpeningBalance: async (balance: { balance_date: string, opening_amount: number, closing_amount?: number }): Promise<any> => {
@@ -204,7 +218,7 @@ export const finance = {
         }
         const res = await fetch('/api/finance/opening-balance', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(balance)
         });
         return res.json();
@@ -223,7 +237,9 @@ export const finance = {
                 }
             };
         }
-        const res = await fetch(`/api/finance/loans?page=${page}&limit=${limit}`);
+        const res = await fetch(`/api/finance/loans?page=${page}&limit=${limit}`, {
+            headers: getAuthHeaders()
+        });
         return res.json();
     },
     addLoan: async (loan: Omit<LoanTaken, 'loan_id'>): Promise<LoanTaken> => {
@@ -233,7 +249,7 @@ export const finance = {
         }
         const res = await fetch('/api/finance/loans', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(loan)
         });
         return res.json();
@@ -243,7 +259,9 @@ export const finance = {
             await delay(300);
             return [];
         }
-        const res = await fetch(`/api/finance/loans/${loanId}/returns`);
+        const res = await fetch(`/api/finance/loans/${loanId}/returns`, {
+            headers: getAuthHeaders()
+        });
         return res.json();
     },
     addLoanReturn: async (loanReturn: Omit<LoanReturn, 'return_id'>): Promise<LoanReturn> => {
@@ -253,7 +271,7 @@ export const finance = {
         }
         const res = await fetch('/api/finance/loan-returns', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(loanReturn)
         });
         return res.json();

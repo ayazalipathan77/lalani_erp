@@ -41,12 +41,12 @@ export default (app, pool, logger) => {
     });
 
     app.post('/api/products', async (req, res) => {
-        const { prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, tax_code } = req.body;
+        const { prod_code, prod_name, category_code, cost_price, selling_price, current_stock, min_stock_level, tax_code } = req.body;
         const companyCode = getCompanyContext(req);
         try {
             const result = await pool.query(
-                'INSERT INTO products (prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, tax_code, comp_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-                [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, tax_code || 'GST5', companyCode, req.user?.id]
+                'INSERT INTO products (prod_code, prod_name, category_code, cost_price, selling_price, current_stock, min_stock_level, tax_code, comp_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
+                [prod_code, prod_name, category_code, cost_price, selling_price, current_stock, min_stock_level, tax_code || 'GST5', companyCode, req.user?.id]
             );
             res.json(result.rows[0]);
         } catch (err) {
@@ -57,7 +57,7 @@ export default (app, pool, logger) => {
 
     app.put('/api/products/:id', async (req, res) => {
         const { id } = req.params;
-        const { prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, tax_code } = req.body;
+        const { prod_code, prod_name, category_code, cost_price, selling_price, current_stock, min_stock_level, tax_code } = req.body;
         const companyCode = getCompanyContext(req);
 
         try {
@@ -66,8 +66,8 @@ export default (app, pool, logger) => {
                 return res.status(400).json({ message: 'Product code and name are required' });
             }
 
-            if (unit_price < 0) {
-                return res.status(400).json({ message: 'Unit price cannot be negative' });
+            if (cost_price < 0 || selling_price < 0) {
+                return res.status(400).json({ message: 'Prices cannot be negative' });
             }
 
             if (current_stock < 0) {
@@ -114,8 +114,8 @@ export default (app, pool, logger) => {
             }
 
             const result = await pool.query(
-                'UPDATE products SET prod_code=$1, prod_name=$2, category_code=$3, unit_price=$4, current_stock=$5, min_stock_level=$6, tax_code=$7, updated_by=$8 WHERE prod_id=$9 AND comp_code=$10 RETURNING *',
-                [prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level, tax_code || 'GST5', req.user?.id, id, companyCode]
+                'UPDATE products SET prod_code=$1, prod_name=$2, category_code=$3, cost_price=$4, selling_price=$5, current_stock=$6, min_stock_level=$7, tax_code=$8, updated_by=$9 WHERE prod_id=$10 AND comp_code=$11 RETURNING *',
+                [prod_code, prod_name, category_code, cost_price, selling_price, current_stock, min_stock_level, tax_code || 'GST5', req.user?.id, id, companyCode]
             );
 
             res.json(result.rows[0]);

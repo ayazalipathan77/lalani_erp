@@ -219,6 +219,7 @@ const authenticateToken = (req, res, next) => {
             req.user = {
                 id: decoded.userId,
                 username: decoded.username,
+                role: decoded.role,
                 selectedCompany: decoded.selectedCompany || 'CMP01'
             };
             // Only log successful token verification for important endpoints, not every request
