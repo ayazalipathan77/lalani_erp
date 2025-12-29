@@ -21,7 +21,20 @@ export default (app, pool, logger) => {
             // Get paginated data
             const result = await pool.query(`
                 SELECT i.*,
-                (SELECT json_agg(json_build_object('prod_code', it.prod_code, 'quantity', it.quantity, 'unit_price', it.unit_price, 'line_total', it.line_total, 'prod_name', p.prod_name))
+                (SELECT json_agg(
+                    json_build_object(
+                        'prod_code', it.prod_code,
+                        'quantity', it.quantity,
+                        'unit_price', it.unit_price,
+                        'discount_rate', COALESCE(it.discount_rate, 0),
+                        'discount_amount', COALESCE(it.discount_amount, 0),
+                        'tax_rate', COALESCE(it.tax_rate, 5.00),
+                        'tax_amount', COALESCE(it.tax_amount, 0),
+                        'net_amount', COALESCE(it.net_amount, it.line_total),
+                        'line_total', it.line_total,
+                        'prod_name', p.prod_name
+                    )
+                )
                  FROM sales_invoice_items it
                  JOIN products p ON it.prod_code = p.prod_code
                  WHERE it.inv_id = i.inv_id) as items
@@ -32,6 +45,9 @@ export default (app, pool, logger) => {
 
             const invoices = result.rows.map(inv => ({
                 ...inv,
+                discount_amount: inv.discount_amount || 0,
+                tax_amount: inv.tax_amount || 0,
+                sub_total: inv.sub_total || inv.total_amount, // For old invoices without sub_total
                 status: Number(inv.balance_due) <= 0 ? 'PAID' : (Number(inv.balance_due) < Number(inv.total_amount) ? 'PARTIAL' : 'PENDING')
             }));
 
@@ -57,10 +73,19 @@ export default (app, pool, logger) => {
         try {
             await client.query('BEGIN');
 
-            const sub_total = items.reduce((acc, item) => acc + Number(item.line_total), 0);
+            // Get customer discount rate
+            const customerResult = await client.query(
+                'SELECT discount_rate FROM customers WHERE cust_code = $1 AND comp_code = $2',
+                [cust_code, companyCode]
+            );
+            const customerDiscountRate = customerResult.rows[0]?.discount_rate || 0;
 
-            // Calculate tax based on product tax rates
+            let sub_total = 0;
+            let totalDiscountAmount = 0;
             let totalTaxAmount = 0;
+            let totalNetAmount = 0;
+
+            // Process each item with per-item discount and tax
             for (const item of items) {
                 const productResult = await client.query(
                     'SELECT p.*, tr.tax_rate FROM products p LEFT JOIN tax_rates tr ON p.tax_code = tr.tax_code WHERE p.prod_code = $1 AND p.comp_code = $2',
@@ -70,29 +95,37 @@ export default (app, pool, logger) => {
                 if (!product) {
                     throw new Error(`Product ${item.prod_code} not found`);
                 }
+
+                const lineTotal = Number(item.line_total);
+                const discountAmount = lineTotal * (customerDiscountRate / 100);
+                const amountAfterDiscount = lineTotal - discountAmount;
+
                 // Use tax_rate from JOIN or fallback to product's tax_rate field or default 5%
                 const taxRate = product.tax_rate || 5.00;
-                const itemTax = item.line_total * (taxRate / 100);
-                totalTaxAmount += itemTax;
+                const taxAmount = amountAfterDiscount * (taxRate / 100);
+                const netAmount = amountAfterDiscount + taxAmount;
+
+                sub_total += lineTotal;
+                totalDiscountAmount += discountAmount;
+                totalTaxAmount += taxAmount;
+                totalNetAmount += netAmount;
             }
 
-            const tax_amount = totalTaxAmount;
-            const total_amount = sub_total + tax_amount;
-            const balance_due = status === 'PAID' ? 0 : total_amount;
+            const balance_due = status === 'PAID' ? 0 : totalNetAmount;
             const inv_number = `INV-${Date.now()}`;
 
             const invRes = await client.query(
-                `INSERT INTO sales_invoices (inv_number, inv_date, cust_code, comp_code, sub_total, tax_amount, total_amount, balance_due, created_by)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING inv_id`,
-                [inv_number, date, cust_code, companyCode, sub_total, tax_amount, total_amount, balance_due, req.user?.id]
+                `INSERT INTO sales_invoices (inv_number, inv_date, cust_code, comp_code, sub_total, discount_amount, tax_amount, total_amount, balance_due, created_by)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING inv_id`,
+                [inv_number, date, cust_code, companyCode, sub_total, totalDiscountAmount, totalTaxAmount, totalNetAmount, balance_due, req.user?.id]
             );
             const inv_id = invRes.rows[0].inv_id;
 
             for (const item of items) {
                 await client.query(
-                    `INSERT INTO sales_invoice_items (inv_id, prod_code, quantity, unit_price, line_total)
-                     VALUES ($1, $2, $3, $4, $5)`,
-                    [inv_id, item.prod_code, item.quantity, item.unit_price, item.line_total]
+                    `INSERT INTO sales_invoice_items (inv_id, prod_code, quantity, unit_price, discount_rate, discount_amount, tax_rate, tax_amount, net_amount, line_total)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                    [inv_id, item.prod_code, item.quantity, item.unit_price, item.discount_rate || 0, item.discount_amount || 0, item.tax_rate || 0, item.tax_amount || 0, item.net_amount || 0, item.line_total]
                 );
                 await client.query(
                     `UPDATE products SET current_stock = current_stock - $1 WHERE prod_code = $2`,
@@ -187,16 +220,19 @@ export default (app, pool, logger) => {
                 );
             }
 
-            // Validate and calculate new totals with dynamic tax rates
-            const sub_total = items.reduce((acc, item) => acc + Number(item.line_total), 0);
+            // Get customer discount rate
+            const customerResult = await client.query(
+                'SELECT discount_rate FROM customers WHERE cust_code = $1 AND comp_code = $2',
+                [cust_code, companyCode]
+            );
+            const customerDiscountRate = customerResult.rows[0]?.discount_rate || 0;
 
-            if (sub_total <= 0) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ message: 'Invoice subtotal must be greater than zero' });
-            }
-
-            // Calculate tax based on product tax rates and validate stock availability
+            let sub_total = 0;
+            let totalDiscountAmount = 0;
             let totalTaxAmount = 0;
+            let totalNetAmount = 0;
+
+            // Process each item with per-item discount and tax
             for (const item of items) {
                 // Validate item data
                 if (!item.prod_code || !item.quantity || !item.unit_price || !item.line_total) {
@@ -235,21 +271,28 @@ export default (app, pool, logger) => {
                     });
                 }
 
+                const lineTotal = Number(item.line_total);
+                const discountAmount = lineTotal * (customerDiscountRate / 100);
+                const amountAfterDiscount = lineTotal - discountAmount;
+
                 // Use tax_rate from JOIN or fallback to product's tax_rate field or default 5%
                 const taxRate = product.tax_rate || 5.00;
-                const itemTax = item.line_total * (taxRate / 100);
-                totalTaxAmount += itemTax;
+                const taxAmount = amountAfterDiscount * (taxRate / 100);
+                const netAmount = amountAfterDiscount + taxAmount;
+
+                sub_total += lineTotal;
+                totalDiscountAmount += discountAmount;
+                totalTaxAmount += taxAmount;
+                totalNetAmount += netAmount;
             }
 
-            const tax_amount = totalTaxAmount;
-            const total_amount = sub_total + tax_amount;
-            const balance_due = status === 'PAID' ? 0 : total_amount;
+            const balance_due = status === 'PAID' ? 0 : totalNetAmount;
 
             // Update invoice header
             const updateRes = await client.query(
-                `UPDATE sales_invoices SET inv_date=$1, cust_code=$2, sub_total=$3, tax_amount=$4,
-                 total_amount=$5, balance_due=$6, updated_by=$7 WHERE inv_id=$8 RETURNING *`,
-                [inv_date, cust_code, sub_total, tax_amount, total_amount, balance_due, req.user?.id, id]
+                `UPDATE sales_invoices SET inv_date=$1, cust_code=$2, sub_total=$3, discount_amount=$4, tax_amount=$5,
+                 total_amount=$6, balance_due=$7, updated_by=$8 WHERE inv_id=$9 RETURNING *`,
+                [inv_date, cust_code, sub_total, totalDiscountAmount, totalTaxAmount, totalNetAmount, balance_due, req.user?.id, id]
             );
 
             // Delete old invoice items
@@ -257,10 +300,23 @@ export default (app, pool, logger) => {
 
             // Insert new invoice items and update stock
             for (const item of items) {
+                const lineTotal = Number(item.line_total);
+                const discountAmount = lineTotal * (customerDiscountRate / 100);
+                const amountAfterDiscount = lineTotal - discountAmount;
+
+                const productResult = await client.query(
+                    'SELECT p.*, tr.tax_rate FROM products p LEFT JOIN tax_rates tr ON p.tax_code = tr.tax_code WHERE p.prod_code = $1 AND p.comp_code = $2',
+                    [item.prod_code, companyCode]
+                );
+                const product = productResult.rows[0];
+                const taxRate = product.tax_rate || 5.00;
+                const taxAmount = amountAfterDiscount * (taxRate / 100);
+                const netAmount = amountAfterDiscount + taxAmount;
+
                 await client.query(
-                    `INSERT INTO sales_invoice_items (inv_id, prod_code, quantity, unit_price, line_total)
-                     VALUES ($1, $2, $3, $4, $5)`,
-                    [id, item.prod_code, item.quantity, item.unit_price, item.line_total]
+                    `INSERT INTO sales_invoice_items (inv_id, prod_code, quantity, unit_price, discount_rate, discount_amount, tax_rate, tax_amount, net_amount, line_total)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                    [id, item.prod_code, item.quantity, item.unit_price, customerDiscountRate, discountAmount, taxRate, taxAmount, netAmount, item.line_total]
                 );
                 await client.query(
                     `UPDATE products SET current_stock = current_stock - $1 WHERE prod_code = $2`,

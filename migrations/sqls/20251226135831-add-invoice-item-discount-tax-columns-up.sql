@@ -1,0 +1,5 @@
+ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS discount_rate DECIMAL(5,2) DEFAULT 0.00;
+ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(12,2) DEFAULT 0.00;
+ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,2) DEFAULT 0.00;
+ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(12,2) DEFAULT 0.00;
+ALTER TABLE sales_invoice_items ADD COLUMN IF NOT EXISTS net_amount DECIMAL(12,2) DEFAULT 0.00;

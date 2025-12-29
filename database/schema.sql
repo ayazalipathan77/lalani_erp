@@ -124,6 +124,11 @@ CREATE TABLE IF NOT EXISTS sales_invoice_items (
     prod_code VARCHAR(20) REFERENCES products(prod_code),
     quantity INTEGER NOT NULL,
     unit_price DECIMAL(12,2) NOT NULL,
+    discount_rate DECIMAL(5,2) DEFAULT 0.00,
+    discount_amount DECIMAL(12,2) DEFAULT 0.00,
+    tax_rate DECIMAL(5,2) DEFAULT 5.00,
+    tax_amount DECIMAL(12,2) DEFAULT 0.00,
+    net_amount DECIMAL(12,2) DEFAULT 0.00,
     line_total DECIMAL(12,2) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -266,6 +271,11 @@ CREATE TABLE IF NOT EXISTS sales_return_items (
     prod_code VARCHAR(20) REFERENCES products(prod_code),
     quantity INTEGER NOT NULL,
     unit_price DECIMAL(12,2) NOT NULL,
+    discount_rate DECIMAL(5,2) DEFAULT 0.00,
+    discount_amount DECIMAL(12,2) DEFAULT 0.00,
+    tax_rate DECIMAL(5,2) DEFAULT 5.00,
+    tax_amount DECIMAL(12,2) DEFAULT 0.00,
+    net_amount DECIMAL(12,2) DEFAULT 0.00,
     line_total DECIMAL(12,2) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -398,6 +408,21 @@ CREATE TABLE IF NOT EXISTS tax_rates (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Discount Rates Configuration
+CREATE TABLE IF NOT EXISTS discount_rates (
+    discount_id SERIAL PRIMARY KEY,
+    discount_code VARCHAR(20) UNIQUE NOT NULL,
+    discount_name VARCHAR(100) NOT NULL,
+    discount_rate DECIMAL(5,2) NOT NULL, -- Percentage (e.g., 10.00 for 10%)
+    description TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    comp_code VARCHAR(10) REFERENCES companies(comp_code) DEFAULT 'CMP01',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(user_id),
+    updated_by INTEGER REFERENCES users(user_id)
+);
+
 CREATE TABLE IF NOT EXISTS system_backups (
     backup_id SERIAL PRIMARY KEY,
     backup_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -481,6 +506,7 @@ CREATE INDEX IF NOT EXISTS idx_loan_return_loan ON loan_return(loan_id);
 CREATE INDEX IF NOT EXISTS idx_loan_return_date ON loan_return(return_date);
 CREATE INDEX IF NOT EXISTS idx_expense_heads_code ON expense_heads(head_code);
 CREATE INDEX IF NOT EXISTS idx_tax_rates_code ON tax_rates(tax_code);
+CREATE INDEX IF NOT EXISTS idx_discount_rates_code ON discount_rates(discount_code);
 CREATE INDEX IF NOT EXISTS idx_system_backups_date ON system_backups(backup_date);
 
 -- Insert sample data for new tables
@@ -492,6 +518,15 @@ INSERT INTO tax_rates (tax_code, tax_name, tax_rate, tax_type, description) VALU
 ('GST18', 'GST 18%', 18.00, 'GST', 'Highest GST rate'),
 ('GST0', 'GST Exempt', 0.00, 'GST', 'GST exempted items')
 ON CONFLICT (tax_code) DO NOTHING;
+
+-- Insert default discount rates
+INSERT INTO discount_rates (discount_code, discount_name, discount_rate, description) VALUES
+('DISC0', 'No Discount', 0.00, 'No discount applied'),
+('DISC5', '5% Discount', 5.00, 'Standard 5% discount'),
+('DISC10', '10% Discount', 10.00, 'Standard 10% discount'),
+('DISC15', '15% Discount', 15.00, 'Premium 15% discount'),
+('DISC20', '20% Discount', 20.00, 'VIP 20% discount')
+ON CONFLICT (discount_code) DO NOTHING;
 
 -- Update existing expenses to use new head codes
 UPDATE expenses SET head_code = 'FUEL' WHERE head_code = 'FUEL' OR remarks LIKE '%Fuel%';

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, MapPin, Phone, Building2, User, Edit2, Trash2, X } from 'lucide-react';
 import { api } from '../../services/api';
-import { Customer, Supplier } from '../../types';
+import { Customer, Supplier, DiscountRate } from '../../types';
 import { useCompany } from '../../components/CompanyContext';
 
 const Partners: React.FC = () => {
@@ -10,6 +10,7 @@ const Partners: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [discountRates, setDiscountRates] = useState<DiscountRate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal State
@@ -22,12 +23,14 @@ const Partners: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [custsResponse, suppsResponse] = await Promise.all([
+      const [custsResponse, suppsResponse, discountResponse] = await Promise.all([
         api.customers.getAll(1, 100), // Get all customers for partners page
-        api.suppliers.getAll(1, 100) // Get all suppliers for partners page
+        api.suppliers.getAll(1, 100), // Get all suppliers for partners page
+        api.discountRates.getAll() // Get all discount rates
       ]);
       setCustomers(custsResponse.data);
       setSuppliers(suppsResponse.data);
+      setDiscountRates(discountResponse);
     } catch (e) {
       console.error(e);
     } finally {
@@ -47,7 +50,7 @@ const Partners: React.FC = () => {
       // Init empty form based on tab
       if (activeTab === 'customers') {
         setFormData({
-          cust_code: '', cust_name: '', city: '', phone: '', credit_limit: 0, outstanding_balance: 0, tax_rate: 0
+          cust_code: '', cust_name: '', city: '', phone: '', credit_limit: 0, outstanding_balance: 0, tax_rate: 0, discount_rate: 0
         });
       } else {
         setFormData({
@@ -312,6 +315,21 @@ const Partners: React.FC = () => {
                       value={formData.tax_rate || 0}
                       onChange={e => setFormData({ ...formData, tax_rate: Number(e.target.value) })}
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Discount Rate</label>
+                    <select
+                      className="w-full border border-slate-300 rounded-lg p-2"
+                      value={formData.discount_rate || 0}
+                      onChange={e => setFormData({ ...formData, discount_rate: Number(e.target.value) })}
+                    >
+                      <option value={0}>No Discount</option>
+                      {discountRates.filter(dr => dr.is_active).map(dr => (
+                        <option key={dr.discount_id} value={dr.discount_rate}>
+                          {dr.discount_name} ({dr.discount_rate}%)
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </>
               )}

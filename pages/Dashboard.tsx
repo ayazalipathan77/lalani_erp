@@ -23,6 +23,7 @@ const Partners = lazy(() => import('./dashboard/Partners'));
 const Users = lazy(() => import('./dashboard/Users'));
 const Companies = lazy(() => import('./dashboard/Companies'));
 const TaxRates = lazy(() => import('./dashboard/TaxRates'));
+const DiscountRates = lazy(() => import('./dashboard/DiscountRates'));
 const Reports = lazy(() => import('./dashboard/Reports'));
 const SystemBackups = lazy(() => import('./dashboard/SystemBackups'));
 
@@ -240,6 +241,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <Route path="/tax-rates" element={
                   <ProtectedRoute user={user} permission="FINANCE_VIEW">
                     <TaxRates />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/discount-rates" element={
+                  <ProtectedRoute user={user} permission="FINANCE_VIEW">
+                    <DiscountRates />
                   </ProtectedRoute>
                 } />
 

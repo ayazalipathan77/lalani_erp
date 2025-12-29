@@ -19,6 +19,12 @@ export default (app, pool, logger) => {
             const countResult = await pool.query('SELECT COUNT(*) as total FROM customers WHERE comp_code = $1', [companyCode]);
             const total = parseInt(countResult.rows[0].total);
 
+            // Update customers with null discount_rate to 0.00
+            await pool.query(
+                'UPDATE customers SET discount_rate = 0.00 WHERE discount_rate IS NULL AND comp_code = $1',
+                [companyCode]
+            );
+
             // Get paginated data
             const result = await pool.query(
                 'SELECT * FROM customers WHERE comp_code = $1 ORDER BY cust_name LIMIT $2 OFFSET $3',
@@ -41,12 +47,12 @@ export default (app, pool, logger) => {
     });
 
     app.post('/api/customers', async (req, res) => {
-        const { cust_code, cust_name, city, phone, credit_limit, outstanding_balance, tax_rate } = req.body;
+        const { cust_code, cust_name, city, phone, credit_limit, outstanding_balance, tax_rate, discount_rate } = req.body;
         const companyCode = getCompanyContext(req);
         try {
             const result = await pool.query(
-                'INSERT INTO customers (cust_code, cust_name, city, phone, credit_limit, outstanding_balance, tax_rate, comp_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-                [cust_code, cust_name, city, phone, credit_limit, outstanding_balance, tax_rate || 0, companyCode, req.user?.id]
+                'INSERT INTO customers (cust_code, cust_name, city, phone, credit_limit, outstanding_balance, tax_rate, discount_rate, comp_code, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
+                [cust_code, cust_name, city, phone, credit_limit, outstanding_balance, tax_rate || 0, discount_rate || 0, companyCode, req.user?.id]
             );
             res.json(result.rows[0]);
         } catch (err) {
@@ -57,7 +63,7 @@ export default (app, pool, logger) => {
 
     app.put('/api/customers/:id', async (req, res) => {
         const { id } = req.params;
-        const { cust_code, cust_name, city, phone, credit_limit, tax_rate } = req.body;
+        const { cust_code, cust_name, city, phone, credit_limit, tax_rate, discount_rate } = req.body;
         const companyCode = getCompanyContext(req);
 
         try {
@@ -102,8 +108,8 @@ export default (app, pool, logger) => {
             }
 
             const result = await pool.query(
-                'UPDATE customers SET cust_code=$1, cust_name=$2, city=$3, phone=$4, credit_limit=$5, tax_rate=$6, updated_by=$7 WHERE cust_id=$8 AND comp_code=$9 RETURNING *',
-                [cust_code, cust_name, city, phone, credit_limit, tax_rate || 0, req.user?.id, id, companyCode]
+                'UPDATE customers SET cust_code=$1, cust_name=$2, city=$3, phone=$4, credit_limit=$5, tax_rate=$6, discount_rate=$7, updated_by=$8 WHERE cust_id=$9 AND comp_code=$10 RETURNING *',
+                [cust_code, cust_name, city, phone, credit_limit, tax_rate || 0, discount_rate || 0, req.user?.id, id, companyCode]
             );
 
             res.json(result.rows[0]);

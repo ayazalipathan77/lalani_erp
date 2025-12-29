@@ -14,6 +14,7 @@ import { finance } from './api/modules/finance';
 import { paymentReceipts } from './api/modules/paymentReceipts';
 import { supplierPayments } from './api/modules/supplierPayments';
 import { systemBackups } from './api/modules/systemBackups';
+import { discountRates } from './api/modules/discountRates';
 
 export const api = {
   auth,
@@ -30,5 +31,6 @@ export const api = {
   finance,
   paymentReceipts,
   supplierPayments,
-  systemBackups
+  systemBackups,
+  discountRates
 };

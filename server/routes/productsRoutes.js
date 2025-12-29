@@ -19,6 +19,12 @@ export default (app, pool, logger) => {
             const countResult = await pool.query('SELECT COUNT(*) as total FROM products WHERE comp_code = $1', [companyCode]);
             const total = parseInt(countResult.rows[0].total);
 
+            // Update products with null tax_rate to 5.00
+            await pool.query(
+                'UPDATE products SET tax_rate = 5.00 WHERE tax_rate IS NULL AND comp_code = $1',
+                [companyCode]
+            );
+
             // Get paginated data
             const result = await pool.query(
                 'SELECT * FROM products WHERE comp_code = $1 ORDER BY prod_name LIMIT $2 OFFSET $3',

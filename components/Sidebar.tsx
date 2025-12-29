@@ -146,6 +146,12 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout, isMobileOpen = false,
           icon: Calculator,
           label: 'Tax Rates',
           visible: hasPermission('FINANCE_VIEW')
+        },
+        {
+          to: '/dashboard/discount-rates',
+          icon: Calculator,
+          label: 'Discount Rates',
+          visible: hasPermission('FINANCE_VIEW')
         }
       ]
     },

@@ -33,6 +33,7 @@ export interface Customer {
   tax_number?: string;
   credit_terms_days?: number;
   tax_rate?: number;
+  discount_rate?: number;
 }
 
 export interface Supplier {
@@ -78,6 +79,7 @@ export interface SalesInvoice {
   status: 'PAID' | 'PENDING' | 'OVERDUE';
   tax_amount?: number;
   discount_amount?: number;
+  sub_total?: number;
   shipping_address?: string;
   shipping_charges?: number;
   items?: SalesInvoiceItem[];
@@ -90,7 +92,12 @@ export interface SalesInvoiceItem {
   prod_name?: string; // For display convenience
   quantity: number;
   unit_price: number;
-  line_total: number;
+  discount_rate?: number;
+  discount_amount?: number;
+  tax_rate?: number;
+  tax_amount?: number;
+  net_amount?: number;
+  line_total: number; // Original line total before discount/tax
 }
 
 export interface Expense {
@@ -233,6 +240,15 @@ export interface TaxRate {
   tax_name: string;
   tax_rate: number;
   tax_type: string;
+  description: string;
+  is_active: boolean;
+}
+
+export interface DiscountRate {
+  discount_id: number;
+  discount_code: string;
+  discount_name: string;
+  discount_rate: number;
   description: string;
   is_active: boolean;
 }

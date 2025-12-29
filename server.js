@@ -21,6 +21,7 @@ import purchaseInvoicesRoutes from './server/routes/purchaseInvoicesRoutes.js';
 import paymentReceiptsRoutes from './server/routes/paymentReceiptsRoutes.js';
 import supplierPaymentsRoutes from './server/routes/supplierPaymentsRoutes.js';
 import discountVouchersRoutes from './server/routes/discountVouchersRoutes.js';
+import discountRatesRoutes from './server/routes/discountRatesRoutes.js';
 import companiesRoutes from './server/routes/companiesRoutes.js';
 import systemBackupsRoutes from './server/routes/systemBackupsRoutes.js';
 import {
@@ -273,6 +274,7 @@ purchaseInvoicesRoutes(app, pool, logger);
 paymentReceiptsRoutes(app, pool, logger);
 supplierPaymentsRoutes(app, pool, logger);
 discountVouchersRoutes(app, pool, logger);
+discountRatesRoutes(app, pool, logger);
 companiesRoutes(app, pool, logger);
 systemBackupsRoutes(app, pool, logger);
 

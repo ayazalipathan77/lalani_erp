@@ -81,36 +81,49 @@ const Sales: React.FC = () => {
         }
     }, [view]);
 
+    // Recalculate cart items when customer changes
+    useEffect(() => {
+        if (selectedCustomer && cartItems.length > 0) {
+            const customer = customers.find(c => c.cust_code === selectedCustomer);
+            const customerDiscountRate = customer?.discount_rate || 0;
+
+            const recalculatedItems = cartItems.map(item => {
+                const product = products.find(p => p.prod_code === item.prod_code);
+                const lineTotal = item.unit_price * item.quantity;
+                const discountAmount = lineTotal * (customerDiscountRate / 100);
+                const amountAfterDiscount = lineTotal - discountAmount;
+
+                // Get tax rate for the product
+                const itemTaxRate = product?.tax_rate || 5; // Use product's tax_rate or default to 5%
+                const taxAmount = amountAfterDiscount * (itemTaxRate / 100);
+                const netAmount = amountAfterDiscount + taxAmount;
+
+                return {
+                    ...item,
+                    discount_rate: customerDiscountRate,
+                    discount_amount: discountAmount,
+                    tax_rate: itemTaxRate,
+                    tax_amount: taxAmount,
+                    net_amount: netAmount,
+                    line_total: lineTotal
+                };
+            });
+
+            setCartItems(recalculatedItems);
+        }
+    }, [selectedCustomer, customers, products, taxRates]);
+
     // Calculations
     const subtotal = cartItems.reduce((acc, item) => acc + item.line_total, 0);
-
-    // Calculate tax based on selected tax type
-    const calculateTax = () => {
-        const customer = customers.find(c => c.cust_code === selectedCustomer);
-
-        if (taxType === 'customer') {
-            const customerTaxRate = customer?.tax_rate || 0;
-            return subtotal * (customerTaxRate / 100);
-        } else {
-            // Product-based tax calculation (cumulative)
-            return cartItems.reduce((totalTax, item) => {
-                const product = products.find(p => p.prod_code === item.prod_code);
-                if (product && product.tax_code) {
-                    const taxRate = taxRates.find(tr => tr.tax_code === product.tax_code);
-                    if (taxRate) {
-                        return totalTax + (item.line_total * (taxRate.tax_rate / 100));
-                    }
-                }
-                // Fallback to 5% if tax rate not found
-                return totalTax + (item.line_total * 0.05);
-            }, 0);
-        }
-    };
-
-    const tax = calculateTax();
-    const total = subtotal + tax;
+    const totalDiscount = cartItems.reduce((acc, item) => acc + (item.discount_amount || 0), 0);
+    const totalTax = cartItems.reduce((acc, item) => acc + (item.tax_amount || 0), 0);
+    const total = cartItems.reduce((acc, item) => acc + (item.net_amount || 0), 0);
 
     const handleAddItem = () => {
+        if (!selectedCustomer) {
+            showNotification("Please select a customer first", "error");
+            return;
+        }
         if (!selectedProduct || qty <= 0 || unitPrice <= 0) return;
         const product = products.find(p => p.prod_code === selectedProduct);
         if (!product) return;
@@ -121,12 +134,30 @@ const Sales: React.FC = () => {
             return;
         }
 
+        const customer = customers.find(c => c.cust_code === selectedCustomer);
+        const customerDiscountRate = customer?.discount_rate || 0;
+
+        // Calculate line totals
+        const lineTotal = unitPrice * qty;
+        const discountAmount = lineTotal * (customerDiscountRate / 100);
+        const amountAfterDiscount = lineTotal - discountAmount;
+
+        // Get tax rate for the product
+        const itemTaxRate = product?.tax_rate || 5; // Use product's tax_rate or default to 5%
+        const taxAmount = amountAfterDiscount * (itemTaxRate / 100);
+        const netAmount = amountAfterDiscount + taxAmount;
+
         const newItem: SalesInvoiceItem = {
             prod_code: product.prod_code,
             prod_name: product.prod_name,
             quantity: qty,
             unit_price: unitPrice,
-            line_total: unitPrice * qty
+            discount_rate: customerDiscountRate,
+            discount_amount: discountAmount,
+            tax_rate: itemTaxRate,
+            tax_amount: taxAmount,
+            net_amount: netAmount,
+            line_total: lineTotal
         };
 
         setCartItems([...cartItems, newItem]);
@@ -186,7 +217,32 @@ const Sales: React.FC = () => {
         setSelectedCustomer(invoice.cust_code);
         setInvoiceDate(invoice.inv_date.split('T')[0]);
         setPaymentStatus(invoice.status === 'PAID' ? 'PAID' : 'PENDING');
-        setCartItems(invoice.items || []);
+
+        // Recalculate items with current discount and tax rates
+        const customer = customers.find(c => c.cust_code === invoice.cust_code);
+        const customerDiscountRate = customer?.discount_rate || 0;
+
+        const recalculatedItems = (invoice.items || []).map(item => {
+            const product = products.find(p => p.prod_code === item.prod_code);
+            const lineTotal = item.line_total;
+            const discountAmount = lineTotal * (customerDiscountRate / 100);
+            const amountAfterDiscount = lineTotal - discountAmount;
+
+            const itemTaxRate = product?.tax_rate || 5;
+            const taxAmount = amountAfterDiscount * (itemTaxRate / 100);
+            const netAmount = amountAfterDiscount + taxAmount;
+
+            return {
+                ...item,
+                discount_rate: customerDiscountRate,
+                discount_amount: discountAmount,
+                tax_rate: itemTaxRate,
+                tax_amount: taxAmount,
+                net_amount: netAmount
+            };
+        });
+
+        setCartItems(recalculatedItems);
         setView('create');
     };
 
@@ -436,7 +492,7 @@ const Sales: React.FC = () => {
                                             <div className="sm:col-span-4 flex items-end">
                                                 <button
                                                     onClick={handleAddItem}
-                                                    disabled={!selectedProduct || unitPrice <= 0}
+                                                    disabled={!selectedCustomer || !selectedProduct || unitPrice <= 0}
                                                     className="w-full bg-slate-900 text-white px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors flex items-center justify-center disabled:opacity-50"
                                                 >
                                                     <Plus className="w-4 h-4" />
@@ -452,42 +508,39 @@ const Sales: React.FC = () => {
                                                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Product</th>
                                                         <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Qty</th>
                                                         <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Price</th>
+                                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Disc Rate</th>
+                                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Disc Amt</th>
                                                         <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Tax Rate</th>
-                                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Tax Amount</th>
-                                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Total</th>
+                                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Tax Amt</th>
+                                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Net Amount</th>
                                                         <th className="px-4 py-3"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-200 bg-white">
                                                     {cartItems.length === 0 ? (
                                                         <tr>
-                                                            <td colSpan={7} className="px-4 py-8 text-center text-slate-400 text-sm">
+                                                            <td colSpan={9} className="px-4 py-8 text-center text-slate-400 text-sm">
                                                                 No items added yet.
                                                             </td>
                                                         </tr>
                                                     ) : (
-                                                        cartItems.map((item, idx) => {
-                                                            const product = products.find(p => p.prod_code === item.prod_code);
-                                                            const taxRateInfo = product?.tax_code ? taxRates.find(tr => tr.tax_code === product.tax_code) : null;
-                                                            const itemTaxRate = taxRateInfo ? taxRateInfo.tax_rate : 5; // Default to 5%
-                                                            const itemTaxAmount = item.line_total * (itemTaxRate / 100);
-
-                                                            return (
-                                                                <tr key={idx}>
-                                                                    <td className="px-4 py-3 text-sm text-slate-900">{item.prod_name}</td>
-                                                                    <td className="px-4 py-3 text-sm text-slate-900 text-right">{item.quantity}</td>
-                                                                    <td className="px-4 py-3 text-sm text-slate-500 text-right">{item.unit_price.toLocaleString()}</td>
-                                                                    <td className="px-4 py-3 text-sm text-slate-500 text-right">{itemTaxRate}%</td>
-                                                                    <td className="px-4 py-3 text-sm text-slate-500 text-right">{itemTaxAmount.toLocaleString()}</td>
-                                                                    <td className="px-4 py-3 text-sm font-medium text-slate-900 text-right">{item.line_total.toLocaleString()}</td>
-                                                                    <td className="px-4 py-3 text-right">
-                                                                        <button onClick={() => handleRemoveItem(idx)} className="text-red-400 hover:text-red-600">
-                                                                            <Trash2 className="w-4 h-4" />
-                                                                        </button>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })
+                                                        cartItems.map((item, idx) => (
+                                                            <tr key={idx}>
+                                                                <td className="px-4 py-3 text-sm text-slate-900">{item.prod_name}</td>
+                                                                <td className="px-4 py-3 text-sm text-slate-900 text-right">{item.quantity}</td>
+                                                                <td className="px-4 py-3 text-sm text-slate-500 text-right">{item.unit_price.toLocaleString()}</td>
+                                                                <td className="px-4 py-3 text-sm text-slate-500 text-right">{item.discount_rate || 0}%</td>
+                                                                <td className="px-4 py-3 text-sm text-green-600 text-right">-{item.discount_amount?.toLocaleString() || 0}</td>
+                                                                <td className="px-4 py-3 text-sm text-slate-500 text-right">{item.tax_rate || 0}%</td>
+                                                                <td className="px-4 py-3 text-sm text-slate-500 text-right">{item.tax_amount?.toLocaleString() || 0}</td>
+                                                                <td className="px-4 py-3 text-sm font-medium text-slate-900 text-right">{item.net_amount?.toLocaleString() || 0}</td>
+                                                                <td className="px-4 py-3 text-right">
+                                                                    <button onClick={() => handleRemoveItem(idx)} className="text-red-400 hover:text-red-600">
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))
                                                     )}
                                                 </tbody>
                                             </table>
@@ -513,9 +566,14 @@ const Sales: React.FC = () => {
                                                     render: (value) => `PKR ${value.toLocaleString()}`
                                                 },
                                                 {
-                                                    key: 'line_total',
-                                                    label: 'Total',
-                                                    render: (value) => `PKR ${value.toLocaleString()}`
+                                                    key: 'discount_rate',
+                                                    label: 'Disc %',
+                                                    render: (value) => `${value || 0}%`
+                                                },
+                                                {
+                                                    key: 'net_amount',
+                                                    label: 'Net Amount',
+                                                    render: (value) => `PKR ${value?.toLocaleString() || 0}`
                                                 }
                                             ]}
                                         />
@@ -607,9 +665,13 @@ const Sales: React.FC = () => {
                                                 <span>Subtotal</span>
                                                 <span>PKR {subtotal.toLocaleString()}</span>
                                             </div>
+                                            <div className="flex justify-between text-sm text-green-600">
+                                                <span>Discount</span>
+                                                <span>-PKR {totalDiscount.toLocaleString()}</span>
+                                            </div>
                                             <div className="flex justify-between text-sm text-slate-600">
                                                 <span>Tax Amount</span>
-                                                <span>PKR {tax.toLocaleString()}</span>
+                                                <span>PKR {totalTax.toLocaleString()}</span>
                                             </div>
                                             <div className="flex justify-between text-lg font-bold text-slate-900 pt-2 border-t border-slate-100 mt-2">
                                                 <span>Total</span>
@@ -681,16 +743,24 @@ const Sales: React.FC = () => {
                                             <h3 className="text-sm font-medium text-slate-500 mb-2">Financial Summary</h3>
                                             <div className="space-y-2">
                                                 <div className="flex justify-between">
+                                                    <span className="text-sm text-slate-600">Subtotal:</span>
+                                                    <span className="text-sm font-medium">PKR {(viewingInvoice.sub_total || 0).toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm text-slate-600">Discount:</span>
+                                                    <span className="text-sm font-medium text-green-600">-PKR {(viewingInvoice.discount_amount || 0).toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm text-slate-600">Tax Amount:</span>
+                                                    <span className="text-sm font-medium">PKR {(viewingInvoice.tax_amount || 0).toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex justify-between">
                                                     <span className="text-sm text-slate-600">Total Amount:</span>
                                                     <span className="text-sm font-medium">PKR {viewingInvoice.total_amount.toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-sm text-slate-600">Balance Due:</span>
                                                     <span className="text-sm font-medium text-slate-500">PKR {viewingInvoice.balance_due.toLocaleString()}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-sm text-slate-600">Tax Amount:</span>
-                                                    <span className="text-sm font-medium">PKR {(viewingInvoice.tax_amount || 0).toLocaleString()}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -725,7 +795,11 @@ const Sales: React.FC = () => {
                                                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Product</th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Qty</th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Price</th>
-                                                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Total</th>
+                                                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Disc Rate</th>
+                                                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Disc Amt</th>
+                                                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Tax Rate</th>
+                                                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Tax Amt</th>
+                                                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase">Net Amount</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-200 bg-white">
@@ -734,7 +808,11 @@ const Sales: React.FC = () => {
                                                         <td className="px-4 py-3 text-sm text-slate-900">{item.prod_name}</td>
                                                         <td className="px-4 py-3 text-sm text-slate-900 text-right">{item.quantity}</td>
                                                         <td className="px-4 py-3 text-sm text-slate-500 text-right">PKR {item.unit_price.toLocaleString()}</td>
-                                                        <td className="px-4 py-3 text-sm font-medium text-slate-900 text-right">PKR {item.line_total.toLocaleString()}</td>
+                                                        <td className="px-4 py-3 text-sm text-slate-500 text-right">{item.discount_rate || 0}%</td>
+                                                        <td className="px-4 py-3 text-sm text-green-600 text-right">-PKR {item.discount_amount?.toLocaleString() || 0}</td>
+                                                        <td className="px-4 py-3 text-sm text-slate-500 text-right">{item.tax_rate || 0}%</td>
+                                                        <td className="px-4 py-3 text-sm text-slate-500 text-right">PKR {item.tax_amount?.toLocaleString() || 0}</td>
+                                                        <td className="px-4 py-3 text-sm font-medium text-slate-900 text-right">PKR {item.net_amount?.toLocaleString() || 0}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
