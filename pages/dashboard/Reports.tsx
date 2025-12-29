@@ -185,13 +185,13 @@ const Reports: React.FC = () => {
           { header: 'Product Name', accessor: 'prod_name' },
           { header: 'Category', accessor: 'category_code' },
           { header: 'Stock Qty', accessor: 'current_stock', format: 'number' },
-          { header: 'Unit Price', accessor: 'unit_price', format: 'currency' },
+          { header: 'Selling Price', accessor: 'selling_price', format: 'currency' },
           { header: 'Total Value', accessor: 'total_value', format: 'currency' },
         ];
 
         data = rawProducts.map(p => ({
           ...p,
-          total_value: p.current_stock * p.unit_price
+          total_value: p.current_stock * p.selling_price
         }));
 
         const totalStockValue = data.reduce((sum, p) => {
