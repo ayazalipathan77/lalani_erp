@@ -500,8 +500,4 @@ BEGIN
         ALTER TABLE expenses ADD CONSTRAINT expenses_head_code_fkey
         FOREIGN KEY (head_code) REFERENCES expense_heads(head_code);
     END IF;
-END $$;</content>
-</xai:function_call"> 
-
-<xai:function_call name="apply_diff">
-<parameter name="path">lalani_erp/server.js
+END $$;
