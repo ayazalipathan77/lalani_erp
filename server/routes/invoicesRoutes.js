@@ -136,7 +136,7 @@ export default (app, pool, logger) => {
             if (status === 'PENDING') {
                 await client.query(
                     `UPDATE customers SET outstanding_balance = outstanding_balance + $1 WHERE cust_code = $2`,
-                    [total_amount, cust_code]
+                    [totalNetAmount, cust_code]
                 );
             }
 
@@ -144,7 +144,7 @@ export default (app, pool, logger) => {
                 await client.query(
                     `INSERT INTO cash_balance (trans_date, trans_type, description, debit_amount, credit_amount, comp_code, created_by)
                      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                    [date, 'SALES', `Cash Sale ${inv_number}`, total_amount, 0, companyCode, req.user?.id]
+                    [date, 'SALES', `Cash Sale ${inv_number}`, totalNetAmount, 0, companyCode, req.user?.id]
                 );
             }
 
