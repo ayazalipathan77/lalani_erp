@@ -34,34 +34,60 @@ export default (app, pool, logger) => {
         const { username, password, full_name, role, is_active, permissions } = req.body;
         try {
             const result = await pool.query(
-                'INSERT INTO users (username, password, full_name, role, is_active, permissions, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+                'INSERT INTO users (username, password, full_name, role, is_active, permissions, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING user_id, username, full_name, role, is_active, permissions, default_company, created_at',
                 [username, password, full_name, role, is_active, permissions, req.user?.id]
             );
             res.json(result.rows[0]);
-        } catch (err) { res.status(500).json({ error: err.message }); }
+        } catch (err) {
+            // Handle unique constraint violation for username
+            if (err.code === '23505') {
+                return res.status(400).json({ error: 'Username already exists' });
+            }
+            res.status(500).json({ error: err.message });
+        }
     });
 
     app.put('/api/users/:id', async (req, res) => {
         const { id } = req.params;
-        const { full_name, role, is_active, permissions, password } = req.body;
+        const { username, full_name, role, is_active, permissions, password } = req.body;
         try {
             let query, params;
-            if (password) {
-                query = 'UPDATE users SET full_name=$1, role=$2, is_active=$3, permissions=$4, password=$5, updated_by=$6 WHERE user_id=$7 RETURNING *';
-                params = [full_name, role, is_active, permissions, password, req.user?.id, id];
+            if (password && password.trim() !== '') {
+                // Update with password
+                query = 'UPDATE users SET username=$1, full_name=$2, role=$3, is_active=$4, permissions=$5, password=$6, updated_by=$7, updated_at=CURRENT_TIMESTAMP WHERE user_id=$8 RETURNING user_id, username, full_name, role, is_active, permissions, default_company, created_at, updated_at';
+                params = [username, full_name, role, is_active, permissions, password, req.user?.id, id];
             } else {
-                query = 'UPDATE users SET full_name=$1, role=$2, is_active=$3, permissions=$4, updated_by=$5 WHERE user_id=$6 RETURNING *';
-                params = [full_name, role, is_active, permissions, req.user?.id, id];
+                // Update without password
+                query = 'UPDATE users SET username=$1, full_name=$2, role=$3, is_active=$4, permissions=$5, updated_by=$6, updated_at=CURRENT_TIMESTAMP WHERE user_id=$7 RETURNING user_id, username, full_name, role, is_active, permissions, default_company, created_at, updated_at';
+                params = [username, full_name, role, is_active, permissions, req.user?.id, id];
             }
             const result = await pool.query(query, params);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
             res.json(result.rows[0]);
-        } catch (err) { res.status(500).json({ error: err.message }); }
+        } catch (err) {
+            // Handle unique constraint violation for username
+            if (err.code === '23505') {
+                return res.status(400).json({ error: 'Username already exists' });
+            }
+            res.status(500).json({ error: err.message });
+        }
     });
 
     app.delete('/api/users/:id', async (req, res) => {
         try {
-            await pool.query('DELETE FROM users WHERE user_id = $1', [req.params.id]);
-            res.json({ message: 'User deleted' });
-        } catch (err) { res.status(500).json({ error: err.message }); }
+            const result = await pool.query('DELETE FROM users WHERE user_id = $1 RETURNING user_id', [req.params.id]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            res.json({ message: 'User deleted successfully' });
+        } catch (err) {
+            // Handle foreign key constraint violations
+            if (err.code === '23503') {
+                return res.status(400).json({ error: 'Cannot delete user: User has associated records in the system' });
+            }
+            res.status(500).json({ error: err.message });
+        }
     });
 };

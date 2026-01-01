@@ -34,16 +34,28 @@ const Users: React.FC = () => {
 
   const availablePermissions = [
     { id: 'INVENTORY_VIEW', label: 'View Inventory', module: 'Inventory' },
-    { id: 'INVENTORY_MANAGE', label: 'Manage Inventory (Add/Edit)', module: 'Inventory' },
-    { id: 'SALES_VIEW', label: 'View Invoices', module: 'Sales' },
-    { id: 'SALES_MANAGE', label: 'Create/Manage Invoices', module: 'Sales' },
-    { id: 'FINANCE_VIEW', label: 'View Finance', module: 'Finance' },
-    { id: 'FINANCE_MANAGE', label: 'Manage Expenses/Payments', module: 'Finance' },
-    { id: 'PARTNERS_VIEW', label: 'View Partners', module: 'Partners' },
-    { id: 'PARTNERS_MANAGE', label: 'Manage Partners', module: 'Partners' },
-    { id: 'REPORTS_VIEW', label: 'View Reports', module: 'Reports' },
-    { id: 'USERS_VIEW', label: 'Access User Mgmt', module: 'Users' },
-    { id: 'USERS_MANAGE', label: 'Manage Users', module: 'Users' },
+    { id: 'INVENTORY_MANAGE', label: 'Manage Inventory (Add/Edit/Delete)', module: 'Inventory' },
+    { id: 'SALES_VIEW', label: 'View Sales & Invoices', module: 'Sales' },
+    { id: 'SALES_MANAGE', label: 'Create/Edit Sales Invoices', module: 'Sales' },
+    { id: 'SALES_RETURNS_VIEW', label: 'View Sales Returns', module: 'Sales' },
+    { id: 'SALES_RETURNS_MANAGE', label: 'Manage Sales Returns', module: 'Sales' },
+    { id: 'FINANCE_VIEW', label: 'View Finance Data', module: 'Finance' },
+    { id: 'FINANCE_MANAGE', label: 'Manage Expenses/Payments/Receipts', module: 'Finance' },
+    { id: 'FINANCE_VOUCHER', label: 'Access Voucher Search', module: 'Finance' },
+    { id: 'FINANCE_CONFIG', label: 'Manage Tax/Discount Rates', module: 'Finance' },
+    { id: 'PURCHASE_VIEW', label: 'View Purchase Invoices', module: 'Purchases' },
+    { id: 'PURCHASE_MANAGE', label: 'Create/Edit Purchase Invoices', module: 'Purchases' },
+    { id: 'PARTNERS_VIEW', label: 'View Customers/Suppliers', module: 'Partners' },
+    { id: 'PARTNERS_MANAGE', label: 'Manage Partners (Add/Edit/Delete)', module: 'Partners' },
+    { id: 'REPORTS_VIEW', label: 'View All Reports', module: 'Reports' },
+    { id: 'REPORTS_EXPORT', label: 'Export Reports (PDF/Excel)', module: 'Reports' },
+    { id: 'USERS_VIEW', label: 'View Users', module: 'Admin' },
+    { id: 'USERS_MANAGE', label: 'Manage Users (Add/Edit/Delete)', module: 'Admin' },
+    { id: 'COMPANIES_VIEW', label: 'View Companies', module: 'Admin' },
+    { id: 'COMPANIES_MANAGE', label: 'Manage Companies', module: 'Admin' },
+    { id: 'SYSTEM_BACKUP', label: 'Access System Backups', module: 'Admin' },
+    { id: 'MARKETING_VIEW', label: 'View Marketing', module: 'Marketing' },
+    { id: 'MARKETING_MANAGE', label: 'Manage Marketing Campaigns', module: 'Marketing' },
   ];
 
   const fetchData = async (page: number = currentPage) => {
@@ -75,7 +87,7 @@ const Users: React.FC = () => {
         full_name: '',
         role: 'USER',
         is_active: 'Y',
-        permissions: ['INVENTORY_VIEW', 'SALES_VIEW', 'FINANCE_VIEW', 'PARTNERS_VIEW'] // Default View rights
+        permissions: ['INVENTORY_VIEW', 'SALES_VIEW', 'FINANCE_VIEW', 'PARTNERS_VIEW', 'REPORTS_VIEW'] // Default View rights
       });
     }
     setIsModalOpen(true);
@@ -111,9 +123,10 @@ const Users: React.FC = () => {
     if (window.confirm("Are you sure you want to delete this user?")) {
       try {
         await api.users.delete(id);
+        showNotification("User deleted successfully!", "success");
         fetchData();
-      } catch (e) {
-        console.error(e);
+      } catch (error: any) {
+        showNotification(error.message || "Failed to delete user", "error");
       }
     }
   };
@@ -398,7 +411,7 @@ const Users: React.FC = () => {
                   </div>
 
                   <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                    {['Inventory', 'Sales', 'Finance', 'Partners', 'Reports', 'Users'].map(module => (
+                    {['Inventory', 'Sales', 'Purchases', 'Finance', 'Partners', 'Reports', 'Marketing', 'Admin'].map(module => (
                       <div key={module} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
                         <p className="text-xs font-bold text-slate-500 uppercase mb-2">{module}</p>
                         <div className="space-y-2">

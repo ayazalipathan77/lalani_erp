@@ -39,7 +39,10 @@ export const users = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(user)
         });
-        if (!res.ok) throw new Error('Failed to create user');
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Failed to create user');
+        }
         return res.json();
     },
     update: async (id: number, data: Partial<User>): Promise<User> => {
@@ -58,6 +61,10 @@ export const users = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(data)
         });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Failed to update user');
+        }
         return res.json();
     },
     delete: async (id: number): Promise<void> => {
@@ -66,6 +73,13 @@ export const users = {
             removeUser(id);
             return;
         }
-        await fetch(`/api/users/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/api/users/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Failed to delete user');
+        }
     }
 };
