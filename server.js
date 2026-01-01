@@ -140,56 +140,19 @@ async function runMigrations() {
             }
         }
 
-        console.log('📄 Applying initial database schema...');
+        console.log('📄 Applying complete database schema...');
 
-        // Read and execute the migration SQL
-        const migrationPath = path.join(__dirname, 'migrations', 'sqls', '20251209002519-initial-schema-up.sql');
+        // Read and execute the complete migration SQL
+        const migrationPath = path.join(__dirname, 'migrations', 'sqls', '20251209002519-complete-schema-up.sql');
         const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
 
         await client.query(migrationSQL);
-        console.log('✅ Initial database schema applied successfully!');
+        console.log('✅ Complete database schema and seed data applied successfully!');
 
         client.release();
         await pool.end();
 
-        // Now run all db-migrate migrations
-        console.log('🔄 Running db-migrate migrations...');
-        const { spawn } = await import('child_process');
-
-        // Set environment for db-migrate
-        const env = {
-            ...process.env,
-            NODE_ENV: process.env.NODE_ENV || 'production',
-            DATABASE_URL: process.env.DATABASE_URL
-        };
-
-        // Run db-migrate up
-        const migrateProcess = spawn('npx', ['db-migrate', 'up', '--config', 'database.json', '--migrations-dir', 'migrations'], {
-            cwd: __dirname,
-            stdio: 'inherit',
-            env: env
-        });
-
-        const migrationResult = await new Promise((resolve, reject) => {
-            migrateProcess.on('close', (code) => {
-                if (code === 0) {
-                    console.log('✅ All db-migrate migrations completed successfully!');
-                    resolve(true);
-                } else {
-                    console.error(`❌ Migration process exited with code ${code}`);
-                    reject(new Error(`Migration failed with exit code ${code}`));
-                }
-            });
-
-            migrateProcess.on('error', (error) => {
-                console.error('❌ Migration process error:', error);
-                reject(error);
-            });
-        });
-
-        if (migrationResult) {
-            console.log('🎉 All database migrations completed successfully!');
-        }
+        console.log('🎉 Complete database setup finished successfully!');
 
     } catch (error) {
         console.error('❌ Migration failed:', error.message);
