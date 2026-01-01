@@ -105,6 +105,8 @@ const DashboardHome: React.FC = () => {
 
   // Utility function to format large numbers
   const formatNumber = (num: number): string => {
+    if (typeof num !== 'number' || isNaN(num)) return 'PKR 0';
+
     if (num >= 1000000000) {
       return `PKR ${(num / 1000000000).toFixed(1)}B`;
     } else if (num >= 1000000) {
@@ -334,7 +336,7 @@ const DashboardHome: React.FC = () => {
                     <td className="py-3 text-sm text-right font-mono text-slate-900">
                       {(() => {
                         const amount = typeof invoice.total_amount === 'string' ? parseFloat(invoice.total_amount) : Number(invoice.total_amount);
-                        return amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                        return (isNaN(amount) ? 0 : amount).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
                       })()}
                     </td>
                     <td className="py-3 text-center">
@@ -370,7 +372,7 @@ const DashboardHome: React.FC = () => {
                 label: 'Amount',
                 render: (value, item) => {
                   const amount = typeof item.total_amount === 'string' ? parseFloat(item.total_amount) : Number(item.total_amount);
-                  return amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                  return (isNaN(amount) ? 0 : amount).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
                 }
               },
               {
