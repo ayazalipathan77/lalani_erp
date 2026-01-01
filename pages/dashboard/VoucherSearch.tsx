@@ -176,12 +176,13 @@ const VoucherSearch: React.FC = () => {
             setTransactions(voucherList);
 
             // Calculate financial summary from cash transactions
-            const debit = cashRes.data.reduce((acc: number, t: CashTransaction) => acc + (t.debit_amount || 0), 0);
-            const credit = cashRes.data.reduce((acc: number, t: CashTransaction) => acc + (t.credit_amount || 0), 0);
-            console.log(`Financial summary - Debit: ${debit}, Credit: ${credit}, Balance: ${debit - credit}`);
+            const debit = cashRes.data.reduce((acc: number, t: CashTransaction) => acc + Number(t.debit_amount || 0), 0);
+            const credit = cashRes.data.reduce((acc: number, t: CashTransaction) => acc + Number(t.credit_amount || 0), 0);
+            const balance = debit - credit;
+            console.log(`Financial summary - Debit: ${debit}, Credit: ${credit}, Balance: ${balance}`);
             setTotalMoneyIn(debit);
             setTotalMoneyOut(credit);
-            setCurrentBalance(debit - credit);
+            setCurrentBalance(balance);
 
         } catch (error) {
             console.error('Error fetching voucher data:', error);
@@ -201,19 +202,14 @@ const VoucherSearch: React.FC = () => {
     );
 
     const formatNumber = (num: number): string => {
-        console.log(`formatNumber input: ${num}`);
-        let result: string;
-        if (num >= 1000000000) {
-            result = `PKR ${(num / 1000000000).toFixed(1)}B`;
-        } else if (num >= 1000000) {
-            result = `PKR ${(num / 1000000).toFixed(1)}M`;
-        } else if (num >= 1000) {
-            result = `PKR ${(num / 1000).toFixed(1)}K`;
-        } else {
-            result = `PKR ${num.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-        }
-        console.log(`formatNumber output: ${result}`);
-        return result;
+        // Ensure num is a valid number
+        const value = Number(num) || 0;
+
+        // Always show with 2 decimal places
+        return `PKR ${value.toLocaleString('en-PK', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        })}`;
     };
 
     return (
