@@ -1,16 +1,25 @@
 export default (app, pool, logger) => {
+    // Company context middleware
+    const getCompanyContext = (req) => {
+        // Priority: 1. Request header, 2. User session, 3. Default
+        return req.headers['x-company-code'] ||
+            req.user?.selectedCompany ||
+            'CMP01';
+    };
+
     // Sales Returns
     app.get('/api/sales-returns', async (req, res) => {
         try {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
             const offset = (page - 1) * limit;
+            const companyCode = getCompanyContext(req);
 
-            // Get total count
-            const countResult = await pool.query('SELECT COUNT(*) as total FROM sales_returns');
+            // Get total count for selected company
+            const countResult = await pool.query('SELECT COUNT(*) as total FROM sales_returns WHERE comp_code = $1', [companyCode]);
             const total = parseInt(countResult.rows[0].total);
 
-            // Get paginated data with items
+            // Get paginated data with items for selected company
             const result = await pool.query(`
                 SELECT sr.*,
                 (SELECT json_agg(json_build_object('prod_code', sri.prod_code, 'quantity', sri.quantity, 'unit_price', sri.unit_price, 'line_total', sri.line_total, 'prod_name', p.prod_name))
@@ -18,9 +27,10 @@ export default (app, pool, logger) => {
                  JOIN products p ON sri.prod_code = p.prod_code
                  WHERE sri.return_id = sr.return_id) as items
                 FROM sales_returns sr
+                WHERE sr.comp_code = $1
                 ORDER BY sr.return_date DESC, sr.return_id DESC
-                LIMIT $1 OFFSET $2
-            `, [limit, offset]);
+                LIMIT $2 OFFSET $3
+            `, [companyCode, limit, offset]);
 
             res.json({
                 data: result.rows,

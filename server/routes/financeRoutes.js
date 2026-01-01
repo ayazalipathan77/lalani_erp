@@ -13,15 +13,16 @@ export default (app, pool, logger) => {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
             const offset = (page - 1) * limit;
+            const companyCode = getCompanyContext(req);
 
             // Get total count
-            const countResult = await pool.query('SELECT COUNT(*) as total FROM cash_balance');
+            const countResult = await pool.query('SELECT COUNT(*) as total FROM cash_balance WHERE comp_code = $1', [companyCode]);
             const total = parseInt(countResult.rows[0].total);
 
             // Get paginated data
             const result = await pool.query(
-                'SELECT * FROM cash_balance ORDER BY trans_date DESC, trans_id DESC LIMIT $1 OFFSET $2',
-                [limit, offset]
+                'SELECT * FROM cash_balance WHERE comp_code = $1 ORDER BY trans_date DESC, trans_id DESC LIMIT $2 OFFSET $3',
+                [companyCode, limit, offset]
             );
 
             res.json({
@@ -44,15 +45,16 @@ export default (app, pool, logger) => {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
             const offset = (page - 1) * limit;
+            const companyCode = getCompanyContext(req);
 
             // Get total count
-            const countResult = await pool.query('SELECT COUNT(*) as total FROM expenses');
+            const countResult = await pool.query('SELECT COUNT(*) as total FROM expenses WHERE comp_code = $1', [companyCode]);
             const total = parseInt(countResult.rows[0].total);
 
             // Get paginated data
             const result = await pool.query(
-                'SELECT * FROM expenses ORDER BY expense_date DESC LIMIT $1 OFFSET $2',
-                [limit, offset]
+                'SELECT * FROM expenses WHERE comp_code = $1 ORDER BY expense_date DESC LIMIT $2 OFFSET $3',
+                [companyCode, limit, offset]
             );
 
             res.json({
@@ -292,9 +294,10 @@ export default (app, pool, logger) => {
     // Opening Cash Balance
     app.get('/api/finance/opening-balance', async (req, res) => {
         try {
+            const companyCode = getCompanyContext(req);
             const result = await pool.query(
-                'SELECT * FROM opening_cash_balance WHERE status = $1 ORDER BY balance_date DESC LIMIT 1',
-                ['OPEN']
+                'SELECT * FROM opening_cash_balance WHERE status = $1 AND comp_code = $2 ORDER BY balance_date DESC LIMIT 1',
+                ['OPEN', companyCode]
             );
 
             res.json(result.rows[0] || null);
@@ -334,13 +337,14 @@ export default (app, pool, logger) => {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
             const offset = (page - 1) * limit;
+            const companyCode = getCompanyContext(req);
 
-            const countResult = await pool.query('SELECT COUNT(*) as total FROM loan_taken');
+            const countResult = await pool.query('SELECT COUNT(*) as total FROM loan_taken WHERE comp_code = $1', [companyCode]);
             const total = parseInt(countResult.rows[0].total);
 
             const result = await pool.query(
-                'SELECT * FROM loan_taken ORDER BY loan_date DESC LIMIT $1 OFFSET $2',
-                [limit, offset]
+                'SELECT * FROM loan_taken WHERE comp_code = $1 ORDER BY loan_date DESC LIMIT $2 OFFSET $3',
+                [companyCode, limit, offset]
             );
 
             res.json({
@@ -380,11 +384,12 @@ export default (app, pool, logger) => {
 
     app.get('/api/finance/loans/:loanId/returns', async (req, res) => {
         const { loanId } = req.params;
+        const companyCode = getCompanyContext(req);
 
         try {
             const result = await pool.query(
-                'SELECT * FROM loan_return WHERE loan_id = $1 ORDER BY return_date DESC',
-                [loanId]
+                'SELECT * FROM loan_return WHERE loan_id = $1 AND comp_code = $2 ORDER BY return_date DESC',
+                [loanId, companyCode]
             );
 
             res.json(result.rows);
@@ -429,8 +434,10 @@ export default (app, pool, logger) => {
     // Expense Heads
     app.get('/api/finance/expense-heads', async (req, res) => {
         try {
+            const companyCode = getCompanyContext(req);
             const result = await pool.query(
-                'SELECT * FROM expense_heads WHERE is_active = true ORDER BY head_name'
+                'SELECT * FROM expense_heads WHERE is_active = true AND comp_code = $1 ORDER BY head_name',
+                [companyCode]
             );
 
             res.json(result.rows);
@@ -500,8 +507,10 @@ export default (app, pool, logger) => {
     // Tax Rates Management
     app.get('/api/finance/tax-rates', async (req, res) => {
         try {
+            const companyCode = getCompanyContext(req);
             const result = await pool.query(
-                'SELECT * FROM tax_rates WHERE is_active = true ORDER BY tax_name'
+                'SELECT * FROM tax_rates WHERE is_active = true AND comp_code = $1 ORDER BY tax_name',
+                [companyCode]
             );
 
             res.json(result.rows);
@@ -513,9 +522,10 @@ export default (app, pool, logger) => {
 
     app.get('/api/finance/tax-rates/:code', async (req, res) => {
         try {
+            const companyCode = getCompanyContext(req);
             const result = await pool.query(
-                'SELECT * FROM tax_rates WHERE tax_code = $1',
-                [req.params.code]
+                'SELECT * FROM tax_rates WHERE tax_code = $1 AND comp_code = $2',
+                [req.params.code, companyCode]
             );
 
             if (result.rows.length === 0) {

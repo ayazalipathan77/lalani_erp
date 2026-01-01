@@ -13,15 +13,16 @@ export default (app, pool, logger) => {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
             const offset = (page - 1) * limit;
+            const companyCode = getCompanyContext(req);
 
             // Get total count
-            const countResult = await pool.query('SELECT COUNT(*) as total FROM suppliers');
+            const countResult = await pool.query('SELECT COUNT(*) as total FROM suppliers WHERE comp_code = $1', [companyCode]);
             const total = parseInt(countResult.rows[0].total);
 
             // Get paginated data
             const result = await pool.query(
-                'SELECT * FROM suppliers ORDER BY supplier_name LIMIT $1 OFFSET $2',
-                [limit, offset]
+                'SELECT * FROM suppliers WHERE comp_code = $1 ORDER BY supplier_name LIMIT $2 OFFSET $3',
+                [companyCode, limit, offset]
             );
 
             res.json({

@@ -13,12 +13,13 @@ export default (app, pool, logger) => {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
             const offset = (page - 1) * limit;
+            const companyCode = getCompanyContext(req);
 
-            // Get total count
-            const countResult = await pool.query('SELECT COUNT(*) as total FROM purchase_invoices');
+            // Get total count for selected company
+            const countResult = await pool.query('SELECT COUNT(*) as total FROM purchase_invoices WHERE comp_code = $1', [companyCode]);
             const total = parseInt(countResult.rows[0].total);
 
-            // Get paginated data with items
+            // Get paginated data with items for selected company
             const result = await pool.query(`
                 SELECT pi.*,
                 (SELECT json_agg(json_build_object('prod_code', pii.prod_code, 'quantity', pii.quantity, 'unit_price', pii.unit_price, 'line_total', pii.line_total, 'prod_name', p.prod_name))
@@ -26,9 +27,10 @@ export default (app, pool, logger) => {
                  JOIN products p ON pii.prod_code = p.prod_code
                  WHERE pii.purchase_id = pi.purchase_id) as items
                 FROM purchase_invoices pi
+                WHERE pi.comp_code = $1
                 ORDER BY pi.purchase_date DESC, pi.purchase_id DESC
-                LIMIT $1 OFFSET $2
-            `, [limit, offset]);
+                LIMIT $2 OFFSET $3
+            `, [companyCode, limit, offset]);
 
             res.json({
                 data: result.rows,

@@ -13,13 +13,14 @@ export default (app, pool, logger) => {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
             const offset = (page - 1) * limit;
+            const companyCode = getCompanyContext(req);
 
-            const countResult = await pool.query('SELECT COUNT(*) as total FROM supplier_payments');
+            const countResult = await pool.query('SELECT COUNT(*) as total FROM supplier_payments WHERE comp_code = $1', [companyCode]);
             const total = parseInt(countResult.rows[0].total);
 
             const result = await pool.query(
-                'SELECT * FROM supplier_payments ORDER BY payment_date DESC LIMIT $1 OFFSET $2',
-                [limit, offset]
+                'SELECT * FROM supplier_payments WHERE comp_code = $1 ORDER BY payment_date DESC LIMIT $2 OFFSET $3',
+                [companyCode, limit, offset]
             );
 
             res.json({

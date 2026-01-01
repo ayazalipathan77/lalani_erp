@@ -3,12 +3,14 @@ import { useParams } from 'react-router-dom';
 import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft, Edit2, Undo2, Printer } from 'lucide-react';
 import { useLoading } from '../../components/LoadingContext';
 import { useNotification } from '../../components/NotificationContext';
+import { useCompany } from '../../components/CompanyContext';
 import { api } from '../../services/api';
 import { SalesReturn, SalesReturnItem, SalesInvoice, Product, Customer } from '../../types';
 import { formatTableDate } from '../../src/utils/dateUtils';
 import MobileTable from '../../components/MobileTable';
 
 const SalesReturns: React.FC = () => {
+    const { selectedCompany } = useCompany();
     const { id } = useParams<{ id: string }>();
     const [view, setView] = useState<'list' | 'create' | 'view'>('list');
     const [returns, setReturns] = useState<SalesReturn[]>([]);
@@ -57,7 +59,7 @@ const SalesReturns: React.FC = () => {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [selectedCompany]); // Refetch when company changes
 
     // Handle URL parameter for direct return viewing
     useEffect(() => {

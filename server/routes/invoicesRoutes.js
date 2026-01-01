@@ -13,12 +13,13 @@ export default (app, pool, logger) => {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
             const offset = (page - 1) * limit;
+            const companyCode = getCompanyContext(req);
 
-            // Get total count
-            const countResult = await pool.query('SELECT COUNT(*) as total FROM sales_invoices');
+            // Get total count for selected company
+            const countResult = await pool.query('SELECT COUNT(*) as total FROM sales_invoices WHERE comp_code = $1', [companyCode]);
             const total = parseInt(countResult.rows[0].total);
 
-            // Get paginated data
+            // Get paginated data for selected company
             const result = await pool.query(`
                 SELECT i.*,
                 (SELECT json_agg(
@@ -39,9 +40,10 @@ export default (app, pool, logger) => {
                  JOIN products p ON it.prod_code = p.prod_code
                  WHERE it.inv_id = i.inv_id) as items
                 FROM sales_invoices i
+                WHERE i.comp_code = $1
                 ORDER BY i.inv_date DESC, i.inv_id DESC
-                LIMIT $1 OFFSET $2
-            `, [limit, offset]);
+                LIMIT $2 OFFSET $3
+            `, [companyCode, limit, offset]);
 
             const invoices = result.rows.map(inv => ({
                 ...inv,

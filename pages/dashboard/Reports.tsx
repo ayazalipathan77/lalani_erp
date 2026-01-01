@@ -12,6 +12,7 @@ import {
   Users,
   Loader2
 } from 'lucide-react';
+import { useCompany } from '../../components/CompanyContext';
 import { api } from '../../services/api';
 import { Product, SalesInvoice, Customer, Supplier, Expense, CashTransaction } from '../../types';
 import { formatTableDate } from '../../src/utils/dateUtils';
@@ -40,6 +41,7 @@ interface ReportColumn {
 }
 
 const Reports: React.FC = () => {
+  const { selectedCompany } = useCompany();
   const [activeCategory, setActiveCategory] = useState<'SALES' | 'INVENTORY' | 'FINANCE' | 'PARTNERS'>('SALES');
   const [reportType, setReportType] = useState<ReportType>('SALES_SUMMARY');
 
@@ -88,7 +90,7 @@ const Reports: React.FC = () => {
       }
     };
     loadData();
-  }, []);
+  }, [selectedCompany]); // Refetch when company changes
 
   // Generate Report Logic
   useEffect(() => {
