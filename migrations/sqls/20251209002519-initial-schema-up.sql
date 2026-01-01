@@ -394,7 +394,7 @@ INSERT INTO categories (category_code, category_name, description) VALUES
 ('AGRI', 'Agricultural', 'Tractor and farm equipment tires')
 ON CONFLICT (category_code) DO NOTHING;
 
-INSERT INTO products (prod_code, prod_name, category_code, unit_price, current_stock, min_stock_level) VALUES
+INSERT INTO products (prod_code, prod_name, category_code, selling_price, current_stock, min_stock_level) VALUES
 ('T-1001', 'Radial Truck Tire 295/80R22.5', 'TRUCK', 45000.00, 120, 20),
 ('T-1002', 'Sedan Comfort 195/65R15', 'CAR', 12000.00, 450, 50),
 ('TB-2001', 'Heavy Duty Tube 10.00-20', 'TUBE', 3500.00, 800, 100),
