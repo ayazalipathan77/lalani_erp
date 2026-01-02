@@ -1,7 +1,16 @@
 export default (app, pool, logger) => {
+    // Company context middleware
+    const getCompanyContext = (req) => {
+        return req.headers['x-company-code'] ||
+            req.user?.selectedCompany ||
+            'CMP01';
+    };
+
     // Dashboard metrics
     app.get('/api/analytics/dashboard-metrics', async (req, res) => {
         try {
+            const companyCode = getCompanyContext(req);
+
             // Get comprehensive dashboard data
             const [
                 revenueResult,
@@ -16,50 +25,53 @@ export default (app, pool, logger) => {
                 pool.query(`
                     SELECT COALESCE(SUM(total_amount), 0) as total_revenue
                     FROM sales_invoices
-                    WHERE balance_due <= 0
-                `),
+                    WHERE balance_due <= 0 AND comp_code = $1
+                `, [companyCode]),
                 // Pending receivables
                 pool.query(`
                     SELECT COALESCE(SUM(balance_due), 0) as pending_amount
                     FROM sales_invoices
-                    WHERE balance_due > 0
-                `),
+                    WHERE balance_due > 0 AND comp_code = $1
+                `, [companyCode]),
                 // Low stock items
                 pool.query(`
                     SELECT COUNT(*) as low_stock_count
                     FROM products
-                    WHERE current_stock <= min_stock_level
-                `),
+                    WHERE current_stock <= min_stock_level AND comp_code = $1
+                `, [companyCode]),
                 // Customer count
-                pool.query('SELECT COUNT(*) as customer_count FROM customers'),
+                pool.query('SELECT COUNT(*) as customer_count FROM customers WHERE comp_code = $1', [companyCode]),
                 // Recent invoices
                 pool.query(`
                     SELECT inv_id, inv_number, inv_date, cust_code, total_amount, balance_due,
                            CASE WHEN balance_due <= 0 THEN 'PAID' ELSE 'PENDING' END as status
                     FROM sales_invoices
+                    WHERE comp_code = $1
                     ORDER BY inv_date DESC, inv_id DESC
                     LIMIT 5
-                `),
+                `, [companyCode]),
                 // Top products by revenue
                 pool.query(`
                     SELECT p.prod_name, p.prod_code,
                            COALESCE(SUM(si.line_total), 0) as total_revenue
                     FROM products p
                     LEFT JOIN sales_invoice_items si ON p.prod_code = si.prod_code
+                    WHERE p.comp_code = $1
                     GROUP BY p.prod_id, p.prod_name, p.prod_code
                     ORDER BY total_revenue DESC
                     LIMIT 10
-                `),
+                `, [companyCode]),
                 // Sales by category
                 pool.query(`
                     SELECT c.category_name,
                            COALESCE(SUM(si.line_total), 0) as category_revenue
                     FROM categories c
-                    LEFT JOIN products p ON c.category_code = p.category_code
+                    LEFT JOIN products p ON c.category_code = p.category_code AND p.comp_code = $1
                     LEFT JOIN sales_invoice_items si ON p.prod_code = si.prod_code
+                    WHERE c.comp_code = $1
                     GROUP BY c.category_id, c.category_name
                     ORDER BY category_revenue DESC
-                `)
+                `, [companyCode, companyCode])
             ]);
 
             const metrics = {
@@ -83,6 +95,7 @@ export default (app, pool, logger) => {
     // Sales trends data
     app.get('/api/analytics/sales-trends', async (req, res) => {
         try {
+            const companyCode = getCompanyContext(req);
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const currentDate = new Date();
             const chartData = [];
@@ -98,7 +111,8 @@ export default (app, pool, logger) => {
                     WHERE EXTRACT(MONTH FROM inv_date) = $1
                       AND EXTRACT(YEAR FROM inv_date) = $2
                       AND balance_due <= 0
-                `, [date.getMonth() + 1, year]);
+                      AND comp_code = $3
+                `, [date.getMonth() + 1, year, companyCode]);
 
                 chartData.push({
                     name: monthName,
