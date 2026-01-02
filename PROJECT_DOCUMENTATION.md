@@ -2597,7 +2597,7 @@ services:
       - "5000:5000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://user:password@db:5432/lalani_erp
+      - DATABASE_URL=postgresql://user:XXXXX@db:5432/XXXXX
       - JWT_SECRET=${JWT_SECRET}
     depends_on:
       - db

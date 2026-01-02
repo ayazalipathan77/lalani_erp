@@ -1,3 +1,5 @@
+import { requirePermission } from '../middleware/permissions.js';
+
 export default (app, pool, logger) => {
     // Company context middleware
     const getCompanyContext = (req) => {
@@ -7,8 +9,10 @@ export default (app, pool, logger) => {
             'CMP01';
     };
 
-    // Products
-    app.get('/api/products', async (req, res) => {
+    // Products - GET (View permission required)
+    app.get('/api/products',
+        requirePermission('INVENTORY_VIEW', 'INVENTORY_MANAGE'),
+        async (req, res) => {
         try {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
@@ -46,7 +50,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.post('/api/products', async (req, res) => {
+    // Products - POST (Manage permission required)
+    app.post('/api/products',
+        requirePermission('INVENTORY_MANAGE'),
+        async (req, res) => {
         const { prod_code, prod_name, category_code, cost_price, selling_price, current_stock, min_stock_level, tax_code } = req.body;
         const companyCode = getCompanyContext(req);
         try {
@@ -61,7 +68,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.put('/api/products/:id', async (req, res) => {
+    // Products - PUT (Manage permission required)
+    app.put('/api/products/:id',
+        requirePermission('INVENTORY_MANAGE'),
+        async (req, res) => {
         const { id } = req.params;
         const { prod_code, prod_name, category_code, cost_price, selling_price, current_stock, min_stock_level, tax_code } = req.body;
         const companyCode = getCompanyContext(req);
@@ -131,7 +141,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.delete('/api/products/:id', async (req, res) => {
+    // Products - DELETE (Manage permission required)
+    app.delete('/api/products/:id',
+        requirePermission('INVENTORY_MANAGE'),
+        async (req, res) => {
         try {
             await pool.query('DELETE FROM products WHERE prod_id = $1', [req.params.id]);
             res.json({ message: 'Product deleted' });

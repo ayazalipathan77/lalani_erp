@@ -67,20 +67,45 @@ export default (app, pool, logger) => {
 
             const purchaseId = purchaseResult.rows[0].purchase_id;
 
-            // Add purchase items and increase stock
-            for (const item of items) {
-                await client.query(
-                    `INSERT INTO purchase_invoice_items (purchase_id, prod_code, quantity, unit_price, line_total)
-                     VALUES ($1, $2, $3, $4, $5)`,
-                    [purchaseId, item.prod_code, item.quantity, item.unit_price, item.line_total]
-                );
+            // OPTIMIZATION: Batch insert items and update stock
+            // Build batch insert for purchase items
+            const itemInsertValues = items.map((_, idx) => {
+                const base = idx * 5;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
+            }).join(', ');
 
-                // Increase stock
-                await client.query(
-                    `UPDATE products SET current_stock = current_stock + $1 WHERE prod_code = $2`,
-                    [item.quantity, item.prod_code]
-                );
-            }
+            const itemInsertParams = items.flatMap(item => [
+                purchaseId,
+                item.prod_code,
+                item.quantity,
+                item.unit_price,
+                item.line_total
+            ]);
+
+            await client.query(
+                `INSERT INTO purchase_invoice_items (purchase_id, prod_code, quantity, unit_price, line_total)
+                 VALUES ${itemInsertValues}`,
+                itemInsertParams
+            );
+
+            // Batch update stock using CASE statement
+            const prodCodes = items.map(item => item.prod_code);
+            const caseStatements = items.map((item, idx) =>
+                `WHEN prod_code = $${idx + 1} THEN current_stock + $${prodCodes.length + idx + 1}`
+            ).join(' ');
+
+            const stockUpdateParams = [
+                ...prodCodes,
+                ...items.map(item => item.quantity),
+                ...prodCodes
+            ];
+
+            await client.query(
+                `UPDATE products
+                 SET current_stock = CASE ${caseStatements} END
+                 WHERE prod_code = ANY($${stockUpdateParams.length + 1})`,
+                [...stockUpdateParams.slice(0, -prodCodes.length), prodCodes]
+            );
 
             // Update supplier balance (increase outstanding)
             await client.query(
@@ -179,11 +204,23 @@ export default (app, pool, logger) => {
                 return res.status(400).json({ message: 'Purchase total must be greater than zero' });
             }
 
-            // Reverse stock changes for original items
-            for (const item of originalItems.rows) {
+            // OPTIMIZATION: Batch reverse stock changes for original items
+            if (originalItems.rows.length > 0) {
+                const origProdCodes = originalItems.rows.map(item => item.prod_code);
+                const origCaseStatements = originalItems.rows.map((item, idx) =>
+                    `WHEN prod_code = $${idx + 1} THEN current_stock - $${origProdCodes.length + idx + 1}`
+                ).join(' ');
+
+                const origStockParams = [
+                    ...origProdCodes,
+                    ...originalItems.rows.map(item => item.quantity)
+                ];
+
                 await client.query(
-                    `UPDATE products SET current_stock = current_stock - $1 WHERE prod_code = $2 AND comp_code = $3`,
-                    [item.quantity, item.prod_code, companyCode]
+                    `UPDATE products
+                     SET current_stock = CASE ${origCaseStatements} END
+                     WHERE prod_code = ANY($1) AND comp_code = $2`,
+                    [origProdCodes, companyCode]
                 );
             }
 
@@ -205,20 +242,43 @@ export default (app, pool, logger) => {
             // Delete old purchase invoice items
             await client.query('DELETE FROM purchase_invoice_items WHERE purchase_id = $1', [id]);
 
-            // Insert new purchase items and increase stock
-            for (const item of items) {
-                await client.query(
-                    `INSERT INTO purchase_invoice_items (purchase_id, prod_code, quantity, unit_price, line_total)
-                     VALUES ($1, $2, $3, $4, $5)`,
-                    [id, item.prod_code, item.quantity, item.unit_price, item.line_total]
-                );
+            // OPTIMIZATION: Batch insert new items and update stock
+            const newItemInsertValues = items.map((_, idx) => {
+                const base = idx * 5;
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
+            }).join(', ');
 
-                // Increase stock
-                await client.query(
-                    `UPDATE products SET current_stock = current_stock + $1 WHERE prod_code = $2 AND comp_code = $3`,
-                    [item.quantity, item.prod_code, companyCode]
-                );
-            }
+            const newItemInsertParams = items.flatMap(item => [
+                id,
+                item.prod_code,
+                item.quantity,
+                item.unit_price,
+                item.line_total
+            ]);
+
+            await client.query(
+                `INSERT INTO purchase_invoice_items (purchase_id, prod_code, quantity, unit_price, line_total)
+                 VALUES ${newItemInsertValues}`,
+                newItemInsertParams
+            );
+
+            // Batch update stock using CASE statement
+            const newProdCodes = items.map(item => item.prod_code);
+            const newCaseStatements = items.map((item, idx) =>
+                `WHEN prod_code = $${idx + 1} THEN current_stock + $${newProdCodes.length + idx + 1}`
+            ).join(' ');
+
+            const newStockUpdateParams = [
+                ...newProdCodes,
+                ...items.map(item => item.quantity)
+            ];
+
+            await client.query(
+                `UPDATE products
+                 SET current_stock = CASE ${newCaseStatements} END
+                 WHERE prod_code = ANY($1) AND comp_code = $2`,
+                [newProdCodes, companyCode]
+            );
 
             // Update supplier balance for new invoice
             if (oldInv.supplier_code !== supplier_code) {

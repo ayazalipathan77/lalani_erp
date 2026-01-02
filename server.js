@@ -1,6 +1,7 @@
 import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
+import compression from 'compression';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -183,12 +184,90 @@ if (!connectionString) {
     process.exit(1);
 }
 
+// OPTIMIZATION: Configure connection pool with proper settings and monitoring
 const pool = new pg.Pool({
     connectionString,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+
+    // Connection pool settings
+    max: parseInt(process.env.DB_POOL_MAX) || 20,                       // Maximum pool size
+    min: parseInt(process.env.DB_POOL_MIN) || 5,                        // Minimum idle connections
+    idleTimeoutMillis: parseInt(process.env.DB_POOL_IDLE_TIMEOUT) || 30000,  // Close idle clients after 30s
+    connectionTimeoutMillis: 5000,                                      // Wait max 5s for connection
+
+    // Query settings
+    statement_timeout: parseInt(process.env.DB_STATEMENT_TIMEOUT) || 30000,  // Kill queries taking >30s
+    query_timeout: 30000,
+
+    // Connection health
+    allowExitOnIdle: false
 });
 
+// Pool event handlers for monitoring
+pool.on('error', (err) => {
+    logger.error('Unexpected database pool error', {
+        error: err.message,
+        stack: err.stack,
+        code: err.code
+    });
+});
+
+pool.on('connect', () => {
+    logger.debug('New database client connected', {
+        totalCount: pool.totalCount,
+        idleCount: pool.idleCount,
+        waitingCount: pool.waitingCount
+    });
+});
+
+pool.on('acquire', () => {
+    logger.debug('Client acquired from pool', {
+        totalCount: pool.totalCount,
+        idleCount: pool.idleCount,
+        waitingCount: pool.waitingCount
+    });
+});
+
+pool.on('remove', () => {
+    logger.debug('Client removed from pool', {
+        totalCount: pool.totalCount,
+        idleCount: pool.idleCount
+    });
+});
+
+// Graceful shutdown handlers
+const gracefulShutdown = async () => {
+    logger.info('Shutting down gracefully...');
+    try {
+        await pool.end();
+        logger.info('Database pool closed successfully');
+        process.exit(0);
+    } catch (err) {
+        logger.error('Error during graceful shutdown', { error: err.message });
+        process.exit(1);
+    }
+};
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+
 app.use(cors());
+
+// OPTIMIZATION: Add response compression middleware (60-70% reduction in payload size)
+app.use(compression({
+    filter: (req, res) => {
+        // Don't compress if client sends x-no-compression header
+        if (req.headers['x-no-compression']) {
+            return false;
+        }
+        // Use compression filter
+        return compression.filter(req, res);
+    },
+    level: 6,           // Compression level 0-9 (6 is good balance)
+    threshold: 1024,    // Only compress responses larger than 1KB
+    memLevel: 8         // Memory level for compression (1-9)
+}));
+
 app.use(express.json());
 
 // Set proper MIME types for JavaScript modules

@@ -1,3 +1,5 @@
+import { requirePermission } from '../middleware/permissions.js';
+
 export default (app, pool, logger) => {
     // Company context middleware
     const getCompanyContext = (req) => {
@@ -7,8 +9,10 @@ export default (app, pool, logger) => {
             'CMP01';
     };
 
-    // Invoices
-    app.get('/api/invoices', async (req, res) => {
+    // Invoices - GET (View permission required)
+    app.get('/api/invoices',
+        requirePermission('SALES_VIEW', 'SALES_MANAGE'),
+        async (req, res) => {
         try {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
@@ -68,7 +72,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.post('/api/invoices', async (req, res) => {
+    // Invoices - POST (Manage permission required)
+    app.post('/api/invoices',
+        requirePermission('SALES_MANAGE'),
+        async (req, res) => {
         const { cust_code, items, date, status } = req.body;
         const companyCode = getCompanyContext(req);
         const client = await pool.connect();
@@ -82,6 +89,18 @@ export default (app, pool, logger) => {
             );
             const customerDiscountRate = customerResult.rows[0]?.discount_rate || 0;
 
+            // OPTIMIZATION: Batch fetch all products at once to avoid N+1 query problem
+            const prodCodes = items.map(item => item.prod_code);
+            const productsResult = await client.query(
+                'SELECT p.*, tr.tax_rate FROM products p LEFT JOIN tax_rates tr ON p.tax_code = tr.tax_code WHERE p.prod_code = ANY($1) AND p.comp_code = $2',
+                [prodCodes, companyCode]
+            );
+
+            // Create a map for O(1) product lookup
+            const productsMap = new Map(
+                productsResult.rows.map(p => [p.prod_code, p])
+            );
+
             let sub_total = 0;
             let totalDiscountAmount = 0;
             let totalTaxAmount = 0;
@@ -89,11 +108,7 @@ export default (app, pool, logger) => {
 
             // Process each item with per-item discount and tax
             for (const item of items) {
-                const productResult = await client.query(
-                    'SELECT p.*, tr.tax_rate FROM products p LEFT JOIN tax_rates tr ON p.tax_code = tr.tax_code WHERE p.prod_code = $1 AND p.comp_code = $2',
-                    [item.prod_code, companyCode]
-                );
-                const product = productResult.rows[0];
+                const product = productsMap.get(item.prod_code);
                 if (!product) {
                     throw new Error(`Product ${item.prod_code} not found`);
                 }
@@ -165,8 +180,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    // Edit invoice
-    app.put('/api/invoices/:id', async (req, res) => {
+    // Invoices - PUT (Manage permission required)
+    app.put('/api/invoices/:id',
+        requirePermission('SALES_MANAGE'),
+        async (req, res) => {
         const { id } = req.params;
         const { cust_code, items, inv_date, status } = req.body;
         const companyCode = getCompanyContext(req);

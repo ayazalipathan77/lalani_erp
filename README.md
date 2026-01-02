@@ -45,19 +45,19 @@ The project is configured to work with your local PostgreSQL instance. Make sure
 cp .env.example .env
 
 # Edit .env with your database details (already configured for your setup)
-# DATABASE_URL=postgresql://user:ayaz12344321@127.0.0.1:5432/lalani_erp
+# DATABASE_URL=postgresql://user:XXXXX@/XXXX
 ```
 
 ### 3. Initialize Database
 
-Run the database setup script to create the `lalani_erp` database and populate it with sample data:
+Run the database setup script to create the `XXXX` database and populate it with sample data:
 
 ```bash
 npm run db:setup
 ```
 
 This will:
-- Create the `lalani_erp` database
+- Create the `XXXX` database
 - Run the complete schema with all tables, indexes, and relationships
 - Insert sample data for testing
 
