@@ -1,6 +1,10 @@
+import { requireAdmin } from '../middleware/permissions.js';
+
 export default (app, pool, logger) => {
-    // Company Management
-    app.get('/api/companies', async (req, res) => {
+    // Company Management - GET (Admin only)
+    app.get('/api/companies',
+        requireAdmin,
+        async (req, res) => {
         try {
             const result = await pool.query(
                 'SELECT * FROM companies ORDER BY comp_name'
@@ -31,7 +35,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.post('/api/companies', async (req, res) => {
+    // Company Management - POST (Admin only)
+    app.post('/api/companies',
+        requireAdmin,
+        async (req, res) => {
         const { comp_code, comp_name, address, phone, email, gstin, pan_number, tax_registration } = req.body;
 
         try {
@@ -48,7 +55,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.put('/api/companies/:code', async (req, res) => {
+    // Company Management - PUT (Admin only)
+    app.put('/api/companies/:code',
+        requireAdmin,
+        async (req, res) => {
         const { comp_name, address, phone, email, gstin, pan_number, tax_registration } = req.body;
 
         try {
@@ -69,7 +79,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.delete('/api/companies/:code', async (req, res) => {
+    // Company Management - DELETE (Admin only)
+    app.delete('/api/companies/:code',
+        requireAdmin,
+        async (req, res) => {
         try {
             // Check if company has dependent records
             const dependentTables = [

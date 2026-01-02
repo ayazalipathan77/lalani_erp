@@ -1,8 +1,11 @@
 import logger from '../../logger.js';
+import { requireAdmin } from '../middleware/permissions.js';
 
 export default (app, pool, logger) => {
-    // Users
-    app.get('/api/users', async (req, res) => {
+    // Users - GET (Admin only)
+    app.get('/api/users',
+        requireAdmin,
+        async (req, res) => {
         try {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
@@ -30,7 +33,10 @@ export default (app, pool, logger) => {
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
-    app.post('/api/users', async (req, res) => {
+    // Users - POST (Admin only)
+    app.post('/api/users',
+        requireAdmin,
+        async (req, res) => {
         const { username, password, full_name, role, is_active, permissions } = req.body;
         try {
             const result = await pool.query(
@@ -47,7 +53,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.put('/api/users/:id', async (req, res) => {
+    // Users - PUT (Admin only)
+    app.put('/api/users/:id',
+        requireAdmin,
+        async (req, res) => {
         const { id } = req.params;
         const { username, full_name, role, is_active, permissions, password } = req.body;
         try {
@@ -75,7 +84,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.delete('/api/users/:id', async (req, res) => {
+    // Users - DELETE (Admin only)
+    app.delete('/api/users/:id',
+        requireAdmin,
+        async (req, res) => {
         try {
             const result = await pool.query('DELETE FROM users WHERE user_id = $1 RETURNING user_id', [req.params.id]);
             if (result.rows.length === 0) {

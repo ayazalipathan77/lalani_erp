@@ -1,3 +1,5 @@
+import { requirePermission } from '../middleware/permissions.js';
+
 export default (app, pool, logger) => {
     // Company context middleware
     const getCompanyContext = (req) => {
@@ -7,8 +9,10 @@ export default (app, pool, logger) => {
             'CMP01';
     };
 
-    // Customers
-    app.get('/api/customers', async (req, res) => {
+    // Customers - GET (View permission required)
+    app.get('/api/customers',
+        requirePermission('PARTNERS_VIEW', 'PARTNERS_MANAGE'),
+        async (req, res) => {
         try {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
@@ -46,7 +50,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.post('/api/customers', async (req, res) => {
+    // Customers - POST (Manage permission required)
+    app.post('/api/customers',
+        requirePermission('PARTNERS_MANAGE'),
+        async (req, res) => {
         const { cust_code, cust_name, city, phone, credit_limit, outstanding_balance, tax_rate, discount_rate } = req.body;
         const companyCode = getCompanyContext(req);
         try {
@@ -61,7 +68,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.put('/api/customers/:id', async (req, res) => {
+    // Customers - PUT (Manage permission required)
+    app.put('/api/customers/:id',
+        requirePermission('PARTNERS_MANAGE'),
+        async (req, res) => {
         const { id } = req.params;
         const { cust_code, cust_name, city, phone, credit_limit, tax_rate, discount_rate } = req.body;
         const companyCode = getCompanyContext(req);
@@ -119,7 +129,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.delete('/api/customers/:id', async (req, res) => {
+    // Customers - DELETE (Manage permission required)
+    app.delete('/api/customers/:id',
+        requirePermission('PARTNERS_MANAGE'),
+        async (req, res) => {
         try {
             await pool.query('DELETE FROM customers WHERE cust_id=$1', [req.params.id]);
             res.json({ message: 'Deleted' });

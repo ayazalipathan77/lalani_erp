@@ -1,3 +1,5 @@
+import { requirePermission, requireAdmin } from '../middleware/permissions.js';
+
 export default (app, pool, logger) => {
     // Company context middleware
     const getCompanyContext = (req) => {
@@ -7,8 +9,10 @@ export default (app, pool, logger) => {
             'CMP01';
     };
 
-    // Finance - Transactions
-    app.get('/api/finance/transactions', async (req, res) => {
+    // Finance - Transactions GET (View permission required)
+    app.get('/api/finance/transactions',
+        requirePermission('FINANCE_VIEW', 'FINANCE_MANAGE'),
+        async (req, res) => {
         try {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
@@ -40,7 +44,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.get('/api/finance/expenses', async (req, res) => {
+    // Finance - Expenses GET (View permission required)
+    app.get('/api/finance/expenses',
+        requirePermission('FINANCE_VIEW', 'FINANCE_MANAGE'),
+        async (req, res) => {
         try {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
@@ -72,7 +79,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.post('/api/finance/expenses', async (req, res) => {
+    // Finance - Expenses POST (Manage permission required)
+    app.post('/api/finance/expenses',
+        requirePermission('FINANCE_MANAGE'),
+        async (req, res) => {
         const { head_code, amount, remarks, expense_date } = req.body;
         const companyCode = getCompanyContext(req);
         const client = await pool.connect();
@@ -99,7 +109,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.post('/api/finance/payment', async (req, res) => {
+    // Finance - Payment POST (Manage permission required)
+    app.post('/api/finance/payment',
+        requirePermission('FINANCE_MANAGE'),
+        async (req, res) => {
         const { type, party_code, amount, date, remarks } = req.body;
         const companyCode = getCompanyContext(req);
         const client = await pool.connect();

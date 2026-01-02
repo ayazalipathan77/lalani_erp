@@ -1,3 +1,5 @@
+import { requirePermission } from '../middleware/permissions.js';
+
 export default (app, pool, logger) => {
     // Company context middleware
     const getCompanyContext = (req) => {
@@ -7,8 +9,10 @@ export default (app, pool, logger) => {
             'CMP01';
     };
 
-    // Purchase Invoices
-    app.get('/api/purchase-invoices', async (req, res) => {
+    // Purchase Invoices - GET (View permission required)
+    app.get('/api/purchase-invoices',
+        requirePermission('PURCHASE_VIEW', 'PURCHASE_MANAGE'),
+        async (req, res) => {
         try {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
@@ -47,7 +51,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.post('/api/purchase-invoices', async (req, res) => {
+    // Purchase Invoices - POST (Manage permission required)
+    app.post('/api/purchase-invoices',
+        requirePermission('PURCHASE_MANAGE'),
+        async (req, res) => {
         const { supplier_code, items, purchase_date } = req.body;
         const companyCode = getCompanyContext(req);
         const client = await pool.connect();
@@ -124,8 +131,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    // Update Purchase Invoice
-    app.put('/api/purchase-invoices/:id', async (req, res) => {
+    // Purchase Invoices - PUT (Manage permission required)
+    app.put('/api/purchase-invoices/:id',
+        requirePermission('PURCHASE_MANAGE'),
+        async (req, res) => {
         const { id } = req.params;
         const { supplier_code, items, purchase_date, status } = req.body;
         const companyCode = getCompanyContext(req);

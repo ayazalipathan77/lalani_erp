@@ -1,3 +1,5 @@
+import { requirePermission } from '../middleware/permissions.js';
+
 export default (app, pool, logger) => {
     // Company context middleware
     const getCompanyContext = (req) => {
@@ -7,8 +9,10 @@ export default (app, pool, logger) => {
             'CMP01';
     };
 
-    // Suppliers
-    app.get('/api/suppliers', async (req, res) => {
+    // Suppliers - GET (View permission required)
+    app.get('/api/suppliers',
+        requirePermission('PARTNERS_VIEW', 'PARTNERS_MANAGE'),
+        async (req, res) => {
         try {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
@@ -40,7 +44,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.post('/api/suppliers', async (req, res) => {
+    // Suppliers - POST (Manage permission required)
+    app.post('/api/suppliers',
+        requirePermission('PARTNERS_MANAGE'),
+        async (req, res) => {
         const { supplier_code, supplier_name, city, phone, contact_person, outstanding_balance } = req.body;
         const companyCode = getCompanyContext(req);
         try {
@@ -55,7 +62,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.put('/api/suppliers/:id', async (req, res) => {
+    // Suppliers - PUT (Manage permission required)
+    app.put('/api/suppliers/:id',
+        requirePermission('PARTNERS_MANAGE'),
+        async (req, res) => {
         const { id } = req.params;
         const { supplier_code, supplier_name, city, phone, contact_person } = req.body;
         try {
@@ -70,7 +80,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.delete('/api/suppliers/:id', async (req, res) => {
+    // Suppliers - DELETE (Manage permission required)
+    app.delete('/api/suppliers/:id',
+        requirePermission('PARTNERS_MANAGE'),
+        async (req, res) => {
         try {
             await pool.query('DELETE FROM suppliers WHERE supplier_id=$1', [req.params.id]);
             res.json({ message: 'Deleted' });

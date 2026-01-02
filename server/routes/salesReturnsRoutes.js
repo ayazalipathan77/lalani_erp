@@ -1,3 +1,5 @@
+import { requirePermission } from '../middleware/permissions.js';
+
 export default (app, pool, logger) => {
     // Company context middleware
     const getCompanyContext = (req) => {
@@ -7,8 +9,10 @@ export default (app, pool, logger) => {
             'CMP01';
     };
 
-    // Sales Returns
-    app.get('/api/sales-returns', async (req, res) => {
+    // Sales Returns - GET (View permission required)
+    app.get('/api/sales-returns',
+        requirePermission('SALES_RETURNS_VIEW', 'SALES_RETURNS_MANAGE'),
+        async (req, res) => {
         try {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
@@ -47,7 +51,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    app.post('/api/sales-returns', async (req, res) => {
+    // Sales Returns - POST (Manage permission required)
+    app.post('/api/sales-returns',
+        requirePermission('SALES_RETURNS_MANAGE'),
+        async (req, res) => {
         const { inv_id, items, return_date } = req.body;
         const client = await pool.connect();
 
@@ -119,8 +126,10 @@ export default (app, pool, logger) => {
         }
     });
 
-    // Update Sales Return
-    app.put('/api/sales-returns/:id', async (req, res) => {
+    // Sales Returns - PUT (Manage permission required)
+    app.put('/api/sales-returns/:id',
+        requirePermission('SALES_RETURNS_MANAGE'),
+        async (req, res) => {
         const { id } = req.params;
         const { inv_id, items, return_date } = req.body;
         const client = await pool.connect();
