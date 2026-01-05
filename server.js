@@ -141,14 +141,14 @@ async function runMigrations() {
             }
         }
 
-        console.log('📄 Applying complete database schema...');
+        console.log('📄 Applying complete database schema with Phase 1 optimizations...');
 
-        // Read and execute the complete migration SQL
-        const migrationPath = path.join(__dirname, 'migrations', 'sqls', '20251209002519-complete-schema-up.sql');
+        // Read and execute the complete migration SQL (includes all tables, indexes, and seed data)
+        const migrationPath = path.join(__dirname, 'database', 'complete-schema-with-indexes.sql');
         const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
 
         await client.query(migrationSQL);
-        console.log('✅ Complete database schema and seed data applied successfully!');
+        console.log('✅ Complete database schema, composite indexes, and seed data applied successfully!');
 
         client.release();
         await pool.end();
@@ -284,7 +284,7 @@ const WEBAUTHN_RP_ID = process.env.WEBAUTHN_RP_ID || 'localhost'; // In producti
 const WEBAUTHN_ORIGIN = process.env.WEBAUTHN_ORIGIN || `http://localhost:5173`; // Frontend URL - adjust port if needed
 
 // Middleware to extract user from JWT token
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
@@ -293,20 +293,42 @@ const authenticateToken = (req, res, next) => {
         return next();
     }
 
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
         if (err) {
             req.user = null;
             logger.auth('TOKEN_VERIFICATION_FAILED', null, null, req.ip);
-        } else {
+            return next();
+        }
+
+        try {
+            // Load user permissions from users table
+            const userResult = await pool.query(
+                'SELECT permissions FROM users WHERE user_id = $1',
+                [decoded.userId]
+            );
+
+            const userPermissions = userResult.rows[0]?.permissions || [];
+
             req.user = {
                 id: decoded.userId,
                 username: decoded.username,
                 role: decoded.role,
-                selectedCompany: decoded.selectedCompany || 'CMP01'
+                selectedCompany: decoded.selectedCompany || 'CMP01',
+                permissions: userPermissions
             };
             // Only log successful token verification for important endpoints, not every request
             // This prevents log spam from frontend polling and routine requests
+        } catch (error) {
+            console.error('Error loading user permissions:', error);
+            req.user = {
+                id: decoded.userId,
+                username: decoded.username,
+                role: decoded.role,
+                selectedCompany: decoded.selectedCompany || 'CMP01',
+                permissions: []
+            };
         }
+
         next();
     });
 };

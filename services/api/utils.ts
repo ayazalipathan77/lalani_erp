@@ -97,3 +97,14 @@ export const getAuthHeaders = (): Record<string, string> => {
     headers['X-Company-Code'] = selectedCompany;
     return headers;
 };
+
+// Helper function to handle fetch responses with error checking
+export const handleFetchResponse = async <T>(response: Response): Promise<T> => {
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({
+            message: `HTTP ${response.status}: ${response.statusText}`
+        }));
+        throw new Error(error.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
+};

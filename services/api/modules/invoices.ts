@@ -1,5 +1,5 @@
 import { SalesInvoice } from '../../../types';
-import { USE_MOCK, delay, getAuthHeaders } from '../utils';
+import { USE_MOCK, delay, getAuthHeaders, handleFetchResponse } from '../utils';
 
 export const invoices = {
     getAll: async (page: number = 1, limit: number = 8): Promise<{ data: SalesInvoice[], pagination: any }> => {
@@ -18,7 +18,7 @@ export const invoices = {
         const res = await fetch(`/api/invoices?page=${page}&limit=${limit}`, {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ data: SalesInvoice[], pagination: any }>(res);
     },
     create: async (invoiceData: {
         cust_code: string;
@@ -44,8 +44,7 @@ export const invoices = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(invoiceData)
         });
-        if (!res.ok) throw new Error("Failed to create invoice");
-        return res.json();
+        return handleFetchResponse<SalesInvoice>(res);
     },
     update: async (id: number, invoiceData: {
         cust_code: string;
@@ -62,7 +61,6 @@ export const invoices = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(invoiceData)
         });
-        if (!res.ok) throw new Error("Failed to update invoice");
-        return res.json();
+        return handleFetchResponse<SalesInvoice>(res);
     }
 };

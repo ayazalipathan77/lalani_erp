@@ -1,5 +1,5 @@
 import { Supplier } from '../../../types';
-import { USE_MOCK, delay, getAuthHeaders } from '../utils';
+import { USE_MOCK, delay, getAuthHeaders, handleFetchResponse } from '../utils';
 
 export const suppliers = {
     getAll: async (page: number = 1, limit: number = 10): Promise<{ data: Supplier[], pagination: any }> => {
@@ -15,8 +15,10 @@ export const suppliers = {
                 }
             };
         }
-        const res = await fetch(`/api/suppliers?page=${page}&limit=${limit}`);
-        return res.json();
+        const res = await fetch(`/api/suppliers?page=${page}&limit=${limit}`, {
+            headers: getAuthHeaders()
+        });
+        return handleFetchResponse<{ data: Supplier[], pagination: any }>(res);
     },
     create: async (supplier: Omit<Supplier, 'supplier_id'>): Promise<Supplier> => {
         if (USE_MOCK) {
@@ -25,10 +27,10 @@ export const suppliers = {
         }
         const res = await fetch('/api/suppliers', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(supplier)
         });
-        return res.json();
+        return handleFetchResponse<Supplier>(res);
     },
     update: async (id: number, supplier: Partial<Supplier>): Promise<Supplier> => {
         if (USE_MOCK) {
@@ -37,10 +39,10 @@ export const suppliers = {
         }
         const res = await fetch(`/api/suppliers/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(supplier)
         });
-        return res.json();
+        return handleFetchResponse<Supplier>(res);
     },
     delete: async (id: number): Promise<{ message: string }> => {
         if (USE_MOCK) {
@@ -48,8 +50,9 @@ export const suppliers = {
             return { message: 'Deleted' };
         }
         const res = await fetch(`/api/suppliers/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ message: string }>(res);
     }
 };

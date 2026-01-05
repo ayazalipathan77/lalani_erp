@@ -1,5 +1,5 @@
 import { PaymentReceipt } from '../../../types';
-import { USE_MOCK, delay, getAuthHeaders } from '../utils';
+import { USE_MOCK, delay, getAuthHeaders, handleFetchResponse } from '../utils';
 
 export const paymentReceipts = {
     getAll: async (page: number = 1, limit: number = 8): Promise<{ data: PaymentReceipt[], pagination: any }> => {
@@ -18,7 +18,7 @@ export const paymentReceipts = {
         const res = await fetch(`/api/payment-receipts?page=${page}&limit=${limit}`, {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ data: PaymentReceipt[], pagination: any }>(res);
     },
     create: async (receiptData: Omit<PaymentReceipt, 'receipt_id' | 'receipt_number' | 'status'>): Promise<PaymentReceipt> => {
         if (USE_MOCK) {
@@ -39,8 +39,7 @@ export const paymentReceipts = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(receiptData)
         });
-        if (!res.ok) throw new Error("Failed to create receipt");
-        return res.json();
+        return handleFetchResponse<PaymentReceipt>(res);
     },
     update: async (id: number, receiptData: Partial<PaymentReceipt>): Promise<PaymentReceipt> => {
         if (USE_MOCK) {
@@ -52,7 +51,6 @@ export const paymentReceipts = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(receiptData)
         });
-        if (!res.ok) throw new Error("Failed to update receipt");
-        return res.json();
+        return handleFetchResponse<PaymentReceipt>(res);
     }
 };

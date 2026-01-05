@@ -17,7 +17,7 @@ export default (app, pool, logger) => {
 
             // Get paginated data
             const result = await pool.query(
-                'SELECT user_id, username, full_name, role, is_active, permissions FROM users ORDER BY user_id LIMIT $1 OFFSET $2',
+                'SELECT user_id, username, full_name, role, is_active, permissions, default_company FROM users ORDER BY user_id LIMIT $1 OFFSET $2',
                 [limit, offset]
             );
 
@@ -37,19 +37,32 @@ export default (app, pool, logger) => {
     app.post('/api/users',
         requireAdmin,
         async (req, res) => {
-        const { username, password, full_name, role, is_active, permissions } = req.body;
+        const { username, password, full_name, role, is_active, permissions, default_company } = req.body;
+
+        // Validate required fields
+        if (!username || !password || !full_name) {
+            return res.status(400).json({ error: 'Username, password, and full name are required' });
+        }
+
         try {
             const result = await pool.query(
-                'INSERT INTO users (username, password, full_name, role, is_active, permissions, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING user_id, username, full_name, role, is_active, permissions, default_company, created_at',
-                [username, password, full_name, role, is_active, permissions, req.user?.id]
+                'INSERT INTO users (username, password, full_name, role, is_active, permissions, default_company, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING user_id, username, full_name, role, is_active, permissions, default_company, created_at',
+                [username, password, full_name, role, is_active, permissions || [], default_company || 'CMP01', req.user?.id]
             );
             res.json(result.rows[0]);
         } catch (err) {
+
+            console.error('Error creating user:', err);
+            console.error('Request body:', req.body);
             // Handle unique constraint violation for username
             if (err.code === '23505') {
                 return res.status(400).json({ error: 'Username already exists' });
             }
-            res.status(500).json({ error: err.message });
+            // Handle foreign key constraint violations
+            if (err.code === '23503') {
+                return res.status(400).json({ error: 'Invalid company code or created_by user' });
+            }
+            res.status(400).json({ error: err.message });
         }
     });
 
@@ -58,17 +71,17 @@ export default (app, pool, logger) => {
         requireAdmin,
         async (req, res) => {
         const { id } = req.params;
-        const { username, full_name, role, is_active, permissions, password } = req.body;
+        const { username, full_name, role, is_active, permissions, password, default_company } = req.body;
         try {
             let query, params;
             if (password && password.trim() !== '') {
                 // Update with password
-                query = 'UPDATE users SET username=$1, full_name=$2, role=$3, is_active=$4, permissions=$5, password=$6, updated_by=$7, updated_at=CURRENT_TIMESTAMP WHERE user_id=$8 RETURNING user_id, username, full_name, role, is_active, permissions, default_company, created_at, updated_at';
-                params = [username, full_name, role, is_active, permissions, password, req.user?.id, id];
+                query = 'UPDATE users SET username=$1, full_name=$2, role=$3, is_active=$4, permissions=$5, password=$6, default_company=$7, updated_by=$8, updated_at=CURRENT_TIMESTAMP WHERE user_id=$9 RETURNING user_id, username, full_name, role, is_active, permissions, default_company, created_at, updated_at';
+                params = [username, full_name, role, is_active, permissions || [], password, default_company || 'CMP01', req.user?.id, id];
             } else {
                 // Update without password
-                query = 'UPDATE users SET username=$1, full_name=$2, role=$3, is_active=$4, permissions=$5, updated_by=$6, updated_at=CURRENT_TIMESTAMP WHERE user_id=$7 RETURNING user_id, username, full_name, role, is_active, permissions, default_company, created_at, updated_at';
-                params = [username, full_name, role, is_active, permissions, req.user?.id, id];
+                query = 'UPDATE users SET username=$1, full_name=$2, role=$3, is_active=$4, permissions=$5, default_company=$6, updated_by=$7, updated_at=CURRENT_TIMESTAMP WHERE user_id=$8 RETURNING user_id, username, full_name, role, is_active, permissions, default_company, created_at, updated_at';
+                params = [username, full_name, role, is_active, permissions || [], default_company || 'CMP01', req.user?.id, id];
             }
             const result = await pool.query(query, params);
             if (result.rows.length === 0) {

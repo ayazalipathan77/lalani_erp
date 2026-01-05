@@ -1,5 +1,5 @@
 import { SupplierPayment } from '../../../types';
-import { USE_MOCK, delay, getAuthHeaders } from '../utils';
+import { USE_MOCK, delay, getAuthHeaders, handleFetchResponse } from '../utils';
 
 export const supplierPayments = {
     getAll: async (page: number = 1, limit: number = 8): Promise<{ data: SupplierPayment[], pagination: any }> => {
@@ -18,7 +18,7 @@ export const supplierPayments = {
         const res = await fetch(`/api/supplier-payments?page=${page}&limit=${limit}`, {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ data: SupplierPayment[], pagination: any }>(res);
     },
     create: async (paymentData: Omit<SupplierPayment, 'payment_id' | 'payment_number' | 'status'>): Promise<SupplierPayment> => {
         if (USE_MOCK) {
@@ -39,8 +39,7 @@ export const supplierPayments = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(paymentData)
         });
-        if (!res.ok) throw new Error("Failed to create payment");
-        return res.json();
+        return handleFetchResponse<SupplierPayment>(res);
     },
     update: async (id: number, paymentData: Partial<SupplierPayment>): Promise<SupplierPayment> => {
         if (USE_MOCK) {
@@ -52,7 +51,6 @@ export const supplierPayments = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(paymentData)
         });
-        if (!res.ok) throw new Error("Failed to update payment");
-        return res.json();
+        return handleFetchResponse<SupplierPayment>(res);
     }
 };

@@ -7,6 +7,7 @@ import { User } from '../../types';
 import MobileTable from '../../components/MobileTable';
 import Pagination from '../../components/Pagination';
 import { useNotification } from '../../components/NotificationContext';
+import { useCompany } from '../../components/CompanyContext';
 
 const Users: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -17,6 +18,9 @@ const Users: React.FC = () => {
 
   // Notification hook
   const { showNotification } = useNotification();
+
+  // Company context for admin users
+  const { companies, selectedCompany } = useCompany();
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,7 +33,8 @@ const Users: React.FC = () => {
     full_name: '',
     role: 'USER',
     is_active: 'Y',
-    permissions: []
+    permissions: [],
+    default_company: selectedCompany || 'CMP01'
   });
 
   const availablePermissions = [
@@ -87,7 +92,8 @@ const Users: React.FC = () => {
         full_name: '',
         role: 'USER',
         is_active: 'Y',
-        permissions: ['INVENTORY_VIEW', 'SALES_VIEW', 'FINANCE_VIEW', 'PARTNERS_VIEW', 'REPORTS_VIEW'] // Default View rights
+        permissions: ['INVENTORY_VIEW', 'SALES_VIEW', 'FINANCE_VIEW', 'PARTNERS_VIEW', 'REPORTS_VIEW'], // Default View rights
+        default_company: selectedCompany || 'CMP01'
       });
     }
     setIsModalOpen(true);
@@ -394,6 +400,27 @@ const Users: React.FC = () => {
                         <option value="N">Inactive</option>
                       </select>
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Assigned Company</label>
+                    <select
+                      className="w-full border border-slate-300 rounded-lg p-2 focus:ring-brand-500 focus:border-brand-500"
+                      value={formData.default_company || 'CMP01'}
+                      onChange={e => setFormData({ ...formData, default_company: e.target.value })}
+                    >
+                      {companies.length > 0 ? (
+                        companies.map(company => (
+                          <option key={company.comp_code} value={company.comp_code}>
+                            {company.comp_name} ({company.comp_code})
+                          </option>
+                        ))
+                      ) : (
+                        <option value="CMP01">Default Company (CMP01)</option>
+                      )}
+                    </select>
+                    <p className="text-xs text-slate-500 mt-1">
+                      For USER role: This defines which company's data they can access
+                    </p>
                   </div>
                 </div>
 

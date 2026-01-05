@@ -1,5 +1,5 @@
 import { CashTransaction, Expense, ExpenseHead, TaxRate, LoanTaken, LoanReturn } from '../../../types';
-import { USE_MOCK, delay, getAuthHeaders } from '../utils';
+import { USE_MOCK, delay, getAuthHeaders, handleFetchResponse } from '../utils';
 
 export const finance = {
     getTransactions: async (page: number = 1, limit: number = 8): Promise<{ data: CashTransaction[], pagination: any }> => {
@@ -18,7 +18,7 @@ export const finance = {
         const res = await fetch(`/api/finance/transactions?page=${page}&limit=${limit}`, {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ data: CashTransaction[], pagination: any }>(res);
     },
     getExpenses: async (page: number = 1, limit: number = 8): Promise<{ data: Expense[], pagination: any }> => {
         if (USE_MOCK) {
@@ -36,7 +36,7 @@ export const finance = {
         const res = await fetch(`/api/finance/expenses?page=${page}&limit=${limit}`, {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ data: Expense[], pagination: any }>(res);
     },
     addExpense: async (expense: Omit<Expense, 'expense_id'>): Promise<Expense> => {
         if (USE_MOCK) {
@@ -48,7 +48,7 @@ export const finance = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(expense)
         });
-        return res.json();
+        return handleFetchResponse<Expense>(res);
     },
     updateExpense: async (id: number, expense: Partial<Expense>): Promise<Expense> => {
         if (USE_MOCK) {
@@ -60,7 +60,7 @@ export const finance = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(expense)
         });
-        return res.json();
+        return handleFetchResponse<Expense>(res);
     },
     addPayment: async (data: {
         type: 'RECEIPT' | 'PAYMENT',
@@ -78,7 +78,7 @@ export const finance = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(data)
         });
-        return res.json();
+        return handleFetchResponse<CashTransaction>(res);
     },
     updateTransaction: async (id: number, data: {
         trans_type: 'RECEIPT' | 'PAYMENT',
@@ -96,7 +96,7 @@ export const finance = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(data)
         });
-        return res.json();
+        return handleFetchResponse<CashTransaction>(res);
     },
     // Expense Heads
     getExpenseHeads: async (): Promise<ExpenseHead[]> => {
@@ -107,7 +107,7 @@ export const finance = {
         const res = await fetch('/api/finance/expense-heads', {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<ExpenseHead[]>(res);
     },
     addExpenseHead: async (head: Omit<ExpenseHead, 'head_id'>): Promise<ExpenseHead> => {
         if (USE_MOCK) {
@@ -119,7 +119,7 @@ export const finance = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(head)
         });
-        return res.json();
+        return handleFetchResponse<ExpenseHead>(res);
     },
     updateExpenseHead: async (code: string, head: Partial<ExpenseHead>): Promise<ExpenseHead> => {
         if (USE_MOCK) {
@@ -131,7 +131,7 @@ export const finance = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(head)
         });
-        return res.json();
+        return handleFetchResponse<ExpenseHead>(res);
     },
     deleteExpenseHead: async (code: string): Promise<{ message: string }> => {
         if (USE_MOCK) {
@@ -142,7 +142,7 @@ export const finance = {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ message: string }>(res);
     },
     // Tax Rates
     getTaxRates: async (): Promise<TaxRate[]> => {
@@ -153,7 +153,7 @@ export const finance = {
         const res = await fetch('/api/finance/tax-rates', {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<TaxRate[]>(res);
     },
     getTaxRate: async (code: string): Promise<TaxRate> => {
         if (USE_MOCK) {
@@ -163,7 +163,7 @@ export const finance = {
         const res = await fetch(`/api/finance/tax-rates/${code}`, {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<TaxRate>(res);
     },
     addTaxRate: async (taxRate: Omit<TaxRate, 'tax_id'>): Promise<TaxRate> => {
         if (USE_MOCK) {
@@ -175,7 +175,7 @@ export const finance = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(taxRate)
         });
-        return res.json();
+        return handleFetchResponse<TaxRate>(res);
     },
     updateTaxRate: async (code: string, taxRate: Partial<TaxRate>): Promise<TaxRate> => {
         if (USE_MOCK) {
@@ -187,7 +187,7 @@ export const finance = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(taxRate)
         });
-        return res.json();
+        return handleFetchResponse<TaxRate>(res);
     },
     deleteTaxRate: async (code: string): Promise<{ message: string }> => {
         if (USE_MOCK) {
@@ -198,7 +198,7 @@ export const finance = {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ message: string }>(res);
     },
     // Opening Cash Balance
     getOpeningBalance: async (): Promise<any> => {
@@ -209,7 +209,7 @@ export const finance = {
         const res = await fetch('/api/finance/opening-balance', {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<any>(res);
     },
     setOpeningBalance: async (balance: { balance_date: string, opening_amount: number, closing_amount?: number }): Promise<any> => {
         if (USE_MOCK) {
@@ -221,7 +221,7 @@ export const finance = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(balance)
         });
-        return res.json();
+        return handleFetchResponse<any>(res);
     },
     // Loans
     getLoans: async (page: number = 1, limit: number = 10): Promise<{ data: LoanTaken[], pagination: any }> => {
@@ -240,7 +240,7 @@ export const finance = {
         const res = await fetch(`/api/finance/loans?page=${page}&limit=${limit}`, {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ data: LoanTaken[], pagination: any }>(res);
     },
     addLoan: async (loan: Omit<LoanTaken, 'loan_id'>): Promise<LoanTaken> => {
         if (USE_MOCK) {
@@ -252,7 +252,7 @@ export const finance = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(loan)
         });
-        return res.json();
+        return handleFetchResponse<LoanTaken>(res);
     },
     getLoanReturns: async (loanId: number): Promise<LoanReturn[]> => {
         if (USE_MOCK) {
@@ -262,7 +262,7 @@ export const finance = {
         const res = await fetch(`/api/finance/loans/${loanId}/returns`, {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<LoanReturn[]>(res);
     },
     addLoanReturn: async (loanReturn: Omit<LoanReturn, 'return_id'>): Promise<LoanReturn> => {
         if (USE_MOCK) {
@@ -274,6 +274,6 @@ export const finance = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(loanReturn)
         });
-        return res.json();
+        return handleFetchResponse<LoanReturn>(res);
     }
 };

@@ -1,5 +1,5 @@
 import { Product } from '../../../types';
-import { USE_MOCK, delay, getAuthHeaders, _products, addProduct, removeProduct, updateProduct } from '../utils';
+import { USE_MOCK, delay, getAuthHeaders, handleFetchResponse, _products, addProduct, removeProduct, updateProduct } from '../utils';
 
 export const products = {
     getAll: async (page: number = 1, limit: number = 8): Promise<{ data: Product[], pagination: any }> => {
@@ -21,7 +21,7 @@ export const products = {
         const res = await fetch(`/api/products?page=${page}&limit=${limit}`, {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ data: Product[], pagination: any }>(res);
     },
     create: async (product: Omit<Product, 'prod_id'>): Promise<Product> => {
         if (USE_MOCK) {
@@ -35,7 +35,7 @@ export const products = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(product),
         });
-        return res.json();
+        return handleFetchResponse<Product>(res);
     },
     update: async (id: number, product: Partial<Product>): Promise<Product> => {
         if (USE_MOCK) {
@@ -50,7 +50,7 @@ export const products = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(product),
         });
-        return res.json();
+        return handleFetchResponse<Product>(res);
     },
     delete: async (id: number): Promise<void> => {
         if (USE_MOCK) {
@@ -58,9 +58,10 @@ export const products = {
             removeProduct(id);
             return;
         }
-        await fetch(`/api/products/${id}`, {
+        const res = await fetch(`/api/products/${id}`, {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
+        await handleFetchResponse<void>(res);
     }
 };

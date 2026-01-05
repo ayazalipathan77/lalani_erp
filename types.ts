@@ -19,6 +19,7 @@ export interface User {
   role: 'ADMIN' | 'USER';
   is_active: 'Y' | 'N';
   permissions: string[]; // List of granular permissions (e.g., 'INVENTORY_VIEW', 'SALES_MANAGE')
+  default_company?: string; // Assigned company for USER role
 }
 
 export interface Customer {

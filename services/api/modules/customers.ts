@@ -1,5 +1,5 @@
 import { Customer } from '../../../types';
-import { USE_MOCK, delay, getAuthHeaders, _customers, addCustomer, removeCustomer, updateCustomer } from '../utils';
+import { USE_MOCK, delay, getAuthHeaders, handleFetchResponse, _customers, addCustomer, removeCustomer, updateCustomer } from '../utils';
 
 export const customers = {
     getAll: async (page: number = 1, limit: number = 8): Promise<{ data: Customer[], pagination: any }> => {
@@ -21,7 +21,7 @@ export const customers = {
         const res = await fetch(`/api/customers?page=${page}&limit=${limit}`, {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ data: Customer[], pagination: any }>(res);
     },
     create: async (customer: Omit<Customer, 'cust_id'>): Promise<Customer> => {
         if (USE_MOCK) {
@@ -35,7 +35,7 @@ export const customers = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(customer)
         });
-        return res.json();
+        return handleFetchResponse<Customer>(res);
     },
     update: async (id: number, data: Partial<Customer>): Promise<Customer> => {
         if (USE_MOCK) {
@@ -50,7 +50,7 @@ export const customers = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(data)
         });
-        return res.json();
+        return handleFetchResponse<Customer>(res);
     },
     delete: async (id: number): Promise<void> => {
         if (USE_MOCK) {
@@ -58,6 +58,10 @@ export const customers = {
             removeCustomer(id);
             return;
         }
-        await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/api/customers/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        await handleFetchResponse<void>(res);
     }
 };

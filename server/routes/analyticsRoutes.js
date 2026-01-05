@@ -71,7 +71,7 @@ export default (app, pool, logger) => {
                     WHERE c.comp_code = $1
                     GROUP BY c.category_id, c.category_name
                     ORDER BY category_revenue DESC
-                `, [companyCode, companyCode])
+                `, [companyCode])
             ]);
 
             const metrics = {

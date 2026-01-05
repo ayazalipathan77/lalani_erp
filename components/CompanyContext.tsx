@@ -25,7 +25,29 @@ export const CompanyProvider: React.FC<CompanyProviderProps> = ({ children }) =>
     // Load companies on mount
     useEffect(() => {
         const fetchCompanies = async () => {
+            // Check if user is authenticated before fetching companies
+            const authToken = localStorage.getItem('authToken');
+            const currentUserStr = localStorage.getItem('currentUser');
+
+            if (!authToken || !currentUserStr) {
+                setIsLoading(false);
+                return;
+            }
+
             try {
+                const currentUser = JSON.parse(currentUserStr);
+
+                // For USER role: Use their assigned company, no need to fetch company list
+                if (currentUser.role === 'USER') {
+                    const userCompany = currentUser.default_company || selectedCompany || 'CMP01';
+                    setSelectedCompanyState(userCompany);
+                    localStorage.setItem('selectedCompany', userCompany);
+                    console.log('USER role: Using assigned company', userCompany);
+                    setIsLoading(false);
+                    return;
+                }
+
+                // For ADMIN role: Fetch all companies and allow selection
                 const companyList = await api.companies.getAll();
                 setCompanies(companyList);
 
@@ -35,9 +57,16 @@ export const CompanyProvider: React.FC<CompanyProviderProps> = ({ children }) =>
                     setSelectedCompanyState(defaultCompany);
                     localStorage.setItem('selectedCompany', defaultCompany);
                 }
+                setIsLoading(false);
             } catch (error) {
                 console.error('Failed to fetch companies:', error);
-            } finally {
+                // If it's an actual authentication error (invalid/expired token), clear auth data
+                if (error instanceof Error && (error.message.includes('403') || error.message.includes('Forbidden') || error.message.includes('401') || error.message.includes('Unauthorized'))) {
+                    console.warn('Authentication failed - clearing auth data');
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('currentUser');
+                    // The App component will detect missing auth and redirect to login
+                }
                 setIsLoading(false);
             }
         };

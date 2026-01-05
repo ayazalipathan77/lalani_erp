@@ -196,6 +196,13 @@ class SimpleLogger {
     warning(message, additionalData = null) {
         this.log('WARNING', message, additionalData);
     }
+
+    /**
+     * General debug logging
+     */
+    debug(message, additionalData = null) {
+        this.log('DEBUG', message, additionalData);
+    }
 }
 
 // Create and export singleton instance

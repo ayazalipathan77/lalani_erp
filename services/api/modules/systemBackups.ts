@@ -1,13 +1,12 @@
 import { SystemBackup } from '../../../types';
-import { getAuthHeaders } from '../utils';
+import { getAuthHeaders, handleFetchResponse } from '../utils';
 
 export const systemBackups = {
     getAll: async (): Promise<SystemBackup[]> => {
         const res = await fetch('/api/system/backups', {
             headers: getAuthHeaders()
         });
-        if (!res.ok) throw new Error('Failed to fetch backups');
-        return res.json();
+        return handleFetchResponse<SystemBackup[]>(res);
     },
 
     create: async (backupType: string = 'FULL'): Promise<SystemBackup> => {
@@ -16,8 +15,7 @@ export const systemBackups = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify({ backup_type: backupType })
         });
-        if (!res.ok) throw new Error('Failed to create backup');
-        return res.json();
+        return handleFetchResponse<SystemBackup>(res);
     },
 
     download: async (backupId: number): Promise<void> => {
@@ -43,7 +41,6 @@ export const systemBackups = {
             method: 'POST',
             headers: getAuthHeaders()
         });
-        if (!res.ok) throw new Error('Failed to restore backup');
-        return res.json();
+        return handleFetchResponse<{ message: string; backup: SystemBackup }>(res);
     }
 };

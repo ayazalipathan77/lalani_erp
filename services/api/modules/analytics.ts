@@ -1,4 +1,4 @@
-import { USE_MOCK, getAuthHeaders } from '../utils';
+import { USE_MOCK, getAuthHeaders, handleFetchResponse } from '../utils';
 
 export const analytics = {
     getDashboardMetrics: async (): Promise<{
@@ -24,7 +24,15 @@ export const analytics = {
         const res = await fetch('/api/analytics/dashboard-metrics', {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{
+            totalRevenue: number;
+            pendingReceivables: number;
+            lowStockCount: number;
+            customerCount: number;
+            recentInvoices: any[];
+            topProducts: any[];
+            salesByCategory: any[];
+        }>(res);
     },
     getSalesTrends: async (): Promise<{ name: string; sales: number }[]> => {
         if (USE_MOCK) {
@@ -40,6 +48,6 @@ export const analytics = {
         const res = await fetch('/api/analytics/sales-trends', {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ name: string; sales: number }[]>(res);
     }
 };

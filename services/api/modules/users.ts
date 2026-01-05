@@ -1,5 +1,5 @@
 import { User } from '../../../types';
-import { USE_MOCK, delay, getAuthHeaders, _users, addUser, removeUser, updateUser } from '../utils';
+import { USE_MOCK, delay, getAuthHeaders, handleFetchResponse, _users, addUser, removeUser, updateUser } from '../utils';
 
 export const users = {
     getAll: async (page: number = 1, limit: number = 8): Promise<{ data: User[], pagination: any }> => {
@@ -21,7 +21,7 @@ export const users = {
         const res = await fetch(`/api/users?page=${page}&limit=${limit}`, {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ data: User[], pagination: any }>(res);
     },
     create: async (user: Omit<User, 'user_id'>): Promise<User> => {
         if (USE_MOCK) {
@@ -39,11 +39,7 @@ export const users = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(user)
         });
-        if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || 'Failed to create user');
-        }
-        return res.json();
+        return handleFetchResponse<User>(res);
     },
     update: async (id: number, data: Partial<User>): Promise<User> => {
         if (USE_MOCK) {
@@ -61,11 +57,7 @@ export const users = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(data)
         });
-        if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || 'Failed to update user');
-        }
-        return res.json();
+        return handleFetchResponse<User>(res);
     },
     delete: async (id: number): Promise<void> => {
         if (USE_MOCK) {
@@ -77,9 +69,6 @@ export const users = {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
-        if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || 'Failed to delete user');
-        }
+        await handleFetchResponse<void>(res);
     }
 };

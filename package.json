@@ -18,6 +18,8 @@
     "db:migrate:down": "db-migrate down",
     "db:migrate:create": "db-migrate create",
     "db:migrate:reset": "db-migrate reset",
+    "db:force-reset": "FORCE_DB_RESET=true node server.js",
+    "db:fresh": "node scripts/reset-database.js",
     "setup": "npm install && npm run db:migrate && npm run start"
   },
   "dependencies": {

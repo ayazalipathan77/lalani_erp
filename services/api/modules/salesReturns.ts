@@ -1,5 +1,5 @@
 import { SalesReturn } from '../../../types';
-import { USE_MOCK, delay, getAuthHeaders } from '../utils';
+import { USE_MOCK, delay, getAuthHeaders, handleFetchResponse } from '../utils';
 
 export const salesReturns = {
     getAll: async (page: number = 1, limit: number = 8): Promise<{ data: SalesReturn[], pagination: any }> => {
@@ -10,7 +10,7 @@ export const salesReturns = {
         const res = await fetch(`/api/sales-returns?page=${page}&limit=${limit}`, {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ data: SalesReturn[], pagination: any }>(res);
     },
     create: async (returnData: {
         inv_id: number;
@@ -26,7 +26,7 @@ export const salesReturns = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(returnData)
         });
-        return res.json();
+        return handleFetchResponse<SalesReturn>(res);
     },
     update: async (id: number, returnData: {
         inv_id: number;
@@ -42,6 +42,6 @@ export const salesReturns = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(returnData)
         });
-        return res.json();
+        return handleFetchResponse<SalesReturn>(res);
     }
 };

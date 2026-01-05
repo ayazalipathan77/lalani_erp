@@ -1,5 +1,5 @@
 import { DiscountRate } from '../../../types';
-import { USE_MOCK, delay, getAuthHeaders } from '../utils';
+import { USE_MOCK, delay, getAuthHeaders, handleFetchResponse } from '../utils';
 
 export const discountRates = {
     getAll: async (): Promise<DiscountRate[]> => {
@@ -10,7 +10,7 @@ export const discountRates = {
         const res = await fetch('/api/discount-rates', {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<DiscountRate[]>(res);
     },
     create: async (discountRate: Omit<DiscountRate, 'discount_id'>): Promise<DiscountRate> => {
         if (USE_MOCK) {
@@ -22,7 +22,7 @@ export const discountRates = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(discountRate)
         });
-        return res.json();
+        return handleFetchResponse<DiscountRate>(res);
     },
     update: async (id: number, data: Partial<DiscountRate>): Promise<DiscountRate> => {
         if (USE_MOCK) {
@@ -34,16 +34,17 @@ export const discountRates = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(data)
         });
-        return res.json();
+        return handleFetchResponse<DiscountRate>(res);
     },
     delete: async (id: number): Promise<void> => {
         if (USE_MOCK) {
             await delay(300);
             return;
         }
-        await fetch(`/api/discount-rates/${id}`, {
+        const res = await fetch(`/api/discount-rates/${id}`, {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
+        await handleFetchResponse<void>(res);
     }
 };

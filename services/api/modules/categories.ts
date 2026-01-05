@@ -1,5 +1,5 @@
 import { Category } from '../../../types';
-import { USE_MOCK, _categories, getAuthHeaders } from '../utils';
+import { USE_MOCK, _categories, getAuthHeaders, handleFetchResponse } from '../utils';
 
 export const categories = {
     getAll: async (): Promise<Category[]> => {
@@ -7,6 +7,6 @@ export const categories = {
         const res = await fetch('/api/categories', {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<Category[]>(res);
     }
 };

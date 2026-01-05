@@ -1,5 +1,5 @@
 import { Company } from '../../../types';
-import { USE_MOCK, delay, getAuthHeaders } from '../utils';
+import { USE_MOCK, delay, getAuthHeaders, handleFetchResponse } from '../utils';
 
 export const companies = {
     getAll: async (): Promise<Company[]> => {
@@ -18,8 +18,10 @@ export const companies = {
                 }
             ];
         }
-        const res = await fetch('/api/companies');
-        return res.json();
+        const res = await fetch('/api/companies', {
+            headers: getAuthHeaders()
+        });
+        return handleFetchResponse<Company[]>(res);
     },
     getByCode: async (code: string): Promise<Company> => {
         if (USE_MOCK) {
@@ -35,8 +37,10 @@ export const companies = {
                 tax_registration: 'TR001'
             };
         }
-        const res = await fetch(`/api/companies/${code}`);
-        return res.json();
+        const res = await fetch(`/api/companies/${code}`, {
+            headers: getAuthHeaders()
+        });
+        return handleFetchResponse<Company>(res);
     },
     create: async (companyData: Omit<Company, 'created_at'>): Promise<Company> => {
         if (USE_MOCK) {
@@ -48,10 +52,13 @@ export const companies = {
         }
         const res = await fetch('/api/companies', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
             body: JSON.stringify(companyData)
         });
-        return res.json();
+        return handleFetchResponse<Company>(res);
     },
     update: async (code: string, companyData: Partial<Company>): Promise<Company> => {
         if (USE_MOCK) {
@@ -67,16 +74,23 @@ export const companies = {
         }
         const res = await fetch(`/api/companies/${code}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
             body: JSON.stringify(companyData)
         });
-        return res.json();
+        return handleFetchResponse<Company>(res);
     },
     delete: async (code: string): Promise<void> => {
         if (USE_MOCK) {
             await delay(300);
             return;
         }
-        await fetch(`/api/companies/${code}`, { method: 'DELETE' });
+        const res = await fetch(`/api/companies/${code}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        await handleFetchResponse<void>(res);
     }
 };

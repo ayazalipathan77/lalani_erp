@@ -1,5 +1,5 @@
 import { PurchaseInvoice } from '../../../types';
-import { USE_MOCK, delay, getAuthHeaders } from '../utils';
+import { USE_MOCK, delay, getAuthHeaders, handleFetchResponse } from '../utils';
 
 export const purchaseInvoices = {
     getAll: async (page: number = 1, limit: number = 10): Promise<{ data: PurchaseInvoice[], pagination: any }> => {
@@ -18,7 +18,7 @@ export const purchaseInvoices = {
         const res = await fetch(`/api/purchase-invoices?page=${page}&limit=${limit}`, {
             headers: getAuthHeaders()
         });
-        return res.json();
+        return handleFetchResponse<{ data: PurchaseInvoice[], pagination: any }>(res);
     },
     create: async (invoice: Omit<PurchaseInvoice, 'purchase_id'>): Promise<PurchaseInvoice> => {
         if (USE_MOCK) {
@@ -30,7 +30,7 @@ export const purchaseInvoices = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(invoice)
         });
-        return res.json();
+        return handleFetchResponse<PurchaseInvoice>(res);
     },
     update: async (id: number, invoice: Partial<PurchaseInvoice>): Promise<PurchaseInvoice> => {
         if (USE_MOCK) {
@@ -42,6 +42,6 @@ export const purchaseInvoices = {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(invoice)
         });
-        return res.json();
+        return handleFetchResponse<PurchaseInvoice>(res);
     }
 };
