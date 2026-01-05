@@ -302,12 +302,14 @@ const authenticateToken = async (req, res, next) => {
 
         try {
             // Load user permissions from users table
+            console.log('[DEBUG] Loading permissions for user ID:', decoded.userId);
             const userResult = await pool.query(
                 'SELECT permissions FROM users WHERE user_id = $1',
                 [decoded.userId]
             );
 
             const userPermissions = userResult.rows[0]?.permissions || [];
+            console.log('[DEBUG] Loaded permissions from DB:', userPermissions);
 
             req.user = {
                 id: decoded.userId,
@@ -316,6 +318,7 @@ const authenticateToken = async (req, res, next) => {
                 selectedCompany: decoded.selectedCompany || 'CMP01',
                 permissions: userPermissions
             };
+            console.log('[DEBUG] req.user set with permissions:', req.user.permissions);
             // Only log successful token verification for important endpoints, not every request
             // This prevents log spam from frontend polling and routine requests
         } catch (error) {
@@ -327,6 +330,7 @@ const authenticateToken = async (req, res, next) => {
                 selectedCompany: decoded.selectedCompany || 'CMP01',
                 permissions: []
             };
+            console.log('[DEBUG] Error occurred, req.user set with empty permissions');
         }
 
         next();
