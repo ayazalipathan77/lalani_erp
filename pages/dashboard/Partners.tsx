@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, MapPin, Phone, Building2, User, Edit2, Trash2, X } from 'lucide-react';
+import { Search, Plus, MapPin, Phone, Building2, User, Edit2, Trash2, X, Upload } from 'lucide-react';
 import { api } from '../../services/api';
 import { Customer, Supplier, DiscountRate } from '../../types';
 import { useCompany } from '../../components/CompanyContext';
+import { BulkUploadDialog } from '../../components/BulkUploadDialog';
 
 const Partners: React.FC = () => {
   const { selectedCompany } = useCompany();
@@ -16,6 +17,7 @@ const Partners: React.FC = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
 
   // Dynamic Form Data
   const [formData, setFormData] = useState<any>({});
@@ -111,13 +113,24 @@ const Partners: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-900">Partners & Stakeholders</h1>
           <p className="text-slate-500">Manage your network of customers and vendors.</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="bg-brand-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-brand-700 transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add New {activeTab === 'customers' ? 'Customer' : 'Supplier'}
-        </button>
+        <div className="flex gap-2">
+          {activeTab === 'customers' && (
+            <button
+              onClick={() => setIsBulkUploadOpen(true)}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-green-700 transition-colors shadow-sm"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Bulk Upload
+            </button>
+          )}
+          <button
+            onClick={() => handleOpenModal()}
+            className="bg-brand-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-brand-700 transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add New {activeTab === 'customers' ? 'Customer' : 'Supplier'}
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -354,6 +367,21 @@ const Partners: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Bulk Upload Dialog for Customers */}
+      {activeTab === 'customers' && (
+        <BulkUploadDialog
+          isOpen={isBulkUploadOpen}
+          onClose={() => {
+            setIsBulkUploadOpen(false);
+            fetchData(); // Refresh data after upload
+          }}
+          onUpload={api.customers.bulkUpload}
+          onDownloadTemplate={api.customers.downloadTemplate}
+          title="Bulk Upload Customers"
+          templateFileName="customers_template.xlsx"
+        />
       )}
     </div>
   );

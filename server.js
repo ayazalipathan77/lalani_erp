@@ -25,6 +25,7 @@ import discountVouchersRoutes from './server/routes/discountVouchersRoutes.js';
 import discountRatesRoutes from './server/routes/discountRatesRoutes.js';
 import companiesRoutes from './server/routes/companiesRoutes.js';
 import systemBackupsRoutes from './server/routes/systemBackupsRoutes.js';
+import bulkUploadRoutes from './server/routes/bulkUploadRoutes.js';
 import {
     generateRegistrationOptions,
     verifyRegistrationResponse,
@@ -384,6 +385,7 @@ discountVouchersRoutes(app, pool, logger);
 discountRatesRoutes(app, pool, logger);
 companiesRoutes(app, pool, logger);
 systemBackupsRoutes(app, pool, logger);
+bulkUploadRoutes(app, pool, logger);
 
 
 

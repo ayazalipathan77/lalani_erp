@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Filter, AlertTriangle, Edit2, Trash2, X } from 'lucide-react';
+import { Search, Plus, Filter, AlertTriangle, Edit2, Trash2, X, Upload } from 'lucide-react';
 import { api } from '../../services/api';
 import { Product, Category, TaxRate } from '../../types';
 import MobileTable from '../../components/MobileTable';
 import Pagination from '../../components/Pagination';
 import { useCompany } from '../../components/CompanyContext';
+import { BulkUploadDialog } from '../../components/BulkUploadDialog';
 
 const Inventory: React.FC = () => {
   const { selectedCompany } = useCompany();
@@ -19,6 +20,7 @@ const Inventory: React.FC = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<Partial<Product>>({
@@ -125,13 +127,22 @@ const Inventory: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-900">Inventory Management</h1>
           <p className="text-slate-500">Track stock levels, prices, and product categories.</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="bg-brand-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-brand-700 transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Product
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsBulkUploadOpen(true)}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-green-700 transition-colors shadow-sm"
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            Bulk Upload
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            className="bg-brand-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-brand-700 transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Product
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -450,6 +461,19 @@ const Inventory: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Bulk Upload Dialog */}
+      <BulkUploadDialog
+        isOpen={isBulkUploadOpen}
+        onClose={() => {
+          setIsBulkUploadOpen(false);
+          fetchData(); // Refresh data after upload
+        }}
+        onUpload={api.products.bulkUpload}
+        onDownloadTemplate={api.products.downloadTemplate}
+        title="Bulk Upload Products"
+        templateFileName="products_template.xlsx"
+      />
     </div>
   );
 };

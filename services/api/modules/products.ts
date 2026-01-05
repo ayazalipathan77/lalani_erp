@@ -63,5 +63,25 @@ export const products = {
             headers: getAuthHeaders()
         });
         await handleFetchResponse<void>(res);
+    },
+    bulkUpload: async (file: File): Promise<{ message: string, results: any }> => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/products/bulk-upload', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: formData
+        });
+        return handleFetchResponse<{ message: string, results: any }>(res);
+    },
+    downloadTemplate: async (): Promise<Blob> => {
+        const res = await fetch('/api/products/download-template', {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) {
+            throw new Error('Failed to download template');
+        }
+        return res.blob();
     }
 };
