@@ -103,15 +103,14 @@ export default (app, pool, logger) => {
 
                 const stockUpdateParams = [
                     ...prodCodes,
-                    ...items.map(item => item.quantity),
-                    ...prodCodes
+                    ...items.map(item => item.quantity)
                 ];
 
                 await client.query(
                     `UPDATE products
                  SET current_stock = CASE ${caseStatements} END
                  WHERE prod_code = ANY($${stockUpdateParams.length + 1}::text[])`,
-                    [...stockUpdateParams.slice(0, -prodCodes.length), prodCodes]
+                    [...stockUpdateParams, prodCodes]
                 );
 
                 // Update supplier balance (increase outstanding)
@@ -228,8 +227,8 @@ export default (app, pool, logger) => {
                     await client.query(
                         `UPDATE products
                      SET current_stock = CASE ${origCaseStatements} END
-                     WHERE prod_code = ANY($1) AND comp_code = $2`,
-                        [origProdCodes, companyCode]
+                     WHERE prod_code = ANY($${origStockParams.length + 1}::text[]) AND comp_code = $${origStockParams.length + 2}`,
+                        [...origStockParams, origProdCodes, companyCode]
                     );
                 }
 
@@ -285,8 +284,8 @@ export default (app, pool, logger) => {
                 await client.query(
                     `UPDATE products
                  SET current_stock = CASE ${newCaseStatements} END
-                 WHERE prod_code = ANY($1) AND comp_code = $2`,
-                    [newProdCodes, companyCode]
+                 WHERE prod_code = ANY($${newStockUpdateParams.length + 1}::text[]) AND comp_code = $${newStockUpdateParams.length + 2}`,
+                    [...newStockUpdateParams, newProdCodes, companyCode]
                 );
 
                 // Update supplier balance for new invoice
