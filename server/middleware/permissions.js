@@ -24,12 +24,12 @@ export const requirePermission = (...permissions) => {
     return (req, res, next) => {
         const user = req.user;
 
-        console.log('[DEBUG PERMISSIONS] Checking permissions. Required:', permissions);
-        console.log('[DEBUG PERMISSIONS] User:', user ? `${user.username} (${user.role})` : 'null');
+        // console.log('[DEBUG PERMISSIONS] Checking permissions. Required:', permissions);
+        // console.log('[DEBUG PERMISSIONS] User:', user ? `${user.username} (${user.role})` : 'null');
 
         // Must be authenticated
         if (!user) {
-            console.log('[DEBUG PERMISSIONS] No user found - returning 401');
+            // console.log('[DEBUG PERMISSIONS] No user found - returning 401');
             return res.status(401).json({
                 error: 'Unauthorized',
                 message: 'Authentication required'
@@ -38,21 +38,21 @@ export const requirePermission = (...permissions) => {
 
         // Admins bypass all permission checks
         if (user.role === 'ADMIN') {
-            console.log('[DEBUG PERMISSIONS] User is ADMIN - bypassing permission check');
+            // console.log('[DEBUG PERMISSIONS] User is ADMIN - bypassing permission check');
             return next();
         }
 
         // Check if user has any of the required permissions
         const userPermissions = user.permissions || [];
-        console.log('[DEBUG PERMISSIONS] User permissions:', userPermissions);
+        // console.log('[DEBUG PERMISSIONS] User permissions:', userPermissions);
 
         const hasPermission = permissions.some(perm =>
             userPermissions.includes(perm)
         );
-        console.log('[DEBUG PERMISSIONS] Has required permission:', hasPermission);
+        // console.log('[DEBUG PERMISSIONS] Has required permission:', hasPermission);
 
         if (!hasPermission) {
-            console.log('[DEBUG PERMISSIONS] Permission denied - returning 403');
+            // console.log('[DEBUG PERMISSIONS] Permission denied - returning 403');
             return res.status(403).json({
                 error: 'Forbidden',
                 message: 'Insufficient permissions',
@@ -61,7 +61,7 @@ export const requirePermission = (...permissions) => {
             });
         }
 
-        console.log('[DEBUG PERMISSIONS] Permission check passed');
+        // console.log('[DEBUG PERMISSIONS] Permission check passed');
         next();
     };
 };

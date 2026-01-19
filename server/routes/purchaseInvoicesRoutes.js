@@ -13,18 +13,18 @@ export default (app, pool, logger) => {
     app.get('/api/purchase-invoices',
         requirePermission('PURCHASE_VIEW', 'PURCHASE_MANAGE'),
         async (req, res) => {
-        try {
-            const page = parseInt(req.query.page) || 1;
-            const limit = parseInt(req.query.limit) || 10;
-            const offset = (page - 1) * limit;
-            const companyCode = getCompanyContext(req);
+            try {
+                const page = parseInt(req.query.page) || 1;
+                const limit = parseInt(req.query.limit) || 10;
+                const offset = (page - 1) * limit;
+                const companyCode = getCompanyContext(req);
 
-            // Get total count for selected company
-            const countResult = await pool.query('SELECT COUNT(*) as total FROM purchase_invoices WHERE comp_code = $1', [companyCode]);
-            const total = parseInt(countResult.rows[0].total);
+                // Get total count for selected company
+                const countResult = await pool.query('SELECT COUNT(*) as total FROM purchase_invoices WHERE comp_code = $1', [companyCode]);
+                const total = parseInt(countResult.rows[0].total);
 
-            // Get paginated data with items for selected company
-            const result = await pool.query(`
+                // Get paginated data with items for selected company
+                const result = await pool.query(`
                 SELECT pi.*,
                 (SELECT json_agg(json_build_object('prod_code', pii.prod_code, 'quantity', pii.quantity, 'unit_price', pii.unit_price, 'line_total', pii.line_total, 'prod_name', p.prod_name))
                  FROM purchase_invoice_items pii
@@ -36,284 +36,284 @@ export default (app, pool, logger) => {
                 LIMIT $2 OFFSET $3
             `, [companyCode, limit, offset]);
 
-            res.json({
-                data: result.rows,
-                pagination: {
-                    page,
-                    limit,
-                    total,
-                    totalPages: Math.ceil(total / limit)
-                }
-            });
-        } catch (err) {
-            logger.error('Purchase invoices fetch error', err, { userId: req.user?.id });
-            res.status(500).json({ error: err.message });
-        }
-    });
+                res.json({
+                    data: result.rows,
+                    pagination: {
+                        page,
+                        limit,
+                        total,
+                        totalPages: Math.ceil(total / limit)
+                    }
+                });
+            } catch (err) {
+                logger.error('Purchase invoices fetch error', err, { userId: req.user?.id });
+                res.status(500).json({ error: err.message });
+            }
+        });
 
     // Purchase Invoices - POST (Manage permission required)
     app.post('/api/purchase-invoices',
         requirePermission('PURCHASE_MANAGE'),
         async (req, res) => {
-        const { supplier_code, items, purchase_date } = req.body;
-        const companyCode = getCompanyContext(req);
-        const client = await pool.connect();
+            const { supplier_code, items, purchase_date } = req.body;
+            const companyCode = getCompanyContext(req);
+            const client = await pool.connect();
 
-        try {
-            await client.query('BEGIN');
+            try {
+                await client.query('BEGIN');
 
-            const totalAmount = items.reduce((acc, item) => acc + Number(item.line_total), 0);
-            const purchaseNumber = `PUR-${Date.now()}`;
+                const totalAmount = items.reduce((acc, item) => acc + Number(item.line_total), 0);
+                const purchaseNumber = `PUR-${Date.now()}`;
 
-            // Create purchase invoice
-            const purchaseResult = await client.query(
-                `INSERT INTO purchase_invoices (purchase_number, purchase_date, supplier_code, total_amount, comp_code, created_by)
+                // Create purchase invoice
+                const purchaseResult = await client.query(
+                    `INSERT INTO purchase_invoices (purchase_number, purchase_date, supplier_code, total_amount, comp_code, created_by)
                  VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-                [purchaseNumber, purchase_date, supplier_code, totalAmount, companyCode, req.user?.id]
-            );
+                    [purchaseNumber, purchase_date, supplier_code, totalAmount, companyCode, req.user?.id]
+                );
 
-            const purchaseId = purchaseResult.rows[0].purchase_id;
+                const purchaseId = purchaseResult.rows[0].purchase_id;
 
-            // OPTIMIZATION: Batch insert items and update stock
-            // Build batch insert for purchase items
-            const itemInsertValues = items.map((_, idx) => {
-                const base = idx * 5;
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
-            }).join(', ');
+                // OPTIMIZATION: Batch insert items and update stock
+                // Build batch insert for purchase items
+                const itemInsertValues = items.map((_, idx) => {
+                    const base = idx * 5;
+                    return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
+                }).join(', ');
 
-            const itemInsertParams = items.flatMap(item => [
-                purchaseId,
-                item.prod_code,
-                item.quantity,
-                item.unit_price,
-                item.line_total
-            ]);
+                const itemInsertParams = items.flatMap(item => [
+                    purchaseId,
+                    item.prod_code,
+                    item.quantity,
+                    item.unit_price,
+                    item.line_total
+                ]);
 
-            await client.query(
-                `INSERT INTO purchase_invoice_items (purchase_id, prod_code, quantity, unit_price, line_total)
+                await client.query(
+                    `INSERT INTO purchase_invoice_items (purchase_id, prod_code, quantity, unit_price, line_total)
                  VALUES ${itemInsertValues}`,
-                itemInsertParams
-            );
+                    itemInsertParams
+                );
 
-            // Batch update stock using CASE statement
-            const prodCodes = items.map(item => item.prod_code);
-            const caseStatements = items.map((item, idx) =>
-                `WHEN prod_code = $${idx + 1} THEN current_stock + $${prodCodes.length + idx + 1}`
-            ).join(' ');
+                // Batch update stock using CASE statement
+                const prodCodes = items.map(item => item.prod_code);
+                const caseStatements = items.map((item, idx) =>
+                    `WHEN prod_code = $${idx + 1} THEN current_stock + $${prodCodes.length + idx + 1}`
+                ).join(' ');
 
-            const stockUpdateParams = [
-                ...prodCodes,
-                ...items.map(item => item.quantity),
-                ...prodCodes
-            ];
+                const stockUpdateParams = [
+                    ...prodCodes,
+                    ...items.map(item => item.quantity),
+                    ...prodCodes
+                ];
 
-            await client.query(
-                `UPDATE products
+                await client.query(
+                    `UPDATE products
                  SET current_stock = CASE ${caseStatements} END
-                 WHERE prod_code = ANY($${stockUpdateParams.length + 1})`,
-                [...stockUpdateParams.slice(0, -prodCodes.length), prodCodes]
-            );
+                 WHERE prod_code = ANY($${stockUpdateParams.length + 1}::text[])`,
+                    [...stockUpdateParams.slice(0, -prodCodes.length), prodCodes]
+                );
 
-            // Update supplier balance (increase outstanding)
-            await client.query(
-                `UPDATE suppliers SET outstanding_balance = outstanding_balance + $1 WHERE supplier_code = $2`,
-                [totalAmount, supplier_code]
-            );
+                // Update supplier balance (increase outstanding)
+                await client.query(
+                    `UPDATE suppliers SET outstanding_balance = outstanding_balance + $1 WHERE supplier_code = $2`,
+                    [totalAmount, supplier_code]
+                );
 
-            await client.query('COMMIT');
-            res.json(purchaseResult.rows[0]);
-        } catch (e) {
-            await client.query('ROLLBACK');
-            logger.error('Purchase invoice creation error', e, { userId: req.user?.id, supplierCode: supplier_code });
-            res.status(500).json({ error: e.message });
-        } finally {
-            client.release();
-        }
-    });
+                await client.query('COMMIT');
+                res.json(purchaseResult.rows[0]);
+            } catch (e) {
+                await client.query('ROLLBACK');
+                logger.error('Purchase invoice creation error', e, { userId: req.user?.id, supplierCode: supplier_code });
+                res.status(500).json({ error: e.message });
+            } finally {
+                client.release();
+            }
+        });
 
     // Purchase Invoices - PUT (Manage permission required)
     app.put('/api/purchase-invoices/:id',
         requirePermission('PURCHASE_MANAGE'),
         async (req, res) => {
-        const { id } = req.params;
-        const { supplier_code, items, purchase_date, status } = req.body;
-        const companyCode = getCompanyContext(req);
-        const client = await pool.connect();
+            const { id } = req.params;
+            const { supplier_code, items, purchase_date, status } = req.body;
+            const companyCode = getCompanyContext(req);
+            const client = await pool.connect();
 
-        try {
-            await client.query('BEGIN');
+            try {
+                await client.query('BEGIN');
 
-            // Validate input data
-            if (!supplier_code || !items || items.length === 0) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ message: 'Supplier code and items are required' });
-            }
-
-            // Validate purchase date (not in future)
-            const purchaseDate = new Date(purchase_date);
-            const today = new Date();
-            today.setHours(23, 59, 59, 999);
-
-            if (purchaseDate > today) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ message: 'Purchase date cannot be in the future' });
-            }
-
-            // Get original purchase invoice
-            const originalInv = await client.query(
-                'SELECT * FROM purchase_invoices WHERE purchase_id = $1 AND comp_code = $2',
-                [id, companyCode]
-            );
-
-            if (originalInv.rows.length === 0) {
-                await client.query('ROLLBACK');
-                return res.status(404).json({ message: 'Purchase invoice not found or access denied' });
-            }
-
-            const oldInv = originalInv.rows[0];
-
-            // Business rule: Check if purchase invoice is approved/processed
-            if (oldInv.status === 'APPROVED' || oldInv.status === 'PROCESSED') {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ message: 'Cannot update approved or processed purchase invoices' });
-            }
-
-            // Get original purchase invoice items
-            const originalItems = await client.query(
-                'SELECT * FROM purchase_invoice_items WHERE purchase_id = $1',
-                [id]
-            );
-
-            // Validate and calculate new totals with item validation
-            let totalAmount = 0;
-            for (const item of items) {
-                // Validate item data
-                if (!item.prod_code || !item.quantity || !item.unit_price || !item.line_total) {
+                // Validate input data
+                if (!supplier_code || !items || items.length === 0) {
                     await client.query('ROLLBACK');
-                    return res.status(400).json({ message: 'All item fields are required: prod_code, quantity, unit_price, line_total' });
+                    return res.status(400).json({ message: 'Supplier code and items are required' });
                 }
 
-                if (item.quantity <= 0 || item.unit_price < 0 || item.line_total < 0) {
+                // Validate purchase date (not in future)
+                const purchaseDate = new Date(purchase_date);
+                const today = new Date();
+                today.setHours(23, 59, 59, 999);
+
+                if (purchaseDate > today) {
                     await client.query('ROLLBACK');
-                    return res.status(400).json({ message: 'Invalid item values: quantity must be positive, prices cannot be negative' });
+                    return res.status(400).json({ message: 'Purchase date cannot be in the future' });
                 }
 
-                // Validate line total calculation
-                const expectedLineTotal = item.quantity * item.unit_price;
-                if (Math.abs(item.line_total - expectedLineTotal) > 0.01) {
+                // Get original purchase invoice
+                const originalInv = await client.query(
+                    'SELECT * FROM purchase_invoices WHERE purchase_id = $1 AND comp_code = $2',
+                    [id, companyCode]
+                );
+
+                if (originalInv.rows.length === 0) {
                     await client.query('ROLLBACK');
-                    return res.status(400).json({ message: `Invalid line total for product ${item.prod_code}` });
+                    return res.status(404).json({ message: 'Purchase invoice not found or access denied' });
                 }
 
-                totalAmount += Number(item.line_total);
-            }
+                const oldInv = originalInv.rows[0];
 
-            if (totalAmount <= 0) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ message: 'Purchase total must be greater than zero' });
-            }
+                // Business rule: Check if purchase invoice is approved/processed
+                if (oldInv.status === 'APPROVED' || oldInv.status === 'PROCESSED') {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ message: 'Cannot update approved or processed purchase invoices' });
+                }
 
-            // OPTIMIZATION: Batch reverse stock changes for original items
-            if (originalItems.rows.length > 0) {
-                const origProdCodes = originalItems.rows.map(item => item.prod_code);
-                const origCaseStatements = originalItems.rows.map((item, idx) =>
-                    `WHEN prod_code = $${idx + 1} THEN current_stock - $${origProdCodes.length + idx + 1}`
+                // Get original purchase invoice items
+                const originalItems = await client.query(
+                    'SELECT * FROM purchase_invoice_items WHERE purchase_id = $1',
+                    [id]
+                );
+
+                // Validate and calculate new totals with item validation
+                let totalAmount = 0;
+                for (const item of items) {
+                    // Validate item data
+                    if (!item.prod_code || !item.quantity || !item.unit_price || !item.line_total) {
+                        await client.query('ROLLBACK');
+                        return res.status(400).json({ message: 'All item fields are required: prod_code, quantity, unit_price, line_total' });
+                    }
+
+                    if (item.quantity <= 0 || item.unit_price < 0 || item.line_total < 0) {
+                        await client.query('ROLLBACK');
+                        return res.status(400).json({ message: 'Invalid item values: quantity must be positive, prices cannot be negative' });
+                    }
+
+                    // Validate line total calculation
+                    const expectedLineTotal = item.quantity * item.unit_price;
+                    if (Math.abs(item.line_total - expectedLineTotal) > 0.01) {
+                        await client.query('ROLLBACK');
+                        return res.status(400).json({ message: `Invalid line total for product ${item.prod_code}` });
+                    }
+
+                    totalAmount += Number(item.line_total);
+                }
+
+                if (totalAmount <= 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ message: 'Purchase total must be greater than zero' });
+                }
+
+                // OPTIMIZATION: Batch reverse stock changes for original items
+                if (originalItems.rows.length > 0) {
+                    const origProdCodes = originalItems.rows.map(item => item.prod_code);
+                    const origCaseStatements = originalItems.rows.map((item, idx) =>
+                        `WHEN prod_code = $${idx + 1} THEN current_stock - $${origProdCodes.length + idx + 1}`
+                    ).join(' ');
+
+                    const origStockParams = [
+                        ...origProdCodes,
+                        ...originalItems.rows.map(item => item.quantity)
+                    ];
+
+                    await client.query(
+                        `UPDATE products
+                     SET current_stock = CASE ${origCaseStatements} END
+                     WHERE prod_code = ANY($1) AND comp_code = $2`,
+                        [origProdCodes, companyCode]
+                    );
+                }
+
+                // Reverse supplier balance if it was different
+                if (oldInv.supplier_code !== supplier_code) {
+                    await client.query(
+                        `UPDATE suppliers SET outstanding_balance = outstanding_balance - $1 WHERE supplier_code = $2 AND comp_code = $3`,
+                        [oldInv.total_amount, oldInv.supplier_code, companyCode]
+                    );
+                }
+
+                // Update purchase invoice header
+                const updateRes = await client.query(
+                    `UPDATE purchase_invoices SET purchase_date=$1, supplier_code=$2, total_amount=$3, status=$4, updated_by=$5, updated_at=CURRENT_TIMESTAMP
+                 WHERE purchase_id=$6 AND comp_code=$7 RETURNING *`,
+                    [purchase_date, supplier_code, totalAmount, status || 'PENDING', req.user?.id, id, companyCode]
+                );
+
+                // Delete old purchase invoice items
+                await client.query('DELETE FROM purchase_invoice_items WHERE purchase_id = $1', [id]);
+
+                // OPTIMIZATION: Batch insert new items and update stock
+                const newItemInsertValues = items.map((_, idx) => {
+                    const base = idx * 5;
+                    return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
+                }).join(', ');
+
+                const newItemInsertParams = items.flatMap(item => [
+                    id,
+                    item.prod_code,
+                    item.quantity,
+                    item.unit_price,
+                    item.line_total
+                ]);
+
+                await client.query(
+                    `INSERT INTO purchase_invoice_items (purchase_id, prod_code, quantity, unit_price, line_total)
+                 VALUES ${newItemInsertValues}`,
+                    newItemInsertParams
+                );
+
+                // Batch update stock using CASE statement
+                const newProdCodes = items.map(item => item.prod_code);
+                const newCaseStatements = items.map((item, idx) =>
+                    `WHEN prod_code = $${idx + 1} THEN current_stock + $${newProdCodes.length + idx + 1}`
                 ).join(' ');
 
-                const origStockParams = [
-                    ...origProdCodes,
-                    ...originalItems.rows.map(item => item.quantity)
+                const newStockUpdateParams = [
+                    ...newProdCodes,
+                    ...items.map(item => item.quantity)
                 ];
 
                 await client.query(
                     `UPDATE products
-                     SET current_stock = CASE ${origCaseStatements} END
-                     WHERE prod_code = ANY($1) AND comp_code = $2`,
-                    [origProdCodes, companyCode]
-                );
-            }
-
-            // Reverse supplier balance if it was different
-            if (oldInv.supplier_code !== supplier_code) {
-                await client.query(
-                    `UPDATE suppliers SET outstanding_balance = outstanding_balance - $1 WHERE supplier_code = $2 AND comp_code = $3`,
-                    [oldInv.total_amount, oldInv.supplier_code, companyCode]
-                );
-            }
-
-            // Update purchase invoice header
-            const updateRes = await client.query(
-                `UPDATE purchase_invoices SET purchase_date=$1, supplier_code=$2, total_amount=$3, status=$4, updated_by=$5, updated_at=CURRENT_TIMESTAMP
-                 WHERE purchase_id=$6 AND comp_code=$7 RETURNING *`,
-                [purchase_date, supplier_code, totalAmount, status || 'PENDING', req.user?.id, id, companyCode]
-            );
-
-            // Delete old purchase invoice items
-            await client.query('DELETE FROM purchase_invoice_items WHERE purchase_id = $1', [id]);
-
-            // OPTIMIZATION: Batch insert new items and update stock
-            const newItemInsertValues = items.map((_, idx) => {
-                const base = idx * 5;
-                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
-            }).join(', ');
-
-            const newItemInsertParams = items.flatMap(item => [
-                id,
-                item.prod_code,
-                item.quantity,
-                item.unit_price,
-                item.line_total
-            ]);
-
-            await client.query(
-                `INSERT INTO purchase_invoice_items (purchase_id, prod_code, quantity, unit_price, line_total)
-                 VALUES ${newItemInsertValues}`,
-                newItemInsertParams
-            );
-
-            // Batch update stock using CASE statement
-            const newProdCodes = items.map(item => item.prod_code);
-            const newCaseStatements = items.map((item, idx) =>
-                `WHEN prod_code = $${idx + 1} THEN current_stock + $${newProdCodes.length + idx + 1}`
-            ).join(' ');
-
-            const newStockUpdateParams = [
-                ...newProdCodes,
-                ...items.map(item => item.quantity)
-            ];
-
-            await client.query(
-                `UPDATE products
                  SET current_stock = CASE ${newCaseStatements} END
                  WHERE prod_code = ANY($1) AND comp_code = $2`,
-                [newProdCodes, companyCode]
-            );
-
-            // Update supplier balance for new invoice
-            if (oldInv.supplier_code !== supplier_code) {
-                await client.query(
-                    `UPDATE suppliers SET outstanding_balance = outstanding_balance + $1 WHERE supplier_code = $2 AND comp_code = $3`,
-                    [totalAmount, supplier_code, companyCode]
+                    [newProdCodes, companyCode]
                 );
-            } else {
-                // Update balance for same supplier (amount change)
-                const balanceDiff = totalAmount - oldInv.total_amount;
-                if (balanceDiff !== 0) {
+
+                // Update supplier balance for new invoice
+                if (oldInv.supplier_code !== supplier_code) {
                     await client.query(
                         `UPDATE suppliers SET outstanding_balance = outstanding_balance + $1 WHERE supplier_code = $2 AND comp_code = $3`,
-                        [balanceDiff, supplier_code, companyCode]
+                        [totalAmount, supplier_code, companyCode]
                     );
+                } else {
+                    // Update balance for same supplier (amount change)
+                    const balanceDiff = totalAmount - oldInv.total_amount;
+                    if (balanceDiff !== 0) {
+                        await client.query(
+                            `UPDATE suppliers SET outstanding_balance = outstanding_balance + $1 WHERE supplier_code = $2 AND comp_code = $3`,
+                            [balanceDiff, supplier_code, companyCode]
+                        );
+                    }
                 }
-            }
 
-            await client.query('COMMIT');
-            res.json(updateRes.rows[0]);
-        } catch (e) {
-            await client.query('ROLLBACK');
-            logger.error('Purchase invoice update error', e, { purchaseId: id, userId: req.user?.id });
-            res.status(500).json({ error: e.message });
-        } finally {
-            client.release();
-        }
-    });
+                await client.query('COMMIT');
+                res.json(updateRes.rows[0]);
+            } catch (e) {
+                await client.query('ROLLBACK');
+                logger.error('Purchase invoice update error', e, { purchaseId: id, userId: req.user?.id });
+                res.status(500).json({ error: e.message });
+            } finally {
+                client.release();
+            }
+        });
 };

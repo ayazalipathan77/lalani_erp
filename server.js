@@ -205,6 +205,7 @@ const pool = new pg.Pool({
 });
 
 // Pool event handlers for monitoring
+// Pool event handlers for monitoring (Errors only)
 pool.on('error', (err) => {
     logger.error('Unexpected database pool error', {
         error: err.message,
@@ -213,27 +214,17 @@ pool.on('error', (err) => {
     });
 });
 
+// Reduced logging for pool events to avoid noise
 pool.on('connect', () => {
-    logger.debug('New database client connected', {
-        totalCount: pool.totalCount,
-        idleCount: pool.idleCount,
-        waitingCount: pool.waitingCount
-    });
+    // logger.debug('New database client connected');
 });
 
 pool.on('acquire', () => {
-    logger.debug('Client acquired from pool', {
-        totalCount: pool.totalCount,
-        idleCount: pool.idleCount,
-        waitingCount: pool.waitingCount
-    });
+    // logger.debug('Client acquired from pool');
 });
 
 pool.on('remove', () => {
-    logger.debug('Client removed from pool', {
-        totalCount: pool.totalCount,
-        idleCount: pool.idleCount
-    });
+    // logger.debug('Client removed from pool');
 });
 
 // Graceful shutdown handlers
@@ -303,14 +294,14 @@ const authenticateToken = async (req, res, next) => {
 
         try {
             // Load user permissions from users table
-            console.log('[DEBUG] Loading permissions for user ID:', decoded.userId);
+            // console.log('[DEBUG] Loading permissions for user ID:', decoded.userId);
             const userResult = await pool.query(
                 'SELECT permissions FROM users WHERE user_id = $1',
                 [decoded.userId]
             );
 
             const userPermissions = userResult.rows[0]?.permissions || [];
-            console.log('[DEBUG] Loaded permissions from DB:', userPermissions);
+            // console.log('[DEBUG] Loaded permissions from DB:', userPermissions);
 
             req.user = {
                 id: decoded.userId,
@@ -319,7 +310,7 @@ const authenticateToken = async (req, res, next) => {
                 selectedCompany: decoded.selectedCompany || 'CMP01',
                 permissions: userPermissions
             };
-            console.log('[DEBUG] req.user set with permissions:', req.user.permissions);
+            // console.log('[DEBUG] req.user set with permissions:', req.user.permissions);
             // Only log successful token verification for important endpoints, not every request
             // This prevents log spam from frontend polling and routine requests
         } catch (error) {
