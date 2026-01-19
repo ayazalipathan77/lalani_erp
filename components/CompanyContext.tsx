@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Company } from '../types';
+import { Company, User } from '../types';
 import { api } from '../services/api';
 
 interface CompanyContextType {
@@ -13,30 +13,26 @@ const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
 
 interface CompanyProviderProps {
     children: ReactNode;
+    currentUser: User | null;
 }
 
-export const CompanyProvider: React.FC<CompanyProviderProps> = ({ children }) => {
+export const CompanyProvider: React.FC<CompanyProviderProps> = ({ children, currentUser }) => {
     const [selectedCompany, setSelectedCompanyState] = useState<string>(
         localStorage.getItem('selectedCompany') || 'CMP01'
     );
     const [companies, setCompanies] = useState<Company[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Load companies on mount
+    // Load companies when currentUser changes
     useEffect(() => {
         const fetchCompanies = async () => {
-            // Check if user is authenticated before fetching companies
-            const authToken = localStorage.getItem('authToken');
-            const currentUserStr = localStorage.getItem('currentUser');
-
-            if (!authToken || !currentUserStr) {
+            if (!currentUser) {
+                // Not authenticated
                 setIsLoading(false);
                 return;
             }
 
             try {
-                const currentUser = JSON.parse(currentUserStr);
-
                 // For USER role: Use their assigned company, no need to fetch company list
                 if (currentUser.role === 'USER') {
                     const userCompany = currentUser.default_company || selectedCompany || 'CMP01';
@@ -60,19 +56,13 @@ export const CompanyProvider: React.FC<CompanyProviderProps> = ({ children }) =>
                 setIsLoading(false);
             } catch (error) {
                 console.error('Failed to fetch companies:', error);
-                // If it's an actual authentication error (invalid/expired token), clear auth data
-                if (error instanceof Error && (error.message.includes('403') || error.message.includes('Forbidden') || error.message.includes('401') || error.message.includes('Unauthorized'))) {
-                    console.warn('Authentication failed - clearing auth data');
-                    localStorage.removeItem('authToken');
-                    localStorage.removeItem('currentUser');
-                    // The App component will detect missing auth and redirect to login
-                }
+                // Auth error handling is done by App component mostly, but we can be safe
                 setIsLoading(false);
             }
         };
 
         fetchCompanies();
-    }, []);
+    }, [currentUser]); // Re-run when user changes
 
     const setSelectedCompany = (companyCode: string) => {
         setSelectedCompanyState(companyCode);

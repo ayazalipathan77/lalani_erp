@@ -73,7 +73,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <>
+    <CompanyProvider currentUser={currentUser}>
       <Router>
         <Routes>
           <Route
@@ -101,7 +101,7 @@ const AppContent: React.FC = () => {
       </Router>
 
       {/* Global Fullscreen Loader removed as requested */}
-    </>
+    </CompanyProvider>
   );
 };
 
@@ -111,9 +111,8 @@ const App: React.FC = () => {
   return (
     <LoadingProvider>
       <NotificationProvider>
-        <CompanyProvider>
-          <AppContent />
-        </CompanyProvider>
+        {/* CompanyProvider moved inside AppContent to access currentUser state */}
+        <AppContent />
       </NotificationProvider>
     </LoadingProvider>
   );

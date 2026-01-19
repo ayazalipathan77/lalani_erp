@@ -82,7 +82,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   }, []);
 
   return (
-    <CompanyProvider>
+    <CompanyProvider currentUser={user}>
       <div className="flex min-h-screen bg-slate-50 font-sans">
         {/* Mobile Sidebar Overlay */}
         {isMobileSidebarOpen && (
