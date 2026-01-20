@@ -20,6 +20,16 @@ export const purchaseInvoices = {
         });
         return handleFetchResponse<{ data: PurchaseInvoice[], pagination: any }>(res);
     },
+    get: async (id: number): Promise<PurchaseInvoice> => {
+        if (USE_MOCK) {
+            await delay(300);
+            return {} as PurchaseInvoice;
+        }
+        const res = await fetch(`/api/purchase-invoices/${id}`, {
+            headers: getAuthHeaders()
+        });
+        return handleFetchResponse<PurchaseInvoice>(res);
+    },
     create: async (invoice: Omit<PurchaseInvoice, 'purchase_id'>): Promise<PurchaseInvoice> => {
         if (USE_MOCK) {
             await delay(300);

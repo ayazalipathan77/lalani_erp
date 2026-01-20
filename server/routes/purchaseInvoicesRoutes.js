@@ -51,6 +51,35 @@ export default (app, pool, logger) => {
             }
         });
 
+    // Purchase Invoices - GET Single (View permission required)
+    app.get('/api/purchase-invoices/:id',
+        requirePermission('PURCHASE_VIEW', 'PURCHASE_MANAGE'),
+        async (req, res) => {
+            try {
+                const { id } = req.params;
+                const companyCode = getCompanyContext(req);
+
+                const result = await pool.query(`
+                SELECT pi.*,
+                (SELECT json_agg(json_build_object('prod_code', pii.prod_code, 'quantity', pii.quantity, 'unit_price', pii.unit_price, 'line_total', pii.line_total, 'prod_name', p.prod_name))
+                 FROM purchase_invoice_items pii
+                 JOIN products p ON pii.prod_code = p.prod_code
+                 WHERE pii.purchase_id = pi.purchase_id) as items
+                FROM purchase_invoices pi
+                WHERE pi.purchase_id = $1 AND pi.comp_code = $2
+            `, [id, companyCode]);
+
+                if (result.rows.length === 0) {
+                    return res.status(404).json({ message: 'Purchase invoice not found' });
+                }
+
+                res.json(result.rows[0]);
+            } catch (err) {
+                logger.error('Purchase invoice fetch error', err, { userId: req.user?.id, purchaseId: req.params.id });
+                res.status(500).json({ error: err.message });
+            }
+        });
+
     // Purchase Invoices - POST (Manage permission required)
     app.post('/api/purchase-invoices',
         requirePermission('PURCHASE_MANAGE'),

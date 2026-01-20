@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Search, Plus, FileText, Check, Trash2, Calendar, User, ChevronLeft, Edit2, ShoppingCart, Printer } from 'lucide-react';
 import { useLoading } from '../../components/LoadingContext';
 import { useNotification } from '../../components/NotificationContext';
@@ -9,6 +10,8 @@ import { formatTableDate } from '../../src/utils/dateUtils';
 import MobileTable from '../../components/MobileTable';
 
 const PurchaseInvoices: React.FC = () => {
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
     const { selectedCompany } = useCompany();
     const [view, setView] = useState<'list' | 'create' | 'view'>('list');
     const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
@@ -53,7 +56,27 @@ const PurchaseInvoices: React.FC = () => {
 
     useEffect(() => {
         fetchData();
-    }, [selectedCompany]); // Refetch when company changes
+        if (id) {
+            fetchInvoiceDetails(parseInt(id));
+        }
+    }, [selectedCompany, id]); // Refetch when company changes or ID changes
+
+    const fetchInvoiceDetails = async (invoiceId: number) => {
+        setIsLoading(true);
+        try {
+            const invoice = await api.purchaseInvoices.get(invoiceId);
+            if (invoice) {
+                setViewingInvoice(invoice);
+                setView('view');
+            }
+        } catch (error) {
+            console.error("Error fetching invoice details:", error);
+            showNotification("Failed to load invoice details", "error");
+            navigate('/dashboard/purchase-invoices');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     // Calculations
     const subtotal = cartItems.reduce((acc, item) => acc + item.line_total, 0);
@@ -297,7 +320,10 @@ const PurchaseInvoices: React.FC = () => {
                                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 lg:p-6">
                                         <div className="flex justify-between items-center mb-6">
                                             <h2 className="text-lg font-bold text-slate-900">Add Purchase Items</h2>
-                                            <button onClick={() => setView('list')} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
+                                            <button onClick={() => {
+                                                setView('list');
+                                                navigate('/dashboard/purchase-invoices');
+                                            }} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
                                                 <ChevronLeft className="w-4 h-4 mr-1" /> Back to List
                                             </button>
                                         </div>
@@ -502,7 +528,11 @@ const PurchaseInvoices: React.FC = () => {
                                             <button onClick={() => window.print()} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
                                                 <Printer className="w-4 h-4 mr-1" /> Print
                                             </button>
-                                            <button onClick={() => setView('list')} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
+                                            <button onClick={() => {
+                                                setView('list');
+                                                setViewingInvoice(null);
+                                                navigate('/dashboard/purchase-invoices');
+                                            }} className="text-sm text-slate-500 hover:text-slate-800 flex items-center">
                                                 <ChevronLeft className="w-4 h-4 mr-1" /> Back to List
                                             </button>
                                         </div>
